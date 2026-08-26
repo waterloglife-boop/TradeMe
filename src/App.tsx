@@ -3,7 +3,6 @@ import { Navbar } from './components/Navbar';
 import { MapView } from './components/MapView';
 import { NaverMapView } from './components/NaverMapView';
 import { StoreDetailDrawer } from './components/StoreDetailDrawer';
-import { RegisterModal } from './components/RegisterModal';
 import { RegisterStoreAndItemsModal } from './components/RegisterStoreAndItemsModal';
 import { TradeProposalModal } from './components/TradeProposalModal';
 import { ChatDrawer } from './components/ChatDrawer';
@@ -11,6 +10,7 @@ import { AuthModal } from './components/AuthModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import { Store, ExchangeItem, ChatMessage } from './types/trade';
 import { fetchStoresFromSupabase, subscribeToTradeChat } from './lib/supabase';
+import { MapPin } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [myStore, setMyStore] = useState<Store>(MY_STORE_MOCK);
@@ -20,6 +20,12 @@ export const App: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [onlyBreakTime, setOnlyBreakTime] = useState<boolean>(false);
   const [mapEngine, setMapEngine] = useState<'LEAFLET' | 'NAVER'>('NAVER');
+
+  // Location Picker State
+  const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>({
+    lat: 35.1782,
+    lng: 129.1985,
+  });
 
   // Auth State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -84,6 +90,11 @@ export const App: React.FC = () => {
     setStores((prevStores) =>
       prevStores.map((s) => (s.id === myStore.id ? updatedMyStore : s))
     );
+  };
+
+  const handleMapClickPinLocation = (lat: number, lng: number) => {
+    setPickedLocation({ lat, lng });
+    setIsRegisterModalOpen(true);
   };
 
   const handleRegisterNewStoreAndItems = (newStore: Store) => {
@@ -192,6 +203,7 @@ export const App: React.FC = () => {
             selectedStore={selectedStore}
             onSelectStore={(store) => setSelectedStore(store)}
             myStore={myStore}
+            onMapClickPinLocation={handleMapClickPinLocation}
           />
         ) : (
           <NaverMapView
@@ -201,6 +213,12 @@ export const App: React.FC = () => {
             myStore={myStore}
           />
         )}
+
+        {/* Map Location Click Hint Pill */}
+        <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-orange-200 text-xs font-bold text-orange-900 flex items-center gap-1.5 animate-bounce">
+          <MapPin className="w-4 h-4 text-orange-600" />
+          <span>💡 지도를 클릭하시면 내 가게 핀 위치가 지정됩니다</span>
+        </div>
 
         {/* Map Engine Toggle Switch */}
         <div className="absolute bottom-6 left-6 z-20 bg-white/90 backdrop-blur px-3 py-2 rounded-xl shadow-lg border border-gray-200 text-xs flex items-center gap-2">
@@ -246,6 +264,8 @@ export const App: React.FC = () => {
         onClose={() => setIsRegisterModalOpen(false)}
         onSuccess={handleRegisterNewStoreAndItems}
         currentOwnerName={userOwnerName}
+        pickedLat={pickedLocation.lat}
+        pickedLng={pickedLocation.lng}
       />
 
       {/* 1:1 Equivalent Exchange Proposal Modal */}

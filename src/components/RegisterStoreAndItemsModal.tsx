@@ -8,6 +8,8 @@ interface RegisterStoreAndItemsModalProps {
   onClose: () => void;
   onSuccess: (newStore: Store) => void;
   currentOwnerName: string;
+  pickedLat?: number;
+  pickedLng?: number;
 }
 
 export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProps> = ({
@@ -15,6 +17,8 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   onClose,
   onSuccess,
   currentOwnerName,
+  pickedLat = 35.1782,
+  pickedLng = 129.1985,
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
@@ -95,8 +99,8 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
       category,
       categoryName,
       address,
-      lat: 35.1782,
-      lng: 129.1985,
+      lat: pickedLat,
+      lng: pickedLng,
       phone,
       isVerified: true,
       breakTimeActive,
@@ -126,7 +130,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
               STEP {step} / 2
             </span>
             <h2 className="font-extrabold text-base mt-1">
-              {step === 1 ? '🏬 우리 가게 프로필 등록' : '🍽️ 바꿔먹을 대표 메뉴 (2~3개) 등록'}
+              {step === 1 ? '🏬 우리 가게 프로필 & 지도 위치 등록' : '🍽️ 바꿔먹을 대표 메뉴 (2~3개) 등록'}
             </h2>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/20">
@@ -139,6 +143,18 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
           
           {step === 1 && (
             <div className="space-y-4">
+              
+              {/* Picked Location Coordinates Badge */}
+              <div className="bg-orange-50 border border-orange-200 p-2.5 rounded-xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-orange-900 font-bold">
+                  <MapPin className="w-4 h-4 text-orange-600" />
+                  <span>선택된 핀 좌표: {pickedLat.toFixed(4)}, {pickedLng.toFixed(4)}</span>
+                </div>
+                <span className="text-[10px] bg-orange-200 text-orange-900 px-2 py-0.5 rounded font-bold">
+                  지도 클릭 감지됨
+                </span>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">가게 상호명 *</label>
                 <input
@@ -325,7 +341,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                   className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5"
                 >
                   <Check className="w-4 h-4" />
-                  <span>{loading ? 'Supabase에 저장 중...' : '등록 완료 & Supabase DB 저장'}</span>
+                  <span>{loading ? 'Supabase에 저장 중...' : '등록 완료 & 지도 마커 반영'}</span>
                 </button>
               </div>
             </div>
