@@ -32,7 +32,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
 
   const clientId = import.meta.env.VITE_NAVER_CLIENT_ID;
 
-  // 1. Dynamic Script Injection for Naver Maps JavaScript SDK
+  // 1. Dynamic Script Injection for Naver Maps JavaScript SDK (ncpKeyId)
   useEffect(() => {
     if (!clientId) {
       return;
@@ -51,7 +51,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
     const script = document.createElement('script');
     script.id = scriptId;
     script.type = 'text/javascript';
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&ncpClientId=${clientId}`;
     script.async = true;
 
     script.onload = () => {
@@ -178,7 +178,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
       console.warn('Naver Maps render error:', err);
       setLoadError(true);
     }
-  }, [scriptLoaded, stores, selectedStore, myStore, onSelectStore]);
+  }, [scriptLoaded, stores, selectedStore, myStore, onSelectStore, onMapClickPinLocation]);
 
   // Fallback View if Client ID is missing or load / auth failed
   if (!clientId || loadError) {
@@ -189,11 +189,11 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
             <AlertCircle className="w-6 h-6" />
           </div>
           <h3 className="font-extrabold text-gray-900 text-base">
-            🗺️ 네이버 지도 API 인증 확인 필요
+            🗺️ 네이버 지도 API 인증 동기화 진행 중
           </h3>
           <p className="text-xs text-gray-600 leading-relaxed">
-            네이버 클라우드 콘솔의 <code>Web Dynamic Map</code> 서비스 선택 및 등록 주소를 확인 중입니다.<br/>
-            네이버 서버 인증 갱신(1~3분) 동안 <strong>기본 지도</strong>로 자동 연결됩니다.
+            네이버 클라우드 카드 승인 및 API 게이트웨이 동기화가 진행 중입니다. (약 3분 소요)<br/>
+            동기화 완료 후 새로고침하시면 고화질 지도가 로드됩니다.
           </p>
           <div className="bg-gray-900 text-amber-300 p-3 rounded-xl text-left text-xs font-mono">
             VITE_NAVER_CLIENT_ID={clientId || 'wvyrj9nprl'}
