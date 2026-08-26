@@ -197,48 +197,18 @@ export const App: React.FC = () => {
 
       {/* Main Map View */}
       <main className="relative flex-1">
-        {mapEngine === 'LEAFLET' ? (
-          <MapView
-            stores={filteredStores}
-            selectedStore={selectedStore}
-            onSelectStore={(store) => setSelectedStore(store)}
-            myStore={myStore}
-            onMapClickPinLocation={handleMapClickPinLocation}
-          />
-        ) : (
-          <NaverMapView
-            stores={filteredStores}
-            selectedStore={selectedStore}
-            onSelectStore={(store) => setSelectedStore(store)}
-            myStore={myStore}
-          />
-        )}
+        <NaverMapView
+          stores={filteredStores}
+          selectedStore={selectedStore}
+          onSelectStore={(store) => setSelectedStore(store)}
+          myStore={myStore}
+          onMapClickPinLocation={handleMapClickPinLocation}
+        />
 
         {/* Map Location Click Hint Pill */}
         <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-orange-200 text-xs font-bold text-orange-900 flex items-center gap-1.5 animate-bounce">
           <MapPin className="w-4 h-4 text-orange-600" />
           <span>💡 지도를 클릭하시면 내 가게 핀 위치가 지정됩니다</span>
-        </div>
-
-        {/* Map Engine Toggle Switch */}
-        <div className="absolute bottom-6 left-6 z-20 bg-white/90 backdrop-blur px-3 py-2 rounded-xl shadow-lg border border-gray-200 text-xs flex items-center gap-2">
-          <span className="font-bold text-gray-700">지도 엔진:</span>
-          <button
-            onClick={() => setMapEngine('LEAFLET')}
-            className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-              mapEngine === 'LEAFLET' ? 'bg-orange-500 text-white shadow' : 'bg-gray-100 text-gray-600'
-            }`}
-          >
-            기본 지도
-          </button>
-          <button
-            onClick={() => setMapEngine('NAVER')}
-            className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-              mapEngine === 'NAVER' ? 'bg-emerald-600 text-white shadow' : 'bg-gray-100 text-gray-600'
-            }`}
-          >
-            네이버 지도
-          </button>
         </div>
 
         {/* Selected Store Detail & Exchange Items Drawer */}
