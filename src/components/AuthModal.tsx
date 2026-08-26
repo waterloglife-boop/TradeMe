@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Lock, Mail, Building, ShieldCheck, ArrowRight, User } from 'lucide-react';
+import { signUpUser, signInUser, signInWithSocial } from '../lib/supabase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -20,20 +21,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [ownerName, setOwnerName] = useState('');
   const [storeName, setStoreName] = useState('');
   const [businessNumber, setBusinessNumber] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
     if (mode === 'LOGIN') {
-      onLoginSuccess('사장님', storeName || '내 가게');
+      const res = await signInUser(email, password);
+      if (res.success) {
+        onLoginSuccess(
+          res.user?.user_metadata?.owner_name || '사장님',
+          res.user?.user_metadata?.store_name || storeName || '내 가게'
+        );
+      }
     } else {
       if (!businessNumber) {
         alert('소상공인 신뢰 확보를 위해 사업자등록번호를 입력해 주세요.');
+        setLoading(false);
         return;
       }
-      onLoginSuccess(ownerName || '사장님', storeName || '신규 등록 가게');
+      const res = await signUpUser(email, password, ownerName, storeName, businessNumber);
+      if (res.success) {
+        onLoginSuccess(ownerName || '사장님', storeName || '신규 등록 가게');
+      }
     }
+
+    setLoading(false);
+    onClose();
+  };
+
+  const handleSocialLogin = async (provider: 'kakao' | 'naver') => {
+    await signInWithSocial(provider);
+    onLoginSuccess(`${provider === 'naver' ? '네이버' : '카카오'} 사장님`, '송정 해운대 식당');
     onClose();
   };
 
@@ -75,7 +97,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="text-center mb-2">
             <h3 className="font-extrabold text-gray-900 text-lg">
-              {mode === 'LOGIN' ? 'Trade Me 로그인' : '소상공인 사장님 회원가입'}
+              {mode === 'LOGIN' ? 'Trade Me 로그인 (Supabase)' : '소상공인 사장님 회원가입 (Supabase)'}
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
               1:1 등가교환으로 맛있는 식사 및 서비스를 바꿔먹으세요
@@ -86,20 +108,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => {
-                onLoginSuccess('네이버 사장님', '송정 해운대 식당');
-                onClose();
-              }}
+              onClick={() => handleSocialLogin('naver')}
               className="py-2.5 px-3 bg-[#03C75A] text-white font-bold text-xs rounded-xl shadow-sm hover:opacity-95 flex items-center justify-center gap-1.5"
             >
               <span className="font-black text-sm">N</span> 네이버 로그인
             </button>
             <button
               type="button"
-              onClick={() => {
-                onLoginSuccess('카카오 사장님', '송정 갈비집');
-                onClose();
-              }}
+              onClick={() => handleSocialLogin('kakao')}
               className="py-2.5 px-3 bg-[#FEE500] text-gray-900 font-bold text-xs rounded-xl shadow-sm hover:opacity-95 flex items-center justify-center gap-1.5"
             >
               <span className="font-black text-sm">K</span> 카카오 로그인
@@ -198,9 +214,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* Submit */}
           <button
             type="submit"
-            className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 mt-2"
+            disabled={loading}
+            className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 mt-2"
           >
-            <span>{mode === 'LOGIN' ? '로그인 하기' : '사장님 무료 가입 및 시작'}</span>
+            <span>{loading ? '처리 중...' : mode === 'LOGIN' ? '로그인 하기' : '사장님 무료 가입 및 시작'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>

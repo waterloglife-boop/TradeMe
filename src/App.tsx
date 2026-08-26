@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { MapView } from './components/MapView';
 import { NaverMapView } from './components/NaverMapView';
@@ -9,6 +9,7 @@ import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import { Store, ExchangeItem, ChatMessage } from './types/trade';
+import { fetchStoresFromSupabase, subscribeToTradeChat } from './lib/supabase';
 
 export const App: React.FC = () => {
   const [myStore, setMyStore] = useState<Store>(MY_STORE_MOCK);
@@ -44,6 +45,29 @@ export const App: React.FC = () => {
       },
     ],
   });
+
+  // Load Stores from Supabase on Mount
+  useEffect(() => {
+    async function loadStores() {
+      const fetched = await fetchStoresFromSupabase();
+      if (fetched && fetched.length > 0) {
+        setStores(fetched);
+      }
+    }
+    loadStores();
+  }, []);
+
+  // Supabase Realtime Chat Subscription for active chat store
+  useEffect(() => {
+    if (!chatTargetStore) return;
+    const unsubscribe = subscribeToTradeChat(chatTargetStore.id, (newMsg) => {
+      setMessagesMap((prev) => ({
+        ...prev,
+        [chatTargetStore.id]: [...(prev[chatTargetStore.id] || []), newMsg],
+      }));
+    });
+    return () => unsubscribe();
+  }, [chatTargetStore]);
 
   const handleLoginSuccess = (ownerName: string, storeName: string) => {
     setIsLoggedIn(true);
