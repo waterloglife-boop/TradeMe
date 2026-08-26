@@ -196,7 +196,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
             동기화 완료 후 새로고침하시면 고화질 지도가 로드됩니다.
           </p>
           <div className="bg-gray-900 text-amber-300 p-3 rounded-xl text-left text-xs font-mono">
-            VITE_NAVER_CLIENT_ID={clientId || 'wvyrj9nprl'}
+            VITE_NAVER_CLIENT_ID={clientId || '8ek0m4smqn'}
           </div>
         </div>
       </div>
