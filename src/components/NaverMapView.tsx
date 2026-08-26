@@ -89,8 +89,13 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
           const mapOptions = {
             center: new window.naver.maps.LatLng(35.1788, 129.1995),
             zoom: 15,
+            mapTypeControl: true,
+            mapTypeControlOptions: {
+              style: window.naver.maps.MapTypeControlStyle.BUTTON,
+              position: window.naver.maps.Position.TOP_RIGHT,
+            },
             zoomControl: true,
-            zoomControlOptions: { position: window.naver.maps.Position.TOP_RIGHT },
+            zoomControlOptions: { position: window.naver.maps.Position.RIGHT_CENTER },
           };
           naverMapInstanceRef.current = new window.naver.maps.Map(mapContainerRef.current, mapOptions);
 
