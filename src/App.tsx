@@ -19,7 +19,7 @@ export const App: React.FC = () => {
   const [selectedStore, setSelectedStore] = useState<Store | null>(INITIAL_STORES[0]);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [onlyBreakTime, setOnlyBreakTime] = useState<boolean>(false);
-  const [mapEngine, setMapEngine] = useState<'LEAFLET' | 'NAVER'>('LEAFLET');
+  const [mapEngine, setMapEngine] = useState<'LEAFLET' | 'NAVER'>('NAVER');
 
   // Auth State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
