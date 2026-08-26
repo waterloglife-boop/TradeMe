@@ -8,6 +8,7 @@ interface MapViewProps {
   selectedStore: Store | null;
   onSelectStore: (store: Store) => void;
   myStore: Store;
+  onMapClickPinLocation?: (lat: number, lng: number) => void;
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -15,15 +16,16 @@ export const MapView: React.FC<MapViewProps> = ({
   selectedStore,
   onSelectStore,
   myStore,
+  onMapClickPinLocation,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
+  const tempPickerMarkerRef = useRef<L.Marker | null>(null);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Initialize Map centered around Busan Songjeong beach area (35.1788, 129.1995)
     if (!mapInstanceRef.current) {
       const map = L.map(mapContainerRef.current, {
         center: [35.1788, 129.1995],
@@ -36,16 +38,37 @@ export const MapView: React.FC<MapViewProps> = ({
       }).addTo(map);
 
       L.control.zoom({ position: 'topright' }).addTo(map);
+
+      // Handle map click for location picking
+      map.on('click', (e: L.LeafletMouseEvent) => {
+        const { lat, lng } = e.latlng;
+        if (tempPickerMarkerRef.current) {
+          tempPickerMarkerRef.current.remove();
+        }
+
+        const tempIcon = L.divIcon({
+          html: `<div class="w-8 h-8 rounded-full bg-red-600 border-2 border-white shadow-xl flex items-center justify-center text-white font-bold animate-bounce">📍</div>`,
+          className: 'custom-map-pin',
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+        });
+
+        tempPickerMarkerRef.current = L.marker([lat, lng], { icon: tempIcon }).addTo(map);
+
+        if (onMapClickPinLocation) {
+          onMapClickPinLocation(lat, lng);
+        }
+      });
+
       mapInstanceRef.current = map;
     }
 
     const map = mapInstanceRef.current;
 
-    // Clear previous markers
+    // Clear previous store markers
     Object.values(markersRef.current).forEach((marker) => marker.remove());
     markersRef.current = {};
 
-    // Helper to create HTML icon for stores
     const createCustomIcon = (store: Store, isMyStore: boolean) => {
       const isBreakTime = store.breakTimeActive;
       const isSelected = selectedStore?.id === store.id;
@@ -114,11 +137,10 @@ export const MapView: React.FC<MapViewProps> = ({
       markersRef.current[store.id] = marker;
     });
 
-  }, [stores, selectedStore, myStore, onSelectStore]);
+  }, [stores, selectedStore, myStore, onSelectStore, onMapClickPinLocation]);
 
   return (
     <div className="relative w-full h-[calc(100vh-64px)] overflow-hidden">
-      {/* Map Container */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
       {/* Map Legend Overlay */}

@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { MapView } from './components/MapView';
+import { NaverMapView } from './components/NaverMapView';
 import { StoreDetailDrawer } from './components/StoreDetailDrawer';
-import { RegisterModal } from './components/RegisterModal';
+import { RegisterStoreAndItemsModal } from './components/RegisterStoreAndItemsModal';
 import { TradeProposalModal } from './components/TradeProposalModal';
 import { ChatDrawer } from './components/ChatDrawer';
+import { AuthModal } from './components/AuthModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import { Store, ExchangeItem, ChatMessage } from './types/trade';
+import { fetchStoresFromSupabase, subscribeToTradeChat } from './lib/supabase';
+import { MapPin } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [myStore, setMyStore] = useState<Store>(MY_STORE_MOCK);
@@ -15,6 +19,18 @@ export const App: React.FC = () => {
   const [selectedStore, setSelectedStore] = useState<Store | null>(INITIAL_STORES[0]);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [onlyBreakTime, setOnlyBreakTime] = useState<boolean>(false);
+  const [mapEngine, setMapEngine] = useState<'LEAFLET' | 'NAVER'>('NAVER');
+
+  // Location Picker State
+  const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>({
+    lat: 35.1782,
+    lng: 129.1985,
+  });
+
+  // Auth State
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [userOwnerName, setUserOwnerName] = useState('홍길동 사장님');
 
   // Modals & Drawers state
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -37,7 +53,35 @@ export const App: React.FC = () => {
     ],
   });
 
-  // Toggle My Store Break Time status
+  // Load Stores from Supabase on Mount
+  useEffect(() => {
+    async function loadStores() {
+      const fetched = await fetchStoresFromSupabase();
+      if (fetched && fetched.length > 0) {
+        setStores(fetched);
+      }
+    }
+    loadStores();
+  }, []);
+
+  // Supabase Realtime Chat Subscription for active chat store
+  useEffect(() => {
+    if (!chatTargetStore) return;
+    const unsubscribe = subscribeToTradeChat(chatTargetStore.id, (newMsg) => {
+      setMessagesMap((prev) => ({
+        ...prev,
+        [chatTargetStore.id]: [...(prev[chatTargetStore.id] || []), newMsg],
+      }));
+    });
+    return () => unsubscribe();
+  }, [chatTargetStore]);
+
+  const handleLoginSuccess = (ownerName: string, storeName: string) => {
+    setIsLoggedIn(true);
+    setUserOwnerName(ownerName);
+    setMyStore((prev) => ({ ...prev, ownerName, storeName }));
+  };
+
   const handleToggleBreakTime = () => {
     const updatedStatus = !myStore.breakTimeActive;
     const updatedMyStore = { ...myStore, breakTimeActive: updatedStatus };
@@ -48,37 +92,22 @@ export const App: React.FC = () => {
     );
   };
 
-  // Register New Exchange Item for My Store
-  const handleRegisterNewItem = (newItem: Omit<ExchangeItem, 'id' | 'storeId'>) => {
-    const createdItem: ExchangeItem = {
-      ...newItem,
-      id: `my-item-${Date.now()}`,
-      storeId: myStore.id,
-    };
-
-    const updatedMyStore = {
-      ...myStore,
-      exchangeItems: [createdItem, ...myStore.exchangeItems],
-    };
-
-    setMyStore(updatedMyStore);
-    setStores((prevStores) =>
-      prevStores.map((s) => (s.id === myStore.id ? updatedMyStore : s))
-    );
-
-    // If currently selected store is my store, update selectedStore
-    if (selectedStore?.id === myStore.id) {
-      setSelectedStore(updatedMyStore);
-    }
+  const handleMapClickPinLocation = (lat: number, lng: number) => {
+    setPickedLocation({ lat, lng });
+    setIsRegisterModalOpen(true);
   };
 
-  // Open 1:1 Proposal Modal
+  const handleRegisterNewStoreAndItems = (newStore: Store) => {
+    setMyStore(newStore);
+    setStores((prevStores) => [newStore, ...prevStores]);
+    setSelectedStore(newStore);
+  };
+
   const handleOpenProposal = (targetItem: ExchangeItem) => {
     setTargetProposalItem(targetItem);
     setIsProposalModalOpen(true);
   };
 
-  // Send 1:1 Proposal Action
   const handleSendProposal = (
     myMenu: ExchangeItem,
     targetMenu: ExchangeItem,
@@ -116,13 +145,11 @@ export const App: React.FC = () => {
     setIsChatDrawerOpen(true);
   };
 
-  // Open Chat Drawer for a Store
   const handleOpenChat = (store: Store) => {
     setChatTargetStore(store);
     setIsChatDrawerOpen(true);
   };
 
-  // Send message in chat drawer
   const handleSendChatMessage = (text: string) => {
     if (!chatTargetStore) return;
     const storeId = chatTargetStore.id;
@@ -142,7 +169,6 @@ export const App: React.FC = () => {
     }));
   };
 
-  // Filter stores according to active category and breaktime toggle
   const filteredStores = stores.filter((store) => {
     if (onlyBreakTime && !store.breakTimeActive) return false;
     if (selectedCategory === 'ALL') return true;
@@ -154,11 +180,14 @@ export const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col font-sans">
       
-      {/* Navbar with Break Time Toggle SW & Filters */}
+      {/* Navbar with Auth & Break Time Toggle */}
       <Navbar
         myBreakTimeActive={myStore.breakTimeActive}
         onToggleBreakTime={handleToggleBreakTime}
         onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        isLoggedIn={isLoggedIn}
+        userOwnerName={userOwnerName}
         selectedCategory={selectedCategory}
         onSelectCategory={setSelectedCategory}
         onlyBreakTime={onlyBreakTime}
@@ -166,14 +195,51 @@ export const App: React.FC = () => {
         storeCount={filteredStores.length}
       />
 
-      {/* Main Interactive Map View */}
+      {/* Main Map View */}
       <main className="relative flex-1">
-        <MapView
-          stores={filteredStores}
-          selectedStore={selectedStore}
-          onSelectStore={(store) => setSelectedStore(store)}
-          myStore={myStore}
-        />
+        {mapEngine === 'LEAFLET' ? (
+          <MapView
+            stores={filteredStores}
+            selectedStore={selectedStore}
+            onSelectStore={(store) => setSelectedStore(store)}
+            myStore={myStore}
+            onMapClickPinLocation={handleMapClickPinLocation}
+          />
+        ) : (
+          <NaverMapView
+            stores={filteredStores}
+            selectedStore={selectedStore}
+            onSelectStore={(store) => setSelectedStore(store)}
+            myStore={myStore}
+          />
+        )}
+
+        {/* Map Location Click Hint Pill */}
+        <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-orange-200 text-xs font-bold text-orange-900 flex items-center gap-1.5 animate-bounce">
+          <MapPin className="w-4 h-4 text-orange-600" />
+          <span>💡 지도를 클릭하시면 내 가게 핀 위치가 지정됩니다</span>
+        </div>
+
+        {/* Map Engine Toggle Switch */}
+        <div className="absolute bottom-6 left-6 z-20 bg-white/90 backdrop-blur px-3 py-2 rounded-xl shadow-lg border border-gray-200 text-xs flex items-center gap-2">
+          <span className="font-bold text-gray-700">지도 엔진:</span>
+          <button
+            onClick={() => setMapEngine('LEAFLET')}
+            className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+              mapEngine === 'LEAFLET' ? 'bg-orange-500 text-white shadow' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            기본 지도
+          </button>
+          <button
+            onClick={() => setMapEngine('NAVER')}
+            className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+              mapEngine === 'NAVER' ? 'bg-emerald-600 text-white shadow' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            네이버 지도
+          </button>
+        </div>
 
         {/* Selected Store Detail & Exchange Items Drawer */}
         <StoreDetailDrawer
@@ -185,11 +251,21 @@ export const App: React.FC = () => {
         />
       </main>
 
-      {/* Register New Exchange Item Modal */}
-      <RegisterModal
+      {/* Auth Modal (Login / Sign up) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+      />
+
+      {/* Register Store & Exchange Items Modal */}
+      <RegisterStoreAndItemsModal
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
-        onRegister={handleRegisterNewItem}
+        onSuccess={handleRegisterNewStoreAndItems}
+        currentOwnerName={userOwnerName}
+        pickedLat={pickedLocation.lat}
+        pickedLng={pickedLocation.lng}
       />
 
       {/* 1:1 Equivalent Exchange Proposal Modal */}

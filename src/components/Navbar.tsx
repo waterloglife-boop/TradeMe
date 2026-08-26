@@ -1,11 +1,13 @@
 import React from 'react';
-import { RefreshCw, Plus, Store, Clock, Utensils, Bed, Filter, CheckCircle2 } from 'lucide-react';
-import { StoreCategory } from '../types/trade';
+import { RefreshCw, Plus, Store, Clock, Utensils, Bed, User, LogIn } from 'lucide-react';
 
 interface NavbarProps {
   myBreakTimeActive: boolean;
   onToggleBreakTime: () => void;
   onOpenRegisterModal: () => void;
+  onOpenAuthModal: () => void;
+  isLoggedIn: boolean;
+  userOwnerName: string;
   selectedCategory: string;
   onSelectCategory: (cat: string) => void;
   onlyBreakTime: boolean;
@@ -17,6 +19,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   myBreakTimeActive,
   onToggleBreakTime,
   onOpenRegisterModal,
+  onOpenAuthModal,
+  isLoggedIn,
+  userOwnerName,
   selectedCategory,
   onSelectCategory,
   onlyBreakTime,
@@ -40,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   Trade Me
                 </span>
                 <span className="px-2 py-0.5 text-xs font-semibold bg-orange-100 text-orange-700 rounded-full border border-orange-200">
-                  사장님 1:1 바꿔먹기
+                  소상공인 1:1 바꿔먹기
                 </span>
               </div>
               <p className="text-xs text-gray-500 hidden sm:block">
@@ -49,8 +54,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Right Action Controls: Break Time Toggle & Register Button */}
-          <div className="flex items-center gap-3">
+          {/* Right Action Controls */}
+          <div className="flex items-center gap-2.5">
             
             {/* Break Time Toggle Box */}
             <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-full border transition-all ${
@@ -81,18 +86,35 @@ export const Navbar: React.FC<NavbarProps> = ({
                 />
               </button>
               <span className={`text-xs font-bold ${myBreakTimeActive ? 'text-amber-700' : 'text-gray-500'}`}>
-                {myBreakTimeActive ? '교환 가능 ON' : 'OFF'}
+                {myBreakTimeActive ? '교환 ON' : 'OFF'}
               </span>
             </div>
 
             {/* Item Registration Button */}
             <button
               onClick={onOpenRegisterModal}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
-              <span className="hidden sm:inline">내 교환 메뉴 등록</span>
-              <span className="sm:hidden">등록</span>
+              <span className="hidden sm:inline">메뉴 등록</span>
+            </button>
+
+            {/* Login / Auth Button */}
+            <button
+              onClick={onOpenAuthModal}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-all"
+            >
+              {isLoggedIn ? (
+                <>
+                  <User className="w-4 h-4 text-orange-500" />
+                  <span className="hidden sm:inline">{userOwnerName}</span>
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-4 h-4 text-gray-600" />
+                  <span>로그인/가입</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -136,7 +158,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
 
-          {/* Quick Filter: Show Breaktime Only */}
+          {/* Quick Filter */}
           <button
             onClick={onToggleOnlyBreakTime}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
