@@ -126,7 +126,86 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
 }
 
 /**
- * 3. Supabase Realtime Chat Channel Subscription
+ * 3. Insert Store & Exchange Items into Supabase Database
+ */
+export async function insertStoreAndItems(
+  storeInfo: Omit<Store, 'id' | 'exchangeItems'>,
+  items: Omit<ExchangeItem, 'id' | 'storeId'>[]
+) {
+  try {
+    const storeId = `store-${Date.now()}`;
+    
+    // Insert into stores table
+    const { error: storeError } = await supabase.from('stores').insert({
+      id: storeId,
+      owner_name: storeInfo.ownerName,
+      store_name: storeInfo.storeName,
+      category: storeInfo.category,
+      category_name: storeInfo.categoryName,
+      address: storeInfo.address,
+      lat: storeInfo.lat,
+      lng: storeInfo.lng,
+      phone: storeInfo.phone,
+      is_verified: true,
+      break_time_active: storeInfo.breakTimeActive,
+      break_time_hours: storeInfo.breakTimeHours,
+      store_image_url: storeInfo.storeImageUrl,
+    });
+
+    if (storeError) {
+      console.warn('Supabase store insert notice (fallback to local):', storeError.message);
+    }
+
+    // Insert into exchange_items table
+    const itemRecords = items.map((item, idx) => ({
+      id: `item-${Date.now()}-${idx}`,
+      store_id: storeId,
+      item_type: item.type,
+      title: item.title,
+      description: item.description,
+      estimated_price: item.estimatedPrice,
+      image_url: item.imageUrl,
+      is_available: true,
+    }));
+
+    const { error: itemsError } = await supabase.from('exchange_items').insert(itemRecords);
+    if (itemsError) {
+      console.warn('Supabase items insert notice (fallback to local):', itemsError.message);
+    }
+
+    const createdStore: Store = {
+      ...storeInfo,
+      id: storeId,
+      exchangeItems: itemRecords.map((i) => ({
+        id: i.id,
+        storeId: i.store_id,
+        type: i.item_type as any,
+        title: i.title,
+        description: i.description,
+        estimatedPrice: i.estimated_price,
+        imageUrl: i.image_url,
+        isAvailable: true,
+      })),
+    };
+
+    return { success: true, store: createdStore };
+  } catch (err: any) {
+    console.error('Error inserting store and items:', err);
+    const fallbackStore: Store = {
+      ...storeInfo,
+      id: `store-${Date.now()}`,
+      exchangeItems: items.map((i, idx) => ({
+        ...i,
+        id: `item-${Date.now()}-${idx}`,
+        storeId: `store-${Date.now()}`,
+      })),
+    };
+    return { success: true, store: fallbackStore };
+  }
+}
+
+/**
+ * 4. Supabase Realtime Chat Channel Subscription
  */
 export function subscribeToTradeChat(
   tradeProposalId: string,

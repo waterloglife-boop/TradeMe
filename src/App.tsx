@@ -4,6 +4,7 @@ import { MapView } from './components/MapView';
 import { NaverMapView } from './components/NaverMapView';
 import { StoreDetailDrawer } from './components/StoreDetailDrawer';
 import { RegisterModal } from './components/RegisterModal';
+import { RegisterStoreAndItemsModal } from './components/RegisterStoreAndItemsModal';
 import { TradeProposalModal } from './components/TradeProposalModal';
 import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
@@ -85,26 +86,10 @@ export const App: React.FC = () => {
     );
   };
 
-  const handleRegisterNewItem = (newItem: Omit<ExchangeItem, 'id' | 'storeId'>) => {
-    const createdItem: ExchangeItem = {
-      ...newItem,
-      id: `my-item-${Date.now()}`,
-      storeId: myStore.id,
-    };
-
-    const updatedMyStore = {
-      ...myStore,
-      exchangeItems: [createdItem, ...myStore.exchangeItems],
-    };
-
-    setMyStore(updatedMyStore);
-    setStores((prevStores) =>
-      prevStores.map((s) => (s.id === myStore.id ? updatedMyStore : s))
-    );
-
-    if (selectedStore?.id === myStore.id) {
-      setSelectedStore(updatedMyStore);
-    }
+  const handleRegisterNewStoreAndItems = (newStore: Store) => {
+    setMyStore(newStore);
+    setStores((prevStores) => [newStore, ...prevStores]);
+    setSelectedStore(newStore);
   };
 
   const handleOpenProposal = (targetItem: ExchangeItem) => {
@@ -255,11 +240,12 @@ export const App: React.FC = () => {
         onLoginSuccess={handleLoginSuccess}
       />
 
-      {/* Register New Exchange Item Modal */}
-      <RegisterModal
+      {/* Register Store & Exchange Items Modal */}
+      <RegisterStoreAndItemsModal
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
-        onRegister={handleRegisterNewItem}
+        onSuccess={handleRegisterNewStoreAndItems}
+        currentOwnerName={userOwnerName}
       />
 
       {/* 1:1 Equivalent Exchange Proposal Modal */}
