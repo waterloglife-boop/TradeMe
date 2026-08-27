@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Lock, Mail, Building, ShieldCheck, ArrowRight, User, LogOut, CheckCircle2, Phone, AlertTriangle } from 'lucide-react';
-import { signUpUser, signInUser } from '../lib/supabase';
+import { X, Lock, Mail, Building, ShieldCheck, ArrowRight, User, LogOut, CheckCircle2, Phone, AlertTriangle, Search, Check } from 'lucide-react';
+import { signUpUser, signInUser, verifyNtsBusinessStatus } from '../lib/supabase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -47,6 +47,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [phone, setPhone] = useState('0553851234');
   const [businessNumber, setBusinessNumber] = useState('1234567890');
   const [loading, setLoading] = useState(false);
+  const [ntsVerifying, setNtsVerifying] = useState(false);
+  const [ntsStatusMessage, setNtsStatusMessage] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [duplicateField, setDuplicateField] = useState<'EMAIL' | 'PHONE' | null>(null);
@@ -78,9 +80,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
     setToastMessage(null);
     setDuplicateField(null);
+    setNtsStatusMessage(null);
   }, [isLoggedIn, userOwnerName, userStoreName, isOpen]);
 
   if (!isOpen) return null;
+
+  // 🇰🇷 국세청 실시간 사업자 상태조회 API 핸들러
+  const handleVerifyNtsBusiness = async () => {
+    const cleanBno = businessNumber.replace(/[^0-9]/g, '');
+    if (cleanBno.length !== 10) {
+      setToastMessage('⚠️ 사업자등록번호 10자리를 (-) 없이 숫자만 정확히 입력해 주세요.');
+      return;
+    }
+    setNtsVerifying(true);
+    setToastMessage(null);
+
+    const res = await verifyNtsBusinessStatus(cleanBno);
+    setNtsVerifying(false);
+
+    if (res.isValid) {
+      setNtsStatusMessage(res.message);
+    } else {
+      setNtsStatusMessage(null);
+      setToastMessage(`⚠️ ${res.message}`);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,8 +156,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      if (!cleanBno) {
-        alert('소상공인 신뢰 확보를 위해 사업자등록번호 10자리를 (-) 없이 입력해 주세요.');
+      if (!cleanBno || cleanBno.length !== 10) {
+        setToastMessage('⚠️ 소상공인 신뢰 확보를 위해 사업자등록번호 10자리를 (-) 없이 입력해 주세요.');
         setLoading(false);
         return;
       }
@@ -226,6 +250,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
+          {/* NTS Verification Success Banner */}
+          {ntsStatusMessage && (
+            <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-top-2">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>{ntsStatusMessage}</span>
+            </div>
+          )}
+
           {/* PROFILE EDIT MODE */}
           {mode === 'PROFILE' && (
             <>
@@ -295,18 +327,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <label className="block text-xs font-bold text-gray-700 mb-0.5 flex items-center justify-between">
                   <span>사업자등록번호 (10자리)</span>
                   <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-                    <ShieldCheck className="w-3 h-3" /> 인증완료
+                    <ShieldCheck className="w-3 h-3" /> 국세청 인증완료
                   </span>
                 </label>
                 <p className="text-[11px] text-gray-500 font-normal mb-1">💡 (-) 하이픈 제외하고 번호만 입력</p>
-                <input
-                  type="text"
-                  maxLength={10}
-                  value={businessNumber}
-                  onChange={(e) => setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                  placeholder="1234567890"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    maxLength={10}
+                    value={businessNumber}
+                    onChange={(e) => setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="1234567890"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyNtsBusiness}
+                    disabled={ntsVerifying}
+                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm whitespace-nowrap"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>{ntsVerifying ? '조회 중...' : '국세청 조회'}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="pt-2 flex flex-col gap-2">
@@ -452,19 +495,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <label className="block text-xs font-bold text-gray-700 mb-0.5 flex items-center justify-between">
                       <span>사업자등록번호 (10자리)</span>
                       <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-                        <ShieldCheck className="w-3 h-3" /> 인증필수
+                        <ShieldCheck className="w-3 h-3" /> 실시간 인증가능
                       </span>
                     </label>
                     <p className="text-[11px] text-gray-500 font-normal mb-1">💡 (-) 하이픈 제외하고 번호만 입력</p>
-                    <input
-                      type="text"
-                      required
-                      maxLength={10}
-                      placeholder="1234567890"
-                      value={businessNumber}
-                      onChange={(e) => setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        required
+                        maxLength={10}
+                        placeholder="1234567890"
+                        value={businessNumber}
+                        onChange={(e) => setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyNtsBusiness}
+                        disabled={ntsVerifying}
+                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm whitespace-nowrap"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>{ntsVerifying ? '조회 중...' : '국세청 조회'}</span>
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
