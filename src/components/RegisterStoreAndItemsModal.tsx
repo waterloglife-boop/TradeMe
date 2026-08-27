@@ -213,7 +213,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                 <input
                   type="text"
                   required
-                  placeholder="예: 마라위크 (양산 북정점)"
+                  placeholder="예: 송정 수제돈까스"
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                   className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"

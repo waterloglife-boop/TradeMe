@@ -42,8 +42,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [ownerName, setOwnerName] = useState(userOwnerName || '사장님 (마라위크)');
-  const [storeName, setStoreName] = useState(userStoreName || '마라위크 (양산 북정점)');
+  const [ownerName, setOwnerName] = useState(userOwnerName || '홍길동 사장님');
+  const [storeName, setStoreName] = useState(userStoreName || '송정 수제돈까스');
   const [phone, setPhone] = useState('0553851234');
   const [businessNumber, setBusinessNumber] = useState('1234567890');
   const [loading, setLoading] = useState(false);
@@ -127,8 +127,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await signInUser(email, password);
       if (res.success) {
         onLoginSuccess(
-          res.user?.user_metadata?.owner_name || '사장님 (마라위크)',
-          res.user?.user_metadata?.store_name || storeName || '마라위크 (양산 북정점)'
+          res.user?.user_metadata?.owner_name || '홍길동 사장님',
+          res.user?.user_metadata?.store_name || storeName || '송정 수제돈까스'
         );
         onClose();
       }
@@ -177,7 +177,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (res.success) {
         setRegisteredEmails((prev) => [...prev, lowerEmail]);
         if (cleanPhone) setRegisteredPhones((prev) => [...prev, cleanPhone]);
-        onLoginSuccess(ownerName || '사장님 (마라위크)', storeName || '마라위크 (양산 북정점)');
+        onLoginSuccess(ownerName || '홍길동 사장님', storeName || '송정 수제돈까스');
         onClose();
       }
     }
@@ -441,7 +441,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <input
                         type="text"
                         required
-                        placeholder="사장님 (마라위크)"
+                        placeholder="홍길동 사장님"
                         value={ownerName}
                         onChange={(e) => setOwnerName(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
@@ -457,7 +457,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <input
                         type="text"
                         required
-                        placeholder="예: 마라위크 (양산 북정점)"
+                        placeholder="예: 송정 수제돈까스"
                         value={storeName}
                         onChange={(e) => setStoreName(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
