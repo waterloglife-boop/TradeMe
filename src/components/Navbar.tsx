@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, User, LogIn } from 'lucide-react';
+import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, User, LogIn } from 'lucide-react';
 
 interface NavbarProps {
   myBreakTimeActive: boolean;
@@ -142,19 +142,31 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Utensils className="w-3.5 h-3.5" />
-              식당 & 카페
+              요식업
             </button>
 
             <button
-              onClick={() => onSelectCategory('CONVENIENCE')}
+              onClick={() => onSelectCategory('RETAIL')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full font-medium transition-all ${
-                selectedCategory === 'CONVENIENCE'
+                selectedCategory === 'RETAIL'
                   ? 'bg-orange-500 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
               <ShoppingBag className="w-3.5 h-3.5 text-amber-500" />
-              편의점 & 베이커리
+              유통 & 신선
+            </button>
+
+            <button
+              onClick={() => onSelectCategory('BEAUTY')}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full font-medium transition-all ${
+                selectedCategory === 'BEAUTY'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-pink-500" />
+              뷰티 & 케어
             </button>
 
             <button
@@ -166,7 +178,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Bed className="w-3.5 h-3.5" />
-              숙박 및 서비스
+              숙박 & 레저
+            </button>
+
+            <button
+              onClick={() => onSelectCategory('SERVICE')}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full font-medium transition-all ${
+                selectedCategory === 'SERVICE'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <Store className="w-3.5 h-3.5 text-blue-500" />
+              생활 & 서비스
             </button>
           </div>
 

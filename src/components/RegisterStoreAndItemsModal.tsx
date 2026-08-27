@@ -175,22 +175,44 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                     onChange={(e) => {
                       const cat = e.target.value as StoreCategory;
                       setCategory(cat);
-                      const nameMap: any = {
-                        KOREAN: '한식/구이',
-                        JAPANESE: '일식/초밥',
-                        WESTERN: '양식/파스타',
-                        ACCOMMODATION: '숙박/펜션',
+                      const nameMap: Record<string, string> = {
+                        KOREAN: '한식',
+                        JAPANESE: '일식',
+                        WESTERN: '양식',
+                        CHINESE: '중식',
+                        SNACK: '분식',
                         CAFE: '카페/디저트',
+                        PUB: '주점/호프',
+                        CONVENIENCE: '편의점',
+                        BAKERY: '베이커리/떡집',
+                        FRESH_FOOD: '정육/수산/과일',
+                        BEAUTY: '뷰티/케어',
+                        ACCOMMODATION: '숙박/펜션',
+                        LEISURE: '레저/체험',
+                        LAUNDRY: '세탁/수리',
+                        FITNESS: '헬스/스포츠',
+                        OTHER: '기타 서비스',
                       };
-                      setCategoryName(nameMap[cat] || '기타');
+                      setCategoryName(nameMap[cat] || '기타 서비스');
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold outline-none"
                   >
-                    <option value="KOREAN">🍱 한식/구이</option>
-                    <option value="JAPANESE">🍣 일식/초밥</option>
-                    <option value="WESTERN">🍝 양식/파스타</option>
-                    <option value="ACCOMMODATION">🏨 숙박/펜션</option>
+                    <option value="KOREAN">🍱 한식</option>
+                    <option value="JAPANESE">🍣 일식</option>
+                    <option value="WESTERN">🍝 양식</option>
+                    <option value="CHINESE">🥟 중식</option>
+                    <option value="SNACK">🍢 분식</option>
                     <option value="CAFE">☕ 카페/디저트</option>
+                    <option value="PUB">🍺 주점/호프</option>
+                    <option value="CONVENIENCE">🏪 편의점</option>
+                    <option value="BAKERY">🍞 베이커리/떡집</option>
+                    <option value="FRESH_FOOD">🥩 정육/수산/과일</option>
+                    <option value="BEAUTY">💄 뷰티 (미용/네일/피부)</option>
+                    <option value="ACCOMMODATION">🏨 숙박 (호텔/펜션)</option>
+                    <option value="LEISURE">🏄 레저/체험</option>
+                    <option value="LAUNDRY">🧺 세탁/수리</option>
+                    <option value="FITNESS">💪 헬스/스포츠</option>
+                    <option value="OTHER">🔮 기타 서비스</option>
                   </select>
                 </div>
 

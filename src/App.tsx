@@ -174,9 +174,11 @@ export const App: React.FC = () => {
   const filteredStores = stores.filter((store) => {
     if (onlyBreakTime && !store.breakTimeActive) return false;
     if (selectedCategory === 'ALL') return true;
-    if (selectedCategory === 'FOOD') return ['KOREAN', 'JAPANESE', 'WESTERN', 'CHINESE', 'CAFE'].includes(store.category);
-    if (selectedCategory === 'CONVENIENCE') return ['CONVENIENCE', 'BAKERY'].includes(store.category);
-    if (selectedCategory === 'ACCOMMODATION') return store.category === 'ACCOMMODATION' || store.category === 'OTHER';
+    if (selectedCategory === 'FOOD') return ['KOREAN', 'JAPANESE', 'WESTERN', 'CHINESE', 'SNACK', 'CAFE', 'PUB'].includes(store.category);
+    if (selectedCategory === 'RETAIL') return ['CONVENIENCE', 'BAKERY', 'FRESH_FOOD'].includes(store.category);
+    if (selectedCategory === 'BEAUTY') return store.category === 'BEAUTY';
+    if (selectedCategory === 'ACCOMMODATION') return ['ACCOMMODATION', 'LEISURE'].includes(store.category);
+    if (selectedCategory === 'SERVICE') return ['LAUNDRY', 'FITNESS', 'OTHER'].includes(store.category);
     return true;
   });
 

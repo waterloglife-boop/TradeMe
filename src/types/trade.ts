@@ -5,10 +5,17 @@ export type StoreCategory =
   | 'JAPANESE' 
   | 'WESTERN' 
   | 'CHINESE' 
-  | 'ACCOMMODATION' 
+  | 'SNACK' 
   | 'CAFE' 
+  | 'PUB' 
   | 'CONVENIENCE' 
   | 'BAKERY' 
+  | 'FRESH_FOOD' 
+  | 'BEAUTY' 
+  | 'ACCOMMODATION' 
+  | 'LEISURE' 
+  | 'LAUNDRY' 
+  | 'FITNESS' 
   | 'OTHER';
 
 export interface ExchangeItem {
