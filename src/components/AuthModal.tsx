@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Lock, Mail, Building, ShieldCheck, ArrowRight, User, LogOut, CheckCircle2, Phone, AlertTriangle, Search, Check } from 'lucide-react';
-import { signUpUser, signInUser, verifyNtsBusinessStatus } from '../lib/supabase';
+import { signUpUser, signInUser, verifyNtsBusinessStatus, fetchUserProfileFromSupabase } from '../lib/supabase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -86,6 +86,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setMode('PROFILE');
       setOwnerName(userOwnerName);
       setStoreName(userStoreName);
+      if (isOpen) {
+        fetchUserProfileFromSupabase().then((prof) => {
+          if (prof) {
+            if (prof.owner_name) setOwnerName(prof.owner_name);
+            if (prof.store_name) setStoreName(prof.store_name);
+            if (prof.phone) setPhone(prof.phone);
+            if (prof.business_number) setBusinessNumber(prof.business_number);
+          }
+        });
+      }
     } else {
       setMode('LOGIN');
       resetFormState();

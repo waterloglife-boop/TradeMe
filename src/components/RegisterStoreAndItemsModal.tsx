@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Store as StoreIcon, Utensils, Bed, Check, ArrowRight, ArrowLeft, Image as ImageIcon, Clock, Phone, MapPin, Upload, CheckCircle2 } from 'lucide-react';
 import { Store, ExchangeItem, StoreCategory, ItemType } from '../types/trade';
-import { insertStoreAndItems } from '../lib/supabase';
+import { insertStoreAndItems, fetchUserStoreFromSupabase } from '../lib/supabase';
 
 interface RegisterStoreAndItemsModalProps {
   isOpen: boolean;
@@ -92,31 +92,55 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
     'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
   );
 
-  // Pre-fill fields if currentStore exists and editing
+  // Pre-fill fields if currentStore exists or fetch live store from Supabase DB / LocalStorage
   useEffect(() => {
-    if (isOpen && currentStore && currentStore.storeName && currentStore.storeName !== '로그인 필요') {
-      setStoreName(currentStore.storeName || '');
-      setCategory(currentStore.category || 'KOREAN');
-      setCategoryName(currentStore.categoryName || '한식');
-      setAddress(currentStore.address || '');
-      setPhone(currentStore.phone || '055-385-1234');
-      setOperatingHours(currentStore.breakTimeHours || '10:00 - 22:00 (연중무휴)');
-      if (currentStore.lat && currentStore.lng) {
-        setCurrentLat(currentStore.lat);
-        setCurrentLng(currentStore.lng);
+    if (!isOpen) return;
+
+    const fillStoreData = (targetStore: Store) => {
+      if (targetStore.storeName && targetStore.storeName !== '로그인 필요') {
+        setStoreName(targetStore.storeName || '');
+        setCategory(targetStore.category || 'KOREAN');
+        setCategoryName(targetStore.categoryName || '한식');
+        setAddress(targetStore.address || '');
+        setPhone(targetStore.phone || '055-385-1234');
+        setOperatingHours(targetStore.breakTimeHours || '10:00 - 22:00 (연중무휴)');
+        if (targetStore.lat && targetStore.lng) {
+          setCurrentLat(targetStore.lat);
+          setCurrentLng(targetStore.lng);
+        }
+        if (targetStore.exchangeItems && targetStore.exchangeItems.length > 0) {
+          setItems(
+            targetStore.exchangeItems.map((item) => ({
+              type: item.type || 'FOOD',
+              title: item.title,
+              description: item.description,
+              estimatedPrice: item.estimatedPrice,
+              imageUrl: item.imageUrl,
+              isAvailable: true,
+            }))
+          );
+        }
       }
-      if (currentStore.exchangeItems && currentStore.exchangeItems.length > 0) {
-        setItems(
-          currentStore.exchangeItems.map((item) => ({
-            type: item.type || 'FOOD',
-            title: item.title,
-            description: item.description,
-            estimatedPrice: item.estimatedPrice,
-            imageUrl: item.imageUrl,
-            isAvailable: true,
-          }))
-        );
-      }
+    };
+
+    if (currentStore && currentStore.storeName && currentStore.storeName !== '로그인 필요') {
+      fillStoreData(currentStore);
+    } else {
+      // Check localStorage fail-safe backup first
+      try {
+        const savedMyStore = localStorage.getItem('trademe_my_store');
+        if (savedMyStore) {
+          const parsed = JSON.parse(savedMyStore);
+          fillStoreData(parsed);
+        }
+      } catch (e) {}
+
+      // Fetch live store row from Supabase DB
+      fetchUserStoreFromSupabase().then((dbStore) => {
+        if (dbStore) {
+          fillStoreData(dbStore);
+        }
+      });
     }
   }, [isOpen, currentStore]);
 

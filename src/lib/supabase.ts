@@ -172,7 +172,7 @@ export async function signUpUser(
   }
 }
 
-export async function saveProfileToSupabase(ownerName: string, storeName: string, phone?: string) {
+export async function saveProfileToSupabase(ownerName: string, storeName: string, phone?: string, businessNumber?: string) {
   try {
     const { data: userData } = await supabase.auth.getUser();
     if (userData?.user) {
@@ -182,10 +182,80 @@ export async function saveProfileToSupabase(ownerName: string, storeName: string
         owner_name: ownerName,
         store_name: storeName,
         phone: phone || '',
+        business_number: businessNumber || '',
       });
     }
   } catch (err) {
     console.warn('Profile upsert notice:', err);
+  }
+}
+
+export async function fetchUserProfileFromSupabase() {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) return null;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userData.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Fetch profile notice:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) return null;
+
+    const { data: storeData, error } = await supabase
+      .from('stores')
+      .select('*, exchange_items(*)')
+      .eq('user_id', userData.user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !storeData) return null;
+
+    const store: Store = {
+      id: storeData.id,
+      userId: storeData.user_id,
+      ownerName: storeData.owner_name,
+      storeName: storeData.store_name,
+      category: storeData.category,
+      categoryName: storeData.category_name || storeData.category,
+      address: storeData.address,
+      lat: storeData.lat,
+      lng: storeData.lng,
+      phone: storeData.phone,
+      isVerified: storeData.is_verified,
+      breakTimeActive: storeData.break_time_active,
+      breakTimeHours: storeData.break_time_hours,
+      storeImageUrl: storeData.store_image_url,
+      rating: storeData.rating || 4.9,
+      reviewCount: storeData.review_count || 30,
+      exchangeItems: (storeData.exchange_items || []).map((i: any) => ({
+        id: i.id,
+        storeId: i.store_id,
+        type: i.item_type,
+        title: i.title,
+        description: i.description,
+        estimatedPrice: i.estimated_price,
+        imageUrl: i.image_url,
+        isAvailable: i.is_available,
+      })),
+    };
+    return store;
+  } catch (err) {
+    return null;
   }
 }
 

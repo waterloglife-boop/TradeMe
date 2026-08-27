@@ -9,7 +9,7 @@ import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import { Store, ExchangeItem, ChatMessage } from './types/trade';
-import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase, sendTradeProposalToSupabase, fetchChatHistory, saveProfileToSupabase, updateStoreStatusInSupabase } from './lib/supabase';
+import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase, sendTradeProposalToSupabase, fetchChatHistory, saveProfileToSupabase, updateStoreStatusInSupabase, fetchUserProfileFromSupabase, fetchUserStoreFromSupabase } from './lib/supabase';
 import { MapPin } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -53,20 +53,30 @@ export const App: React.FC = () => {
     ],
   });
 
-  // Load Stores from Supabase on Mount
+  // Load Stores, User Profile, and User Store from Supabase on Mount
   useEffect(() => {
     async function loadStores() {
       const fetched = await fetchStoresFromSupabase();
       if (fetched && fetched.length > 0) {
         setStores(fetched);
+      }
+
+      // Fetch user profile from Supabase DB
+      const userProfile = await fetchUserProfileFromSupabase();
+      if (userProfile?.owner_name) {
+        setUserOwnerName(userProfile.owner_name);
+      }
+
+      // Fetch user store from Supabase DB
+      const userStore = await fetchUserStoreFromSupabase();
+      if (userStore) {
+        setMyStore(userStore);
+      } else {
         const mySavedRaw = localStorage.getItem('trademe_my_store');
         if (mySavedRaw) {
           try {
             const parsed = JSON.parse(mySavedRaw);
-            const foundInFetched = fetched.find((s) => s.id === parsed.id || s.storeName === parsed.storeName);
-            if (foundInFetched) {
-              setMyStore(foundInFetched);
-            }
+            setMyStore(parsed);
           } catch (e) {}
         }
       }
