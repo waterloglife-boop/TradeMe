@@ -229,13 +229,20 @@ export async function signInWithSocial(provider: 'kakao' | 'naver') {
  * 2. Supabase Store & Exchange Item Database Helpers
  */
 export async function fetchStoresFromSupabase(): Promise<Store[]> {
+  let localCustomStores: Store[] = [];
+  try {
+    const raw = localStorage.getItem('trademe_custom_stores');
+    if (raw) localCustomStores = JSON.parse(raw);
+  } catch (e) {}
+
   try {
     const { data: storesData, error } = await supabase
       .from('stores')
       .select('*, exchange_items(*)');
 
     if (error || !storesData || storesData.length === 0) {
-      return INITIAL_STORES;
+      const existingIds = new Set(localCustomStores.map((s) => s.id));
+      return [...localCustomStores, ...INITIAL_STORES.filter((s) => !existingIds.has(s.id))];
     }
 
     const dbStores: Store[] = storesData.map((s: any) => ({
@@ -267,24 +274,46 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
       })),
     }));
 
-    const existingIds = new Set(dbStores.map((s) => s.id));
-    const mergedStores = [...dbStores, ...INITIAL_STORES.filter((s) => !existingIds.has(s.id))];
+    const existingIds = new Set([...dbStores.map((s) => s.id), ...localCustomStores.map((s) => s.id)]);
+    const mergedStores = [...localCustomStores, ...dbStores, ...INITIAL_STORES.filter((s) => !existingIds.has(s.id))];
     return mergedStores;
   } catch (err) {
-    return INITIAL_STORES;
+    const existingIds = new Set(localCustomStores.map((s) => s.id));
+    return [...localCustomStores, ...INITIAL_STORES.filter((s) => !existingIds.has(s.id))];
   }
 }
 
 /**
- * 3. Insert Store & Exchange Items into Supabase Database
+ * 3. Insert Store & Exchange Items into Supabase Database with Double Fail-Safe Backup
  */
 export async function insertStoreAndItems(
   storeInfo: Omit<Store, 'id' | 'exchangeItems'>,
   items: Omit<ExchangeItem, 'id' | 'storeId'>[]
 ) {
+  const storeId = `store-${Date.now()}`;
+  
+  const createdStore: Store = {
+    ...storeInfo,
+    id: storeId,
+    exchangeItems: items.map((i, idx) => ({
+      ...i,
+      id: `item-${Date.now()}-${idx}`,
+      storeId: storeId,
+      type: i.type || 'FOOD',
+      isAvailable: true,
+    })),
+  };
+
+  // 1. Fail-Safe Local Storage Backup (Immediate Local Persistence)
   try {
-    const storeId = `store-${Date.now()}`;
-    
+    const existingRaw = localStorage.getItem('trademe_custom_stores');
+    const customStores: Store[] = existingRaw ? JSON.parse(existingRaw) : [];
+    localStorage.setItem('trademe_custom_stores', JSON.stringify([createdStore, ...customStores]));
+    localStorage.setItem('trademe_my_store', JSON.stringify(createdStore));
+  } catch (e) {}
+
+  // 2. Supabase DB Insert
+  try {
     const { data: userData } = await supabase.auth.getUser();
     const currentUserId = userData?.user?.id || null;
 
@@ -307,14 +336,14 @@ export async function insertStoreAndItems(
     });
 
     if (storeError) {
-      console.warn('Supabase store insert notice (fallback to local):', storeError.message);
+      console.warn('Supabase store insert notice:', storeError.message);
     }
 
     // Insert into exchange_items table
     const itemRecords = items.map((item, idx) => ({
       id: `item-${Date.now()}-${idx}`,
       store_id: storeId,
-      item_type: item.type,
+      item_type: item.type || 'FOOD',
       title: item.title,
       description: item.description,
       estimated_price: item.estimatedPrice,
@@ -324,37 +353,13 @@ export async function insertStoreAndItems(
 
     const { error: itemsError } = await supabase.from('exchange_items').insert(itemRecords);
     if (itemsError) {
-      console.warn('Supabase items insert notice (fallback to local):', itemsError.message);
+      console.warn('Supabase items insert notice:', itemsError.message);
     }
-
-    const createdStore: Store = {
-      ...storeInfo,
-      id: storeId,
-      exchangeItems: itemRecords.map((i) => ({
-        id: i.id,
-        storeId: i.store_id,
-        type: i.item_type as any,
-        title: i.title,
-        description: i.description,
-        estimatedPrice: i.estimated_price,
-        imageUrl: i.image_url,
-        isAvailable: true,
-      })),
-    };
 
     return { success: true, store: createdStore };
   } catch (err: any) {
-    console.error('Error inserting store and items:', err);
-    const fallbackStore: Store = {
-      ...storeInfo,
-      id: `store-${Date.now()}`,
-      exchangeItems: items.map((i, idx) => ({
-        ...i,
-        id: `item-${Date.now()}-${idx}`,
-        storeId: `store-${Date.now()}`,
-      })),
-    };
-    return { success: true, store: fallbackStore };
+    console.error('Notice inserting store and items to Supabase DB:', err);
+    return { success: true, store: createdStore };
   }
 }
 

@@ -59,6 +59,16 @@ export const App: React.FC = () => {
       const fetched = await fetchStoresFromSupabase();
       if (fetched && fetched.length > 0) {
         setStores(fetched);
+        const mySavedRaw = localStorage.getItem('trademe_my_store');
+        if (mySavedRaw) {
+          try {
+            const parsed = JSON.parse(mySavedRaw);
+            const foundInFetched = fetched.find((s) => s.id === parsed.id || s.storeName === parsed.storeName);
+            if (foundInFetched) {
+              setMyStore(foundInFetched);
+            }
+          } catch (e) {}
+        }
       }
     }
     loadStores();
