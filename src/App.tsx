@@ -94,7 +94,6 @@ export const App: React.FC = () => {
 
   const handleMapClickPinLocation = (lat: number, lng: number) => {
     setPickedLocation({ lat, lng });
-    setIsRegisterModalOpen(true);
   };
 
   const handleRegisterNewStoreAndItems = (newStore: Store) => {

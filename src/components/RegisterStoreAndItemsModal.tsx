@@ -174,7 +174,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                   <span>선택된 핀 좌표: {pickedLat.toFixed(4)}, {pickedLng.toFixed(4)}</span>
                 </div>
                 <span className="text-[10px] bg-orange-200 text-orange-900 px-2 py-0.5 rounded font-bold">
-                  지도 클릭 감지됨
+                  위치 좌표 확정
                 </span>
               </div>
 
@@ -183,7 +183,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                 <input
                   type="text"
                   required
-                  placeholder="예: 송정 오션 짚불갈비"
+                  placeholder="예: 마라위크 (양산 북정점)"
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                   className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
@@ -251,13 +251,29 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">가게 도로명 주소</label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none"
-                />
+                <label className="block text-xs font-bold text-gray-700 mb-1">가게 도로명 주소 검색/입력</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearchAddress();
+                      }
+                    }}
+                    placeholder="예: 경남 양산시 북정서길 25"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSearchAddress}
+                    className="px-3.5 py-2 bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs rounded-xl flex items-center gap-1 whitespace-nowrap shadow-sm"
+                  >
+                    <span>위치 찾기</span>
+                  </button>
+                </div>
               </div>
 
               {/* Break time setup */}
