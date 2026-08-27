@@ -28,7 +28,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
     if (!mapInstanceRef.current) {
       const map = L.map(mapContainerRef.current, {
-        center: [35.360527, 129.046832],
+        center: [35.3594007321187, 129.041885145232],
         zoom: 15,
         zoomControl: false,
       });

@@ -62,8 +62,8 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   onClose,
   onSuccess,
   currentOwnerName,
-  pickedLat = 35.3605,
-  pickedLng = 129.0468,
+  pickedLat = 35.3594007321187,
+  pickedLng = 129.041885145232,
   onUpdatePickedLocation,
   currentStore,
 }) => {
@@ -209,7 +209,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
       // Smart Korean Region Precision Coordinate Matcher
       const lower = rawAddr.toLowerCase();
       if (lower.includes('북정') || lower.includes('양산') || lower.includes('마라위크')) {
-        applyLocation(35.360527, 129.046832);
+        applyLocation(35.3594007321187, 129.041885145232);
         return true;
       } else if (lower.includes('테헤란로') || lower.includes('강남')) {
         applyLocation(37.5002, 127.0365);
@@ -237,7 +237,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
         return true;
       }
 
-      applyLocation(35.360527, 129.046832);
+      applyLocation(35.3594007321187, 129.041885145232);
       return true;
     };
 

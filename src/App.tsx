@@ -23,8 +23,8 @@ export const App: React.FC = () => {
 
   // Location Picker State
   const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>({
-    lat: 35.3605,
-    lng: 129.0468,
+    lat: 35.3594007321187,
+    lng: 129.041885145232,
   });
 
   // Auth State
