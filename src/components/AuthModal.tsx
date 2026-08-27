@@ -82,25 +82,48 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   useEffect(() => {
+    if (!isOpen) return;
+
     if (isLoggedIn) {
       setMode('PROFILE');
       setOwnerName(userOwnerName);
       setStoreName(userStoreName);
-      if (isOpen) {
-        fetchUserProfileFromSupabase().then((prof) => {
-          if (prof) {
-            if (prof.owner_name) setOwnerName(prof.owner_name);
-            if (prof.store_name) setStoreName(prof.store_name);
-            if (prof.phone) setPhone(prof.phone);
-            if (prof.business_number) setBusinessNumber(prof.business_number);
-          }
-        });
-      }
+
+      // 1. Restore from LocalStorage immediately
+      try {
+        const savedProfileRaw = localStorage.getItem('trademe_profile');
+        if (savedProfileRaw) {
+          const parsed = JSON.parse(savedProfileRaw);
+          if (parsed.ownerName) setOwnerName(parsed.ownerName);
+          if (parsed.storeName) setStoreName(parsed.storeName);
+          if (parsed.phone) setPhone(parsed.phone);
+          if (parsed.businessNumber) setBusinessNumber(parsed.businessNumber);
+        }
+      } catch (e) {}
+
+      // 2. Fetch live profile row from Supabase DB
+      fetchUserProfileFromSupabase().then((prof) => {
+        if (prof) {
+          if (prof.owner_name) setOwnerName(prof.owner_name);
+          if (prof.store_name) setStoreName(prof.store_name);
+          if (prof.phone) setPhone(prof.phone);
+          if (prof.business_number) setBusinessNumber(prof.business_number);
+
+          try {
+            localStorage.setItem('trademe_profile', JSON.stringify({
+              ownerName: prof.owner_name,
+              storeName: prof.store_name,
+              phone: prof.phone,
+              businessNumber: prof.business_number,
+            }));
+          } catch (e) {}
+        }
+      });
     } else {
       setMode('LOGIN');
       resetFormState();
     }
-  }, [isLoggedIn, userOwnerName, userStoreName, isOpen]);
+  }, [isOpen, isLoggedIn, userOwnerName, userStoreName]);
 
   if (!isOpen) return null;
 
@@ -135,7 +158,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const cleanBno = businessNumber.replace(/[^0-9]/g, '');
 
     if (mode === 'PROFILE') {
-      onUpdateProfile(ownerName, storeName, cleanPhone);
+      onUpdateProfile(ownerName, storeName, cleanPhone, cleanBno);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
       setLoading(false);

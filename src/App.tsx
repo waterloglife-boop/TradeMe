@@ -240,15 +240,23 @@ export const App: React.FC = () => {
     return true;
   });
 
-  const handleUpdateProfile = (ownerName: string, storeName: string, phone?: string) => {
+  const handleUpdateProfile = (ownerName: string, storeName: string, phone?: string, businessNumber?: string) => {
     setUserOwnerName(ownerName);
-    setMyStore((prev) => ({
-      ...prev,
+    const updatedMyStore = {
+      ...myStore,
       ownerName,
       storeName,
-      phone: phone || prev.phone,
-    }));
-    saveProfileToSupabase(ownerName, storeName, phone);
+      phone: phone || myStore.phone,
+    };
+    setMyStore(updatedMyStore);
+    setStores((prevStores) =>
+      prevStores.map((s) => (s.id === myStore.id ? updatedMyStore : s))
+    );
+    saveProfileToSupabase(ownerName, storeName, phone, businessNumber);
+    try {
+      localStorage.setItem('trademe_profile', JSON.stringify({ ownerName, storeName, phone, businessNumber }));
+      localStorage.setItem('trademe_my_store', JSON.stringify(updatedMyStore));
+    } catch (e) {}
   };
 
   const handleLogout = () => {
