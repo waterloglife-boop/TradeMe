@@ -36,31 +36,44 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   useEffect(() => {
     if (!clientId) return;
 
-    if (window.naver && window.naver.maps) {
-      setScriptLoaded(true);
-      return;
-    }
+    const checkNaverMaps = () => {
+      if (window.naver && window.naver.maps) {
+        setScriptLoaded(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkNaverMaps()) return;
 
     const scriptId = 'naver-map-sdk';
-    if (document.getElementById(scriptId)) {
-      return;
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.type = 'text/javascript';
+      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`;
+      script.async = true;
+
+      script.onload = () => {
+        setScriptLoaded(true);
+      };
+
+      script.onerror = () => {
+        setAuthFailed(true);
+      };
+
+      document.head.appendChild(script);
     }
 
-    const script = document.createElement('script');
-    script.id = scriptId;
-    script.type = 'text/javascript';
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoding`;
-    script.async = true;
+    const timer = setInterval(() => {
+      if (checkNaverMaps()) {
+        clearInterval(timer);
+      }
+    }, 200);
 
-    script.onload = () => {
-      setScriptLoaded(true);
-    };
-
-    script.onerror = () => {
-      setAuthFailed(true);
-    };
-
-    document.head.appendChild(script);
+    return () => clearInterval(timer);
   }, [clientId]);
 
   // 2. Initialize Pure Naver Map Instance & Custom Store Pins
