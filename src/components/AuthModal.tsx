@@ -39,13 +39,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const [mode, setMode] = useState<'LOGIN' | 'SIGNUP' | 'PROFILE'>('LOGIN');
 
-  // Form State
+  // Form State - Always initialized empty for fresh signups
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [ownerName, setOwnerName] = useState(userOwnerName || '홍길동 사장님');
-  const [storeName, setStoreName] = useState(userStoreName || '송정 수제돈까스');
-  const [phone, setPhone] = useState('0553851234');
-  const [businessNumber, setBusinessNumber] = useState('1234567890');
+  const [ownerName, setOwnerName] = useState('');
+  const [storeName, setStoreName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [businessNumber, setBusinessNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [ntsVerifying, setNtsVerifying] = useState(false);
   const [ntsStatusMessage, setNtsStatusMessage] = useState<string | null>(null);
@@ -59,7 +59,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Registered Emails Registry for Mock/Live Email Duplicate Validation
   const [registeredEmails, setRegisteredEmails] = useState<string[]>([
     'owner@trademe.kr',
-    'mara@naver.com',
     'admin@trademe.kr'
   ]);
 
@@ -70,6 +69,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     '0553818892'
   ]);
 
+  const resetFormState = () => {
+    setEmail('');
+    setPassword('');
+    setOwnerName('');
+    setStoreName('');
+    setPhone('');
+    setBusinessNumber('');
+    setToastMessage(null);
+    setDuplicateField(null);
+    setNtsStatusMessage(null);
+  };
+
   useEffect(() => {
     if (isLoggedIn) {
       setMode('PROFILE');
@@ -77,10 +88,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setStoreName(userStoreName);
     } else {
       setMode('LOGIN');
+      resetFormState();
     }
-    setToastMessage(null);
-    setDuplicateField(null);
-    setNtsStatusMessage(null);
   }, [isLoggedIn, userOwnerName, userStoreName, isOpen]);
 
   if (!isOpen) return null;
@@ -194,8 +203,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               onClick={() => {
                 setMode('LOGIN');
-                setToastMessage(null);
-                setDuplicateField(null);
+                resetFormState();
               }}
               className={`flex-1 py-3 text-sm font-bold transition-all border-b-2 ${
                 mode === 'LOGIN'
@@ -208,8 +216,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               onClick={() => {
                 setMode('SIGNUP');
-                setToastMessage(null);
-                setDuplicateField(null);
+                resetFormState();
               }}
               className={`flex-1 py-3 text-sm font-bold transition-all border-b-2 ${
                 mode === 'SIGNUP'
