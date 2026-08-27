@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, Store as StoreIcon, Utensils, Bed, Check, ArrowRight, ArrowLeft, Image as ImageIcon, Clock, Phone, MapPin } from 'lucide-react';
 import { Store, ExchangeItem, StoreCategory, ItemType } from '../types/trade';
 import { insertStoreAndItems } from '../lib/supabase';
