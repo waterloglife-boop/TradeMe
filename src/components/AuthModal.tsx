@@ -33,7 +33,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await signInUser(email, password);
       if (res.success) {
         onLoginSuccess(
-          res.user?.user_metadata?.owner_name || '사장님',
+          res.user?.user_metadata?.owner_name || '홍길동 사장님',
           res.user?.user_metadata?.store_name || storeName || '내 가게'
         );
       }
@@ -45,7 +45,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
       const res = await signUpUser(email, password, ownerName, storeName, businessNumber);
       if (res.success) {
-        onLoginSuccess(ownerName || '사장님', storeName || '신규 등록 가게');
+        onLoginSuccess(ownerName || '홍길동 사장님', storeName || '신규 등록 가게');
       }
     }
 
@@ -53,9 +53,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     onClose();
   };
 
-  const handleSocialLogin = async (provider: 'kakao' | 'naver') => {
-    await signInWithSocial(provider);
-    onLoginSuccess(`${provider === 'naver' ? '네이버' : '카카오'} 사장님`, '송정 해운대 식당');
+  const handleNaverLogin = async () => {
+    await signInWithSocial('naver');
+    onLoginSuccess('네이버 사장님', '송정 해운대 식당');
     onClose();
   };
 
@@ -97,34 +97,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="text-center mb-2">
             <h3 className="font-extrabold text-gray-900 text-lg">
-              {mode === 'LOGIN' ? 'Trade Me 로그인 (Supabase)' : '소상공인 사장님 회원가입 (Supabase)'}
+              {mode === 'LOGIN' ? 'Trade Me 로그인' : '소상공인 사장님 회원가입'}
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
               1:1 등가교환으로 맛있는 식사 및 서비스를 바꿔먹으세요
             </p>
           </div>
 
-          {/* Social Logins */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Naver Social Login Button Only */}
+          <div>
             <button
               type="button"
-              onClick={() => handleSocialLogin('naver')}
-              className="py-2.5 px-3 bg-[#03C75A] text-white font-bold text-xs rounded-xl shadow-sm hover:opacity-95 flex items-center justify-center gap-1.5"
+              onClick={handleNaverLogin}
+              className="w-full py-3 px-4 bg-[#03C75A] hover:bg-[#02b350] text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
             >
-              <span className="font-black text-sm">N</span> 네이버 로그인
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSocialLogin('kakao')}
-              className="py-2.5 px-3 bg-[#FEE500] text-gray-900 font-bold text-xs rounded-xl shadow-sm hover:opacity-95 flex items-center justify-center gap-1.5"
-            >
-              <span className="font-black text-sm">K</span> 카카오 로그인
+              <span className="font-black text-base bg-white text-[#03C75A] w-5 h-5 rounded-full flex items-center justify-center text-xs">N</span>
+              네이버 아이디로 1초 만에 로그인
             </button>
           </div>
 
           <div className="relative flex py-1 items-center">
             <div className="flex-grow border-t border-gray-200"></div>
-            <span className="flex-shrink mx-2 text-[11px] text-gray-400 font-medium">또는 이메일</span>
+            <span className="flex-shrink mx-2 text-[11px] text-gray-400 font-medium">또는 자체 계정</span>
             <div className="flex-grow border-t border-gray-200"></div>
           </div>
 
