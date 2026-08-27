@@ -1,6 +1,22 @@
 export type ItemType = 'FOOD' | 'SERVICE' | 'ITEM';
 
-export type StoreCategory = 'KOREAN' | 'JAPANESE' | 'WESTERN' | 'CHINESE' | 'ACCOMMODATION' | 'CAFE' | 'OTHER';
+export type StoreCategory = 
+  | 'KOREAN' 
+  | 'JAPANESE' 
+  | 'WESTERN' 
+  | 'CHINESE' 
+  | 'SNACK' 
+  | 'CAFE' 
+  | 'PUB' 
+  | 'CONVENIENCE' 
+  | 'BAKERY' 
+  | 'FRESH_FOOD' 
+  | 'BEAUTY' 
+  | 'ACCOMMODATION' 
+  | 'LEISURE' 
+  | 'LAUNDRY' 
+  | 'FITNESS' 
+  | 'OTHER';
 
 export interface ExchangeItem {
   id: string;
@@ -15,6 +31,7 @@ export interface ExchangeItem {
 
 export interface Store {
   id: string;
+  userId?: string; // 회원 프로필(profiles / auth.users) 연동 ID
   ownerName: string;
   storeName: string;
   category: StoreCategory;

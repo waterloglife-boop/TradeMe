@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, Store as StoreIcon, Utensils, Bed, Check, ArrowRight, ArrowLeft, Image as ImageIcon, Clock, Phone, MapPin } from 'lucide-react';
 import { Store, ExchangeItem, StoreCategory, ItemType } from '../types/trade';
 import { insertStoreAndItems } from '../lib/supabase';
@@ -10,6 +10,7 @@ interface RegisterStoreAndItemsModalProps {
   currentOwnerName: string;
   pickedLat?: number;
   pickedLng?: number;
+  onUpdatePickedLocation?: (lat: number, lng: number) => void;
 }
 
 export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProps> = ({
@@ -17,8 +18,9 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   onClose,
   onSuccess,
   currentOwnerName,
-  pickedLat = 35.1782,
-  pickedLng = 129.1985,
+  pickedLat = 35.3605,
+  pickedLng = 129.0468,
+  onUpdatePickedLocation,
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
@@ -26,14 +28,65 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   // Step 1: Store Information State
   const [storeName, setStoreName] = useState('');
   const [category, setCategory] = useState<StoreCategory>('KOREAN');
-  const [categoryName, setCategoryName] = useState('한식/구이');
-  const [address, setAddress] = useState('부산 해운대구 송정해변로 25');
-  const [phone, setPhone] = useState('051-701-1234');
+  const [categoryName, setCategoryName] = useState('한식');
+  const [address, setAddress] = useState('경남 양산시 북정서길 25 (북정동)');
+  const [phone, setPhone] = useState('055-385-1234');
   const [breakTimeActive, setBreakTimeActive] = useState(true);
   const [breakTimeHours, setBreakTimeHours] = useState('15:00 - 17:00');
   const [storeImageUrl, setStoreImageUrl] = useState(
     'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
   );
+
+  // Auto Reverse-Geocode Clicked Map Pin Coordinates to Real Address
+  useEffect(() => {
+    if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.reverseGeocode) {
+      try {
+        window.naver.maps.Service.reverseGeocode(
+          {
+            coords: new window.naver.maps.LatLng(pickedLat, pickedLng),
+          },
+          (status: any, response: any) => {
+            if (status === window.naver.maps.Service.Status.OK && response?.v2?.address) {
+              const roadAddr = response.v2.address.roadAddress || response.v2.address.jibunAddress;
+              if (roadAddr) {
+                setAddress(roadAddr);
+              }
+            }
+          }
+        );
+      } catch (err) {
+        // Fallback gracefully
+      }
+    }
+  }, [pickedLat, pickedLng]);
+
+  // 1. [Naver Geocoding API 연동 (주소 -> 좌표 변환)]
+  const handleSearchAddress = () => {
+    if (!address.trim()) return;
+    if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode) {
+      try {
+        window.naver.maps.Service.geocode({ query: address }, (status: any, response: any) => {
+          if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
+            const item = response.v2.addresses[0];
+            const lat = parseFloat(item.y);
+            const lng = parseFloat(item.x);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              if (onUpdatePickedLocation) {
+                onUpdatePickedLocation(lat, lng);
+              }
+              if (item.roadAddress) {
+                setAddress(item.roadAddress);
+              }
+            }
+          } else {
+            alert('입력하신 주소의 위치를 찾을 수 없습니다. 도로명 주소를 정확히 입력해 주세요.');
+          }
+        });
+      } catch (err) {
+        console.warn('Geocoding search notice:', err);
+      }
+    }
+  };
 
   // Step 2: 2~3 Exchange Items State
   const [items, setItems] = useState<Array<Omit<ExchangeItem, 'id' | 'storeId'>>>([
@@ -59,7 +112,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
 
   const handleAddItem = () => {
     if (items.length >= 3) {
-      alert('바꿔먹기 대표 메뉴는 최대 3개까지 등록 가능합니다.');
+      alert('1:1 물물교환 대표 품목은 최대 3개까지 등록 가능합니다.');
       return;
     }
     setItems([
@@ -77,7 +130,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
 
   const handleRemoveItem = (index: number) => {
     if (items.length <= 1) {
-      alert('최소 1개 이상의 대표 교환 메뉴를 등록해야 합니다.');
+      alert('최소 1개 이상의 대표 교환 품목을 등록해야 합니다.');
       return;
     }
     setItems(items.filter((_, i) => i !== index));
@@ -130,7 +183,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
               STEP {step} / 2
             </span>
             <h2 className="font-extrabold text-base mt-1">
-              {step === 1 ? '🏬 우리 가게 프로필 & 지도 위치 등록' : '🍽️ 바꿔먹을 대표 메뉴 (2~3개) 등록'}
+              {step === 1 ? '🏬 우리 가게 프로필 & 지도 위치 등록' : '🛍️ 1:1 물물교환 대표 품목 (2~3개) 등록'}
             </h2>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/20">
@@ -151,7 +204,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                   <span>선택된 핀 좌표: {pickedLat.toFixed(4)}, {pickedLng.toFixed(4)}</span>
                 </div>
                 <span className="text-[10px] bg-orange-200 text-orange-900 px-2 py-0.5 rounded font-bold">
-                  지도 클릭 감지됨
+                  위치 좌표 확정
                 </span>
               </div>
 
@@ -160,7 +213,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                 <input
                   type="text"
                   required
-                  placeholder="예: 송정 오션 짚불갈비"
+                  placeholder="예: 마라위크 (양산 북정점)"
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                   className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
@@ -175,22 +228,44 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                     onChange={(e) => {
                       const cat = e.target.value as StoreCategory;
                       setCategory(cat);
-                      const nameMap: any = {
-                        KOREAN: '한식/구이',
-                        JAPANESE: '일식/초밥',
-                        WESTERN: '양식/파스타',
-                        ACCOMMODATION: '숙박/펜션',
+                      const nameMap: Record<string, string> = {
+                        KOREAN: '한식',
+                        JAPANESE: '일식',
+                        WESTERN: '양식',
+                        CHINESE: '중식',
+                        SNACK: '분식',
                         CAFE: '카페/디저트',
+                        PUB: '주점/호프',
+                        CONVENIENCE: '편의점',
+                        BAKERY: '베이커리/떡집',
+                        FRESH_FOOD: '정육/수산/과일',
+                        BEAUTY: '뷰티/케어',
+                        ACCOMMODATION: '숙박/펜션',
+                        LEISURE: '레저/체험',
+                        LAUNDRY: '세탁/수리',
+                        FITNESS: '헬스/스포츠',
+                        OTHER: '기타 서비스',
                       };
-                      setCategoryName(nameMap[cat] || '기타');
+                      setCategoryName(nameMap[cat] || '기타 서비스');
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold outline-none"
                   >
-                    <option value="KOREAN">🍱 한식/구이</option>
-                    <option value="JAPANESE">🍣 일식/초밥</option>
-                    <option value="WESTERN">🍝 양식/파스타</option>
-                    <option value="ACCOMMODATION">🏨 숙박/펜션</option>
+                    <option value="KOREAN">🍱 한식</option>
+                    <option value="JAPANESE">🍣 일식</option>
+                    <option value="WESTERN">🍝 양식</option>
+                    <option value="CHINESE">🥟 중식</option>
+                    <option value="SNACK">🍢 분식</option>
                     <option value="CAFE">☕ 카페/디저트</option>
+                    <option value="PUB">🍺 주점/호프</option>
+                    <option value="CONVENIENCE">🏪 편의점</option>
+                    <option value="BAKERY">🍞 베이커리/떡집</option>
+                    <option value="FRESH_FOOD">🥩 정육/수산/과일</option>
+                    <option value="BEAUTY">💄 뷰티 (미용/네일/피부)</option>
+                    <option value="ACCOMMODATION">🏨 숙박 (호텔/펜션)</option>
+                    <option value="LEISURE">🏄 레저/체험</option>
+                    <option value="LAUNDRY">🧺 세탁/수리</option>
+                    <option value="FITNESS">💪 헬스/스포츠</option>
+                    <option value="OTHER">🔮 기타 서비스</option>
                   </select>
                 </div>
 
@@ -206,13 +281,29 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">가게 도로명 주소</label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none"
-                />
+                <label className="block text-xs font-bold text-gray-700 mb-1">가게 도로명 주소 검색/입력</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearchAddress();
+                      }
+                    }}
+                    placeholder="예: 경남 양산시 북정서길 25"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSearchAddress}
+                    className="px-3.5 py-2 bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs rounded-xl flex items-center gap-1 whitespace-nowrap shadow-sm"
+                  >
+                    <span>위치 찾기</span>
+                  </button>
+                </div>
               </div>
 
               {/* Break time setup */}
@@ -253,7 +344,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                   }}
                   className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5"
                 >
-                  <span>다음: 바꿔먹기 메뉴 등록 (Step 2)</span>
+                  <span>다음: 1:1 물물교환 품목 등록 (Step 2)</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

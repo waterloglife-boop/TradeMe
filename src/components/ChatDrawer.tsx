@@ -49,7 +49,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
               </span>
             </h3>
             <p className="text-xs text-gray-300">
-              {targetStore.ownerName}과 1:1 바꿔먹기 대화 중
+              {targetStore.ownerName}과 1:1 물물교환 대화 중
             </p>
           </div>
         </div>
@@ -85,7 +85,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
       <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50">
         <div className="text-center my-2">
           <span className="text-[11px] bg-gray-200 text-gray-600 px-3 py-1 rounded-full font-medium">
-            1:1 사장님 등가교환 대화방이 생성되었습니다
+            1:1 사장님 물물교환 대화방이 생성되었습니다
           </span>
         </div>
 
@@ -106,7 +106,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
               {msg.systemAction === 'PROPOSAL' && (
                 <div className="mb-2 p-2 bg-white/20 rounded-lg backdrop-blur border border-white/30 text-white">
                   <div className="font-extrabold flex items-center gap-1 mb-1">
-                    <ArrowRightLeft className="w-3.5 h-3.5" /> 1:1 바꿔먹기 제안서
+                    <ArrowRightLeft className="w-3.5 h-3.5" /> 1:1 물물교환 제안서
                   </div>
                   <p className="text-[11px] opacity-90">{msg.message}</p>
                 </div>
@@ -124,10 +124,10 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
       {/* Quick Suggestion Chips */}
       <div className="p-2 bg-white border-t border-gray-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[11px]">
         <button
-          onClick={() => onSendMessage("안녕하세요 사장님! 오늘 브레이크 타임 때 1:1 바꿔먹기 가능할까요?")}
+          onClick={() => onSendMessage("안녕하세요 사장님! 오늘 브레이크 타임 때 1:1 물물교환 가능할까요?")}
           className="px-2.5 py-1 bg-gray-100 hover:bg-orange-50 hover:text-orange-600 border border-gray-200 rounded-full font-medium whitespace-nowrap"
         >
-          👋 바꿔먹기 가능한가요?
+          👋 1:1 물물교환 가능한가요?
         </button>
         <button
           onClick={() => onSendMessage("포장해서 15시 30분쯤 직접 픽업하러 가겠습니다!")}

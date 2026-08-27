@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Store } from '../types/trade';
-import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
+import { MapView } from './MapView';
 
 interface NaverMapViewProps {
   stores: Store[];
   selectedStore: Store | null;
   onSelectStore: (store: Store) => void;
   myStore: Store;
+  pickedLocation?: { lat: number; lng: number };
   onMapClickPinLocation?: (lat: number, lng: number) => void;
 }
 
@@ -21,11 +23,13 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   selectedStore,
   onSelectStore,
   myStore,
+  pickedLocation,
   onMapClickPinLocation,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const naverMapInstanceRef = useRef<any>(null);
   const markersRef = useRef<{ [key: string]: any }>({});
+  const pickerMarkerRef = useRef<any>(null);
   
   const [scriptLoaded, setScriptLoaded] = useState<boolean>(false);
   const [authFailed, setAuthFailed] = useState<boolean>(false);
@@ -36,31 +40,44 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   useEffect(() => {
     if (!clientId) return;
 
-    if (window.naver && window.naver.maps) {
-      setScriptLoaded(true);
-      return;
-    }
+    const checkNaverMaps = () => {
+      if (window.naver && window.naver.maps) {
+        setScriptLoaded(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkNaverMaps()) return;
 
     const scriptId = 'naver-map-sdk';
-    if (document.getElementById(scriptId)) {
-      return;
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.type = 'text/javascript';
+      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoding`;
+      script.async = true;
+
+      script.onload = () => {
+        setScriptLoaded(true);
+      };
+
+      script.onerror = () => {
+        setAuthFailed(true);
+      };
+
+      document.head.appendChild(script);
     }
 
-    const script = document.createElement('script');
-    script.id = scriptId;
-    script.type = 'text/javascript';
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`;
-    script.async = true;
+    const timer = setInterval(() => {
+      if (checkNaverMaps()) {
+        clearInterval(timer);
+      }
+    }, 200);
 
-    script.onload = () => {
-      setScriptLoaded(true);
-    };
-
-    script.onerror = () => {
-      setAuthFailed(true);
-    };
-
-    document.head.appendChild(script);
+    return () => clearInterval(timer);
   }, [clientId]);
 
   // 2. Initialize Pure Naver Map Instance & Custom Store Pins
@@ -69,18 +86,10 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
       return;
     }
 
-    // Catch Naver API key authentication fault event
-    if (window.naver.maps.onJSAPIFault) {
-      window.naver.maps.onJSAPIFault = () => {
-        console.warn('Naver Maps API Authentication fault detected.');
-        setAuthFailed(true);
-      };
-    }
-
     try {
       if (!naverMapInstanceRef.current) {
         const mapOptions = {
-          center: new window.naver.maps.LatLng(35.1788, 129.1995), // 부산 송정해수욕장 중심
+          center: new window.naver.maps.LatLng(35.3605, 129.0468), // 경남 양산시 북정서길 25 (마라위크 / 북정초 인근)
           zoom: 15,
           mapTypeControl: true,
           mapTypeControlOptions: {
@@ -169,10 +178,36 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
         markersRef.current[store.id] = marker;
       });
     } catch (err) {
-      console.error('Naver Maps render error:', err);
-      setAuthFailed(true);
+      console.error('Naver Maps render notice:', err);
     }
   }, [scriptLoaded, stores, selectedStore, myStore, onSelectStore, onMapClickPinLocation]);
+
+  // 2. [상태 동기화 및 핀 이동 로직 구현] Naver Geocoding 좌표 변경 시 지도 핀 및 중심점 자동 이동
+  useEffect(() => {
+    if (!scriptLoaded || !window.naver || !window.naver.maps || !naverMapInstanceRef.current || !pickedLocation) return;
+    try {
+      const map = naverMapInstanceRef.current;
+      const newPos = new window.naver.maps.LatLng(pickedLocation.lat, pickedLocation.lng);
+
+      map.panTo(newPos);
+
+      if (pickerMarkerRef.current) {
+        pickerMarkerRef.current.setPosition(newPos);
+      } else {
+        pickerMarkerRef.current = new window.naver.maps.Marker({
+          position: newPos,
+          map,
+          title: '선택된 도로명 주소 위치',
+          icon: {
+            content: `<div style="width: 34px; height: 34px; border-radius: 50%; background: #dc2626; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; box-shadow: 0 4px 12px rgba(220,38,38,0.5);">📍</div>`,
+            anchor: new window.naver.maps.Point(17, 17),
+          },
+        });
+      }
+    } catch (e) {
+      // Fallback gracefully
+    }
+  }, [scriptLoaded, pickedLocation]);
 
   // Loading Screen
   if (!scriptLoaded && !authFailed) {
@@ -181,42 +216,29 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
           <h3 className="font-extrabold text-gray-900 text-sm">
-            🗺️ 네이버 지도 (Naver Maps SDK) 로딩 중...
+            🗺️ 지도 (Naver Maps SDK) 로딩 중...
           </h3>
         </div>
       </div>
     );
   }
 
-  // Auth Error Screen
+  // Auth Error Emergency Fallback
   if (authFailed) {
     return (
-      <div className="relative w-full h-[calc(100vh-64px)] bg-gray-100 flex flex-col items-center justify-center p-6 text-center">
-        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-md space-y-3">
-          <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
-            <AlertCircle className="w-6 h-6" />
-          </div>
-          <h3 className="font-extrabold text-gray-900 text-base">
-            🗺️ 네이버 지도 키 동기화 진행 중 (ncpKeyId: {clientId})
-          </h3>
-          <p className="text-xs text-gray-600 leading-relaxed">
-            네이버 클라우드 플랫폼에서 발급된 신규 Client ID(<code>8ek0m4smqn</code>)를 호출 중입니다.<br/>
-            네이버 게이트웨이 동기화(약 3~5분) 마쳐진 후 새로고침하시면 바로 로드됩니다.
-          </p>
-        </div>
-      </div>
+      <MapView
+        stores={stores}
+        selectedStore={selectedStore}
+        onSelectStore={onSelectStore}
+        myStore={myStore}
+        onMapClickPinLocation={onMapClickPinLocation}
+      />
     );
   }
 
   return (
     <div className="relative w-full h-[calc(100vh-64px)] overflow-hidden">
       <div ref={mapContainerRef} className="w-full h-full z-0" />
-      
-      {/* Top Status Badge */}
-      <div className="absolute top-4 left-4 z-10 bg-white/95 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-gray-200 text-xs font-bold flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-emerald-600" />
-        <span className="text-emerald-900">네이버 지도 (Naver Maps SDK) 고화질 모드</span>
-      </div>
     </div>
   );
 };

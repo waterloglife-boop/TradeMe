@@ -9,7 +9,7 @@ import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import { Store, ExchangeItem, ChatMessage } from './types/trade';
-import { fetchStoresFromSupabase, subscribeToTradeChat } from './lib/supabase';
+import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase, sendTradeProposalToSupabase, fetchChatHistory } from './lib/supabase';
 import { MapPin } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -23,14 +23,14 @@ export const App: React.FC = () => {
 
   // Location Picker State
   const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>({
-    lat: 35.1782,
-    lng: 129.1985,
+    lat: 35.3605,
+    lng: 129.0468,
   });
 
   // Auth State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [userOwnerName, setUserOwnerName] = useState('홍길동 사장님');
+  const [userOwnerName, setUserOwnerName] = useState('사장님 (마라위크)');
 
   // Modals & Drawers state
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -46,7 +46,7 @@ export const App: React.FC = () => {
         id: 'msg-1',
         senderId: 'store-1',
         senderName: '박해운 사장님',
-        message: '안녕하세요 돈까스 사장님! 오늘 15시에 갈비 도시락 세트 바꿔먹기 가능한가요?',
+        message: '안녕하세요 돈까스 사장님! 오늘 15시에 갈비 도시락 세트 1:1 물물교환 가능한가요?',
         timestamp: '오후 2:15',
         isMe: false,
       },
@@ -64,17 +64,40 @@ export const App: React.FC = () => {
     loadStores();
   }, []);
 
-  // Supabase Realtime Chat Subscription for active chat store
+  // Supabase Realtime Chat Subscription & Past History Loader
   useEffect(() => {
     if (!chatTargetStore) return;
-    const unsubscribe = subscribeToTradeChat(chatTargetStore.id, (newMsg) => {
+
+    const storeId = chatTargetStore.id;
+
+    // 2. [초기 데이터 로딩 최적화] 과거 채팅 내역 Supabase에서 불러오기
+    async function loadHistory() {
+      const history = await fetchChatHistory(storeId);
+      if (history && history.length > 0) {
+        setMessagesMap((prev) => {
+          if (prev[storeId] && prev[storeId].length > 0) return prev;
+          const formattedHistory = history.map((msg) => ({
+            ...msg,
+            isMe: msg.senderId === myStore.id,
+          }));
+          return { ...prev, [storeId]: formattedHistory };
+        });
+      }
+    }
+    loadHistory();
+
+    // 1. [채팅 중복 렌더링 버그 수정] 실시간 소켓 수신 시 자가 송신 메시지 중복 필터링
+    const unsubscribe = subscribeToTradeChat(storeId, (newMsg) => {
+      if (newMsg.senderId === myStore.id) return;
+
       setMessagesMap((prev) => ({
         ...prev,
-        [chatTargetStore.id]: [...(prev[chatTargetStore.id] || []), newMsg],
+        [storeId]: [...(prev[storeId] || []), { ...newMsg, isMe: false }],
       }));
     });
+
     return () => unsubscribe();
-  }, [chatTargetStore]);
+  }, [chatTargetStore, myStore.id]);
 
   const handleLoginSuccess = (ownerName: string, storeName: string) => {
     setIsLoggedIn(true);
@@ -94,7 +117,6 @@ export const App: React.FC = () => {
 
   const handleMapClickPinLocation = (lat: number, lng: number) => {
     setPickedLocation({ lat, lng });
-    setIsRegisterModalOpen(true);
   };
 
   const handleRegisterNewStoreAndItems = (newStore: Store) => {
@@ -123,7 +145,7 @@ export const App: React.FC = () => {
         ? `내가 ${diffPrice.toLocaleString()}원 현장 추가정산`
         : `상대가 ${Math.abs(diffPrice).toLocaleString()}원 현장 추가정산`;
 
-    const proposalMsgText = `[1:1 바꿔먹기 제안]\n내 메뉴: ${myMenu.title} (${myMenu.estimatedPrice.toLocaleString()}원)\n요청 메뉴: ${targetMenu.title} (${targetMenu.estimatedPrice.toLocaleString()}원)\n정산: ${diffText}\n희망 시각: ${pickupTime}`;
+    const proposalMsgText = `[1:1 물물교환 제안]\n내 메뉴: ${myMenu.title} (${myMenu.estimatedPrice.toLocaleString()}원)\n요청 메뉴: ${targetMenu.title} (${targetMenu.estimatedPrice.toLocaleString()}원)\n정산: ${diffText}\n희망 시각: ${pickupTime}`;
 
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -136,6 +158,20 @@ export const App: React.FC = () => {
     };
 
     const storeId = selectedStore.id;
+
+    // Send proposal record to Supabase DB trades table
+    sendTradeProposalToSupabase(
+      myStore.id,
+      storeId,
+      myMenu.id,
+      targetMenu.id,
+      diffPrice,
+      pickupTime
+    );
+
+    // Send proposal chat message to Supabase DB chat_messages table
+    sendChatMessageToSupabase(storeId, myStore.id, myStore.ownerName, proposalMsgText);
+
     setMessagesMap((prev) => ({
       ...prev,
       [storeId]: [...(prev[storeId] || []), newMsg],
@@ -167,15 +203,35 @@ export const App: React.FC = () => {
       ...prev,
       [storeId]: [...(prev[storeId] || []), newMsg],
     }));
+
+    sendChatMessageToSupabase(storeId, myStore.id, myStore.ownerName, text);
   };
 
   const filteredStores = stores.filter((store) => {
     if (onlyBreakTime && !store.breakTimeActive) return false;
     if (selectedCategory === 'ALL') return true;
-    if (selectedCategory === 'FOOD') return ['KOREAN', 'JAPANESE', 'WESTERN', 'CHINESE', 'CAFE'].includes(store.category);
-    if (selectedCategory === 'ACCOMMODATION') return store.category === 'ACCOMMODATION' || store.category === 'OTHER';
+    if (selectedCategory === 'FOOD') return ['KOREAN', 'JAPANESE', 'WESTERN', 'CHINESE', 'SNACK', 'CAFE', 'PUB'].includes(store.category);
+    if (selectedCategory === 'RETAIL') return ['CONVENIENCE', 'BAKERY', 'FRESH_FOOD'].includes(store.category);
+    if (selectedCategory === 'BEAUTY') return store.category === 'BEAUTY';
+    if (selectedCategory === 'ACCOMMODATION') return ['ACCOMMODATION', 'LEISURE'].includes(store.category);
+    if (selectedCategory === 'SERVICE') return ['LAUNDRY', 'FITNESS', 'OTHER'].includes(store.category);
     return true;
   });
+
+  const handleUpdateProfile = (ownerName: string, storeName: string, phone?: string) => {
+    setUserOwnerName(ownerName);
+    setMyStore((prev) => ({
+      ...prev,
+      ownerName,
+      storeName,
+      phone: phone || prev.phone,
+    }));
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUserOwnerName('로그인 필요');
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col font-sans">
@@ -202,13 +258,14 @@ export const App: React.FC = () => {
           selectedStore={selectedStore}
           onSelectStore={(store) => setSelectedStore(store)}
           myStore={myStore}
+          pickedLocation={pickedLocation}
           onMapClickPinLocation={handleMapClickPinLocation}
         />
 
         {/* Map Location Click Hint Pill */}
         <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-orange-200 text-xs font-bold text-orange-900 flex items-center gap-1.5 animate-bounce">
           <MapPin className="w-4 h-4 text-orange-600" />
-          <span>💡 지도를 클릭하시면 내 가게 핀 위치가 지정됩니다</span>
+          <span>💡 상단 [물물교환 품목 등록]에서 도로명 주소로 위치를 조율하세요</span>
         </div>
 
         {/* Selected Store Detail & Exchange Items Drawer */}
@@ -221,11 +278,16 @@ export const App: React.FC = () => {
         />
       </main>
 
-      {/* Auth Modal (Login / Sign up) */}
+      {/* Auth Modal (Login / Sign up / Profile Edit) */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
+        isLoggedIn={isLoggedIn}
+        userOwnerName={userOwnerName}
+        userStoreName={myStore.storeName}
         onLoginSuccess={handleLoginSuccess}
+        onUpdateProfile={handleUpdateProfile}
+        onLogout={handleLogout}
       />
 
       {/* Register Store & Exchange Items Modal */}
@@ -236,6 +298,7 @@ export const App: React.FC = () => {
         currentOwnerName={userOwnerName}
         pickedLat={pickedLocation.lat}
         pickedLng={pickedLocation.lng}
+        onUpdatePickedLocation={(lat, lng) => setPickedLocation({ lat, lng })}
       />
 
       {/* 1:1 Equivalent Exchange Proposal Modal */}

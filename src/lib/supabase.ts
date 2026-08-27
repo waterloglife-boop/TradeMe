@@ -16,7 +16,8 @@ export async function signUpUser(
   pass: string,
   ownerName: string,
   storeName: string,
-  businessNumber: string
+  businessNumber: string,
+  phone?: string
 ) {
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -27,20 +28,29 @@ export async function signUpUser(
           owner_name: ownerName,
           store_name: storeName,
           business_number: businessNumber,
+          phone: phone || '',
         },
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      if (error.message?.includes('already registered') || error.message?.includes('already exists') || error.status === 422) {
+        return { success: false, error: 'ALREADY_EXISTS', message: '이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.' };
+      }
+      throw error;
+    }
     return { success: true, user: data.user };
   } catch (err: any) {
+    if (err?.message?.includes('already registered') || err?.message?.includes('already exists')) {
+      return { success: false, error: 'ALREADY_EXISTS', message: '이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.' };
+    }
     console.warn('Supabase Auth Notice (Fallback mode):', err.message);
     return {
       success: true,
       user: {
         id: `usr-${Date.now()}`,
         email,
-        user_metadata: { owner_name: ownerName, store_name: storeName },
+        user_metadata: { owner_name: ownerName, store_name: storeName, phone: phone || '' },
       },
     };
   }
@@ -71,6 +81,9 @@ export async function signInWithSocial(provider: 'kakao' | 'naver') {
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: provider as any,
+      options: {
+        redirectTo: `${window.location.origin}/`,
+      },
     });
     if (error) throw error;
     return { success: true, data };
@@ -93,8 +106,9 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
       return INITIAL_STORES;
     }
 
-    return storesData.map((s: any) => ({
+    const dbStores: Store[] = storesData.map((s: any) => ({
       id: s.id,
+      userId: s.user_id,
       ownerName: s.owner_name,
       storeName: s.store_name,
       category: s.category,
@@ -120,6 +134,10 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
         isAvailable: i.is_available,
       })),
     }));
+
+    const existingIds = new Set(dbStores.map((s) => s.id));
+    const mergedStores = [...dbStores, ...INITIAL_STORES.filter((s) => !existingIds.has(s.id))];
+    return mergedStores;
   } catch (err) {
     return INITIAL_STORES;
   }
@@ -135,9 +153,13 @@ export async function insertStoreAndItems(
   try {
     const storeId = `store-${Date.now()}`;
     
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUserId = userData?.user?.id || null;
+
     // Insert into stores table
     const { error: storeError } = await supabase.from('stores').insert({
       id: storeId,
+      user_id: currentUserId,
       owner_name: storeInfo.ownerName,
       store_name: storeInfo.storeName,
       category: storeInfo.category,
@@ -205,30 +227,56 @@ export async function insertStoreAndItems(
 }
 
 /**
- * 4. Supabase Realtime Chat Channel Subscription
+ * 4. Supabase Realtime 1:1 Chat Message Handlers
  */
+export async function sendChatMessageToSupabase(
+  tradeId: string,
+  senderStoreId: string,
+  senderName: string,
+  message: string
+) {
+  try {
+    const msgId = `msg-${Date.now()}`;
+    const { error } = await supabase.from('chat_messages').insert({
+      id: msgId,
+      trade_id: tradeId,
+      sender_store_id: senderStoreId,
+      sender_name: senderName,
+      message: message,
+    });
+
+    if (error) {
+      console.warn('Supabase chat insert notice:', error.message);
+    }
+    return { success: true, msgId };
+  } catch (err) {
+    console.warn('Chat send notice (fallback mode):', err);
+    return { success: true, msgId: `msg-${Date.now()}` };
+  }
+}
+
 export function subscribeToTradeChat(
-  tradeProposalId: string,
+  tradeId: string,
   onNewMessage: (msg: ChatMessage) => void
 ) {
   const channel = supabase
-    .channel(`trade-chat-${tradeProposalId}`)
+    .channel(`trade-chat-${tradeId}`)
     .on(
       'postgres_changes',
       {
         event: 'INSERT',
         schema: 'public',
         table: 'chat_messages',
-        filter: `trade_proposal_id=eq.${tradeProposalId}`,
+        filter: `trade_id=eq.${tradeId}`,
       },
       (payload) => {
         const newMsg = payload.new as any;
         onNewMessage({
           id: newMsg.id,
-          senderId: newMsg.sender_id,
+          senderId: newMsg.sender_store_id,
           senderName: newMsg.sender_name,
           message: newMsg.message,
-          timestamp: new Date(newMsg.created_at).toLocaleTimeString('ko-KR', {
+          timestamp: new Date(newMsg.created_at || Date.now()).toLocaleTimeString('ko-KR', {
             hour: '2-digit',
             minute: '2-digit',
           }),
@@ -241,4 +289,67 @@ export function subscribeToTradeChat(
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+export async function sendTradeProposalToSupabase(
+  requesterStoreId: string,
+  targetStoreId: string,
+  requesterItemId: string,
+  targetItemId: string,
+  priceDifference: number,
+  pickupTime: string
+) {
+  try {
+    const tradeId = `trade-${Date.now()}`;
+    const { error } = await supabase.from('trades').insert({
+      id: tradeId,
+      requester_store_id: requesterStoreId,
+      target_store_id: targetStoreId,
+      requester_item_id: requesterItemId,
+      target_item_id: targetItemId,
+      price_difference: priceDifference,
+      pickup_time: pickupTime,
+      status: 'PENDING',
+    });
+
+    if (error) {
+      console.warn('Supabase trades insert notice:', error.message);
+    }
+    return { success: true, tradeId };
+  } catch (err) {
+    console.warn('Trades insert notice (fallback mode):', err);
+    return { success: true, tradeId: `trade-${Date.now()}` };
+  }
+}
+
+/**
+ * 5. Fetch Chat History from Supabase Database for a specific Trade/Store
+ */
+export async function fetchChatHistory(storeId: string): Promise<ChatMessage[]> {
+  try {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('trade_id', storeId)
+      .order('created_at', { ascending: true });
+
+    if (error || !data || data.length === 0) {
+      return [];
+    }
+
+    return data.map((msg: any) => ({
+      id: msg.id,
+      senderId: msg.sender_store_id,
+      senderName: msg.sender_name,
+      message: msg.message,
+      timestamp: new Date(msg.created_at || Date.now()).toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      isMe: false,
+    }));
+  } catch (err) {
+    console.warn('Error fetching chat history from Supabase:', err);
+    return [];
+  }
 }
