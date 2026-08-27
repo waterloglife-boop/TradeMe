@@ -57,7 +57,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
       script = document.createElement('script');
       script.id = scriptId;
       script.type = 'text/javascript';
-      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`;
+      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoding`;
       script.async = true;
 
       script.onload = () => {
