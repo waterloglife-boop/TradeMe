@@ -359,6 +359,20 @@ export async function insertStoreAndItems(
 }
 
 /**
+ * 4. Update Store Exchange Availability Status in Supabase DB
+ */
+export async function updateStoreStatusInSupabase(storeId: string, isActive: boolean) {
+  try {
+    await supabase
+      .from('stores')
+      .update({ break_time_active: isActive })
+      .eq('id', storeId);
+  } catch (err) {
+    console.warn('Store status update notice:', err);
+  }
+}
+
+/**
  * 4. Supabase Realtime 1:1 Chat Message Handlers
  */
 export async function sendChatMessageToSupabase(
