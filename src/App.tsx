@@ -243,13 +243,14 @@ export const App: React.FC = () => {
           selectedStore={selectedStore}
           onSelectStore={(store) => setSelectedStore(store)}
           myStore={myStore}
+          pickedLocation={pickedLocation}
           onMapClickPinLocation={handleMapClickPinLocation}
         />
 
         {/* Map Location Click Hint Pill */}
         <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-orange-200 text-xs font-bold text-orange-900 flex items-center gap-1.5 animate-bounce">
           <MapPin className="w-4 h-4 text-orange-600" />
-          <span>💡 지도를 클릭하시면 내 가게 핀 위치가 지정됩니다</span>
+          <span>💡 상단 [물물교환 품목 등록]에서 도로명 주소로 위치를 조율하세요</span>
         </div>
 
         {/* Selected Store Detail & Exchange Items Drawer */}
@@ -277,6 +278,7 @@ export const App: React.FC = () => {
         currentOwnerName={userOwnerName}
         pickedLat={pickedLocation.lat}
         pickedLng={pickedLocation.lng}
+        onUpdatePickedLocation={(lat, lng) => setPickedLocation({ lat, lng })}
       />
 
       {/* 1:1 Equivalent Exchange Proposal Modal */}

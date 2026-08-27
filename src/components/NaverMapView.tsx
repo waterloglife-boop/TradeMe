@@ -8,6 +8,7 @@ interface NaverMapViewProps {
   selectedStore: Store | null;
   onSelectStore: (store: Store) => void;
   myStore: Store;
+  pickedLocation?: { lat: number; lng: number };
   onMapClickPinLocation?: (lat: number, lng: number) => void;
 }
 
@@ -22,11 +23,13 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   selectedStore,
   onSelectStore,
   myStore,
+  pickedLocation,
   onMapClickPinLocation,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const naverMapInstanceRef = useRef<any>(null);
   const markersRef = useRef<{ [key: string]: any }>({});
+  const pickerMarkerRef = useRef<any>(null);
   
   const [scriptLoaded, setScriptLoaded] = useState<boolean>(false);
   const [authFailed, setAuthFailed] = useState<boolean>(false);
@@ -178,6 +181,33 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
       console.error('Naver Maps render notice:', err);
     }
   }, [scriptLoaded, stores, selectedStore, myStore, onSelectStore, onMapClickPinLocation]);
+
+  // 2. [상태 동기화 및 핀 이동 로직 구현] Naver Geocoding 좌표 변경 시 지도 핀 및 중심점 자동 이동
+  useEffect(() => {
+    if (!scriptLoaded || !window.naver || !window.naver.maps || !naverMapInstanceRef.current || !pickedLocation) return;
+    try {
+      const map = naverMapInstanceRef.current;
+      const newPos = new window.naver.maps.LatLng(pickedLocation.lat, pickedLocation.lng);
+
+      map.panTo(newPos);
+
+      if (pickerMarkerRef.current) {
+        pickerMarkerRef.current.setPosition(newPos);
+      } else {
+        pickerMarkerRef.current = new window.naver.maps.Marker({
+          position: newPos,
+          map,
+          title: '선택된 도로명 주소 위치',
+          icon: {
+            content: `<div style="width: 34px; height: 34px; border-radius: 50%; background: #dc2626; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; box-shadow: 0 4px 12px rgba(220,38,38,0.5);">📍</div>`,
+            anchor: new window.naver.maps.Point(17, 17),
+          },
+        });
+      }
+    } catch (e) {
+      // Fallback gracefully
+    }
+  }, [scriptLoaded, pickedLocation]);
 
   // Loading Screen
   if (!scriptLoaded && !authFailed) {

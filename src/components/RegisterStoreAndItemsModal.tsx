@@ -10,6 +10,7 @@ interface RegisterStoreAndItemsModalProps {
   currentOwnerName: string;
   pickedLat?: number;
   pickedLng?: number;
+  onUpdatePickedLocation?: (lat: number, lng: number) => void;
 }
 
 export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProps> = ({
@@ -17,8 +18,9 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   onClose,
   onSuccess,
   currentOwnerName,
-  pickedLat = 35.1782,
-  pickedLng = 129.1985,
+  pickedLat = 35.3605,
+  pickedLng = 129.0468,
+  onUpdatePickedLocation,
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
@@ -26,7 +28,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   // Step 1: Store Information State
   const [storeName, setStoreName] = useState('');
   const [category, setCategory] = useState<StoreCategory>('KOREAN');
-  const [categoryName, setCategoryName] = useState('한식/구이');
+  const [categoryName, setCategoryName] = useState('한식');
   const [address, setAddress] = useState('경남 양산시 북정서길 25 (북정동)');
   const [phone, setPhone] = useState('055-385-1234');
   const [breakTimeActive, setBreakTimeActive] = useState(true);
@@ -57,6 +59,34 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
       }
     }
   }, [pickedLat, pickedLng]);
+
+  // 1. [Naver Geocoding API 연동 (주소 -> 좌표 변환)]
+  const handleSearchAddress = () => {
+    if (!address.trim()) return;
+    if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode) {
+      try {
+        window.naver.maps.Service.geocode({ query: address }, (status: any, response: any) => {
+          if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
+            const item = response.v2.addresses[0];
+            const lat = parseFloat(item.y);
+            const lng = parseFloat(item.x);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              if (onUpdatePickedLocation) {
+                onUpdatePickedLocation(lat, lng);
+              }
+              if (item.roadAddress) {
+                setAddress(item.roadAddress);
+              }
+            }
+          } else {
+            alert('입력하신 주소의 위치를 찾을 수 없습니다. 도로명 주소를 정확히 입력해 주세요.');
+          }
+        });
+      } catch (err) {
+        console.warn('Geocoding search notice:', err);
+      }
+    }
+  };
 
   // Step 2: 2~3 Exchange Items State
   const [items, setItems] = useState<Array<Omit<ExchangeItem, 'id' | 'storeId'>>>([
