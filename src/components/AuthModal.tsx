@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Lock, Mail, Building, ShieldCheck, ArrowRight, User, LogOut, CheckCircle2, Phone, AlertTriangle } from 'lucide-react';
-import { signUpUser, signInUser, signInWithSocial } from '../lib/supabase';
+import { X, Lock, Mail, Building, ShieldCheck, ArrowRight, User, LogOut, CheckCircle2, Phone, AlertTriangle, Search, Check } from 'lucide-react';
+import { signUpUser, signInUser, verifyNtsBusinessStatus } from '../lib/supabase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -11,6 +11,20 @@ interface AuthModalProps {
   onLoginSuccess: (ownerName: string, storeName: string) => void;
   onUpdateProfile: (ownerName: string, storeName: string, phone: string) => void;
   onLogout: () => void;
+}
+
+// 🇰🇷 국세청 사업자등록번호 10자리 검증 알고리즘 (Modulus-11)
+export function checkValidBusinessNumber(bno: string): boolean {
+  const clean = bno.replace(/[^0-9]/g, '');
+  if (clean.length !== 10) return false;
+  const keys = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(clean[i], 10) * keys[i];
+  }
+  sum += Math.floor((parseInt(clean[8], 10) * 5) / 10);
+  const remainder = (10 - (sum % 10)) % 10;
+  return remainder === parseInt(clean[9], 10);
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -28,11 +42,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [ownerName, setOwnerName] = useState(userOwnerName || '사장님 (마라위크)');
-  const [storeName, setStoreName] = useState(userStoreName || '마라위크 (양산 북정점)');
-  const [phone, setPhone] = useState('055-385-1234');
-  const [businessNumber, setBusinessNumber] = useState('123-45-67890');
+  const [ownerName, setOwnerName] = useState(userOwnerName || '홍길동 사장님');
+  const [storeName, setStoreName] = useState(userStoreName || '송정 수제돈까스');
+  const [phone, setPhone] = useState('0553851234');
+  const [businessNumber, setBusinessNumber] = useState('1234567890');
   const [loading, setLoading] = useState(false);
+  const [ntsVerifying, setNtsVerifying] = useState(false);
+  const [ntsStatusMessage, setNtsStatusMessage] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [duplicateField, setDuplicateField] = useState<'EMAIL' | 'PHONE' | null>(null);
@@ -64,9 +80,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
     setToastMessage(null);
     setDuplicateField(null);
+    setNtsStatusMessage(null);
   }, [isLoggedIn, userOwnerName, userStoreName, isOpen]);
 
   if (!isOpen) return null;
+
+  // 🇰🇷 국세청 실시간 사업자 상태조회 API 핸들러
+  const handleVerifyNtsBusiness = async () => {
+    const cleanBno = businessNumber.replace(/[^0-9]/g, '');
+    if (cleanBno.length !== 10) {
+      setToastMessage('⚠️ 사업자등록번호 10자리를 (-) 없이 숫자만 정확히 입력해 주세요.');
+      return;
+    }
+    setNtsVerifying(true);
+    setToastMessage(null);
+
+    const res = await verifyNtsBusinessStatus(cleanBno);
+    setNtsVerifying(false);
+
+    if (res.isValid) {
+      setNtsStatusMessage(res.message);
+    } else {
+      setNtsStatusMessage(null);
+      setToastMessage(`⚠️ ${res.message}`);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,9 +113,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setDuplicateField(null);
 
     const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const cleanBno = businessNumber.replace(/[^0-9]/g, '');
 
     if (mode === 'PROFILE') {
-      onUpdateProfile(ownerName, storeName, phone);
+      onUpdateProfile(ownerName, storeName, cleanPhone);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
       setLoading(false);
@@ -88,8 +127,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await signInUser(email, password);
       if (res.success) {
         onLoginSuccess(
-          res.user?.user_metadata?.owner_name || '사장님 (마라위크)',
-          res.user?.user_metadata?.store_name || storeName || '마라위크 (양산 북정점)'
+          res.user?.user_metadata?.owner_name || '홍길동 사장님',
+          res.user?.user_metadata?.store_name || storeName || '송정 수제돈까스'
         );
         onClose();
       }
@@ -117,13 +156,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      if (!businessNumber) {
-        alert('소상공인 신뢰 확보를 위해 사업자등록번호를 입력해 주세요.');
+      if (!cleanBno || cleanBno.length !== 10) {
+        setToastMessage('⚠️ 소상공인 신뢰 확보를 위해 사업자등록번호 10자리를 (-) 없이 입력해 주세요.');
         setLoading(false);
         return;
       }
 
-      const res = await signUpUser(email, password, ownerName, storeName, businessNumber, phone);
+      const res = await signUpUser(email, password, ownerName, storeName, cleanBno, cleanPhone);
       
       if (!res.success && res.error === 'ALREADY_EXISTS') {
         setToastMessage(res.message || '⚠️ 이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.');
@@ -138,18 +177,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (res.success) {
         setRegisteredEmails((prev) => [...prev, lowerEmail]);
         if (cleanPhone) setRegisteredPhones((prev) => [...prev, cleanPhone]);
-        onLoginSuccess(ownerName || '사장님 (마라위크)', storeName || '마라위크 (양산 북정점)');
+        onLoginSuccess(ownerName || '홍길동 사장님', storeName || '송정 수제돈까스');
         onClose();
       }
     }
 
     setLoading(false);
-  };
-
-  const handleNaverLogin = async () => {
-    await signInWithSocial('naver');
-    onLoginSuccess('네이버 사장님', '마라위크 (양산 북정점)');
-    onClose();
   };
 
   return (
@@ -217,6 +250,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
+          {/* NTS Verification Success Banner */}
+          {ntsStatusMessage && (
+            <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-top-2">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>{ntsStatusMessage}</span>
+            </div>
+          )}
+
           {/* PROFILE EDIT MODE */}
           {mode === 'PROFILE' && (
             <>
@@ -228,7 +269,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               )}
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">사장님 성함</label>
+                <label className="block text-xs font-bold text-gray-700 mb-0.5">사장님 성함</label>
                 <div className="relative">
                   <User className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                   <input
@@ -242,7 +283,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">대표 가게 상호명</label>
+                <label className="block text-xs font-bold text-gray-700 mb-0.5">대표 가게 상호명</label>
+                <p className="text-[11px] text-gray-500 font-normal mb-1">💡 간판명으로 작성 부탁드려요</p>
                 <div className="relative">
                   <Building className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                   <input
@@ -256,7 +298,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">연락처 (휴대폰 번호)</label>
+                <label className="block text-xs font-bold text-gray-700 mb-0.5">연락처 (휴대폰 번호)</label>
+                <p className="text-[11px] text-gray-500 font-normal mb-1">💡 (-) 하이픈 제외하고 번호만 입력</p>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                   <input
@@ -264,13 +307,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     type="text"
                     value={phone}
                     onChange={(e) => {
-                      setPhone(e.target.value);
+                      setPhone(e.target.value.replace(/[^0-9]/g, ''));
                       if (duplicateField === 'PHONE') {
                         setToastMessage(null);
                         setDuplicateField(null);
                       }
                     }}
-                    placeholder="010-1234-5678"
+                    placeholder="01012345678"
                     className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs outline-none ${
                       duplicateField === 'PHONE'
                         ? 'border-amber-500 ring-2 ring-amber-200'
@@ -281,18 +324,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                <label className="block text-xs font-bold text-gray-700 mb-0.5 flex items-center justify-between">
                   <span>사업자등록번호 (10자리)</span>
                   <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-                    <ShieldCheck className="w-3 h-3" /> 인증완료
+                    <ShieldCheck className="w-3 h-3" /> 국세청 인증완료
                   </span>
                 </label>
-                <input
-                  type="text"
-                  value={businessNumber}
-                  onChange={(e) => setBusinessNumber(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono"
-                />
+                <p className="text-[11px] text-gray-500 font-normal mb-1">💡 (-) 하이픈 제외하고 번호만 입력</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    maxLength={10}
+                    value={businessNumber}
+                    onChange={(e) => setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="1234567890"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyNtsBusiness}
+                    disabled={ntsVerifying}
+                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm whitespace-nowrap"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>{ntsVerifying ? '조회 중...' : '국세청 조회'}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="pt-2 flex flex-col gap-2">
@@ -330,24 +387,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <p className="text-xs text-gray-500 mt-0.5">
                   1:1 물물교환으로 식사, 상품 및 서비스를 맞교환하세요
                 </p>
-              </div>
-
-              {/* Naver Social Login Button */}
-              <div>
-                <button
-                  type="button"
-                  onClick={handleNaverLogin}
-                  className="w-full py-3 px-4 bg-[#03C75A] hover:bg-[#02b350] text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
-                >
-                  <span className="font-black text-base bg-white text-[#03C75A] w-5 h-5 rounded-full flex items-center justify-center text-xs">N</span>
-                  네이버 아이디로 1초 만에 로그인
-                </button>
-              </div>
-
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-gray-200"></div>
-                <span className="flex-shrink mx-2 text-[11px] text-gray-400 font-medium">또는 자체 계정</span>
-                <div className="flex-grow border-t border-gray-200"></div>
               </div>
 
               {/* Email & Password */}
@@ -402,7 +441,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <input
                         type="text"
                         required
-                        placeholder="사장님 (마라위크)"
+                        placeholder="홍길동 사장님"
                         value={ownerName}
                         onChange={(e) => setOwnerName(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
@@ -411,13 +450,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">가게 상호명</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-0.5">가게 상호명</label>
+                    <p className="text-[11px] text-gray-500 font-normal mb-1">💡 간판명으로 작성 부탁드려요</p>
                     <div className="relative">
                       <Building className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                       <input
                         type="text"
                         required
-                        placeholder="마라위크 (양산 북정점)"
+                        placeholder="예: 송정 수제돈까스"
                         value={storeName}
                         onChange={(e) => setStoreName(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
@@ -426,16 +466,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">연락처 (휴대폰 번호)</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-0.5">연락처 (휴대폰 번호)</label>
+                    <p className="text-[11px] text-gray-500 font-normal mb-1">💡 (-) 하이픈 제외하고 번호만 입력</p>
                     <div className="relative">
                       <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                       <input
                         ref={phoneInputRef}
                         type="text"
-                        placeholder="010-1234-5678"
+                        placeholder="01012345678"
                         value={phone}
                         onChange={(e) => {
-                          setPhone(e.target.value);
+                          setPhone(e.target.value.replace(/[^0-9]/g, ''));
                           if (duplicateField === 'PHONE') {
                             setToastMessage(null);
                             setDuplicateField(null);
@@ -451,20 +492,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                    <label className="block text-xs font-bold text-gray-700 mb-0.5 flex items-center justify-between">
                       <span>사업자등록번호 (10자리)</span>
                       <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-                        <ShieldCheck className="w-3 h-3" /> 인증필수
+                        <ShieldCheck className="w-3 h-3" /> 실시간 인증가능
                       </span>
                     </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="123-45-67890"
-                      value={businessNumber}
-                      onChange={(e) => setBusinessNumber(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono"
-                    />
+                    <p className="text-[11px] text-gray-500 font-normal mb-1">💡 (-) 하이픈 제외하고 번호만 입력</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        required
+                        maxLength={10}
+                        placeholder="1234567890"
+                        value={businessNumber}
+                        onChange={(e) => setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyNtsBusiness}
+                        disabled={ntsVerifying}
+                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm whitespace-nowrap"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>{ntsVerifying ? '조회 중...' : '국세청 조회'}</span>
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
