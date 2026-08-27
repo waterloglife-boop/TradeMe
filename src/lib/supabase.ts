@@ -237,8 +237,8 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
       lng: storeData.lng,
       phone: storeData.phone,
       isVerified: storeData.is_verified,
-      breakTimeActive: storeData.break_time_active,
-      breakTimeHours: storeData.break_time_hours,
+      breakTimeActive: storeData.is_exchange_active ?? storeData.break_time_active ?? true,
+      breakTimeHours: storeData.operating_hours ?? storeData.break_time_hours ?? '10:00 - 22:00 (연중무휴)',
       storeImageUrl: storeData.store_image_url,
       rating: storeData.rating || 4.9,
       reviewCount: storeData.review_count || 30,
@@ -328,8 +328,8 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
       lng: s.lng,
       phone: s.phone,
       isVerified: s.is_verified,
-      breakTimeActive: s.break_time_active,
-      breakTimeHours: s.break_time_hours,
+      breakTimeActive: s.is_exchange_active ?? s.break_time_active ?? true,
+      breakTimeHours: s.operating_hours ?? s.break_time_hours ?? '10:00 - 22:00 (연중무휴)',
       storeImageUrl: s.store_image_url,
       rating: s.rating || 4.9,
       reviewCount: s.review_count || 30,
@@ -398,8 +398,8 @@ export async function insertStoreAndItems(
     const isUpdate = !!targetStoreId;
     const finalStoreId = targetStoreId || `store-${Date.now()}`;
 
-    // 3. Upsert store record (Update if exists, Insert if new)
-    const { error: storeError } = await supabase.from('stores').upsert({
+    // 3. Upsert store record (Try new intuitive column names first, fallback to legacy)
+    const storePayload: any = {
       id: finalStoreId,
       user_id: currentUserId,
       owner_name: storeInfo.ownerName,
@@ -411,10 +411,21 @@ export async function insertStoreAndItems(
       lng: storeInfo.lng,
       phone: storeInfo.phone,
       is_verified: true,
-      break_time_active: storeInfo.breakTimeActive,
-      break_time_hours: storeInfo.breakTimeHours,
       store_image_url: storeInfo.storeImageUrl,
-    });
+      is_exchange_active: storeInfo.breakTimeActive,
+      operating_hours: storeInfo.breakTimeHours,
+    };
+
+    let { error: storeError } = await supabase.from('stores').upsert(storePayload);
+
+    if (storeError && storeError.message?.includes('column')) {
+      delete storePayload.is_exchange_active;
+      delete storePayload.operating_hours;
+      storePayload.break_time_active = storeInfo.breakTimeActive;
+      storePayload.break_time_hours = storeInfo.breakTimeHours;
+      const res = await supabase.from('stores').upsert(storePayload);
+      storeError = res.error;
+    }
 
     if (storeError) {
       console.warn('Supabase store upsert notice:', storeError.message);
@@ -491,10 +502,17 @@ export async function insertStoreAndItems(
  */
 export async function updateStoreStatusInSupabase(storeId: string, isActive: boolean) {
   try {
-    await supabase
+    let { error } = await supabase
       .from('stores')
-      .update({ break_time_active: isActive })
+      .update({ is_exchange_active: isActive })
       .eq('id', storeId);
+
+    if (error && error.message?.includes('column')) {
+      await supabase
+        .from('stores')
+        .update({ break_time_active: isActive })
+        .eq('id', storeId);
+    }
   } catch (err) {
     console.warn('Store status update notice:', err);
   }
