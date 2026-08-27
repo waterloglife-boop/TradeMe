@@ -363,7 +363,26 @@ export async function insertStoreAndItems(
 ) {
   try {
     const { data: userData } = await supabase.auth.getUser();
-    const currentUserId = userData?.user?.id || null;
+    let currentUserId = userData?.user?.id || null;
+
+    if (!currentUserId) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      currentUserId = sessionData?.session?.user?.id || null;
+    }
+
+    // Fallback: search profiles table by owner_name or store_name to resolve matching profile id
+    if (!currentUserId && (storeInfo.ownerName || storeInfo.storeName)) {
+      const { data: matchedProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('store_name', storeInfo.storeName)
+        .limit(1)
+        .maybeSingle();
+
+      if (matchedProfile?.id) {
+        currentUserId = matchedProfile.id;
+      }
+    }
 
     // 1. Check if store for this owner user_id already exists in Supabase stores table
     let targetStoreId: string | null = null;
