@@ -31,6 +31,7 @@ export interface ExchangeItem {
 
 export interface Store {
   id: string;
+  userId?: string; // 회원 프로필(profiles / auth.users) 연동 ID
   ownerName: string;
   storeName: string;
   category: StoreCategory;

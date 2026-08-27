@@ -95,6 +95,7 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
 
     const dbStores: Store[] = storesData.map((s: any) => ({
       id: s.id,
+      userId: s.user_id,
       ownerName: s.owner_name,
       storeName: s.store_name,
       category: s.category,
@@ -139,9 +140,13 @@ export async function insertStoreAndItems(
   try {
     const storeId = `store-${Date.now()}`;
     
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUserId = userData?.user?.id || null;
+
     // Insert into stores table
     const { error: storeError } = await supabase.from('stores').insert({
       id: storeId,
+      user_id: currentUserId,
       owner_name: storeInfo.ownerName,
       store_name: storeInfo.storeName,
       category: storeInfo.category,
