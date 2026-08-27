@@ -447,6 +447,7 @@ export async function sendChatMessageToSupabase(
       sender_store_id: senderStoreId,
       sender_name: senderName,
       message: message,
+      is_me: true,
     });
 
     if (error) {
