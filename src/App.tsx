@@ -9,7 +9,7 @@ import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import { Store, ExchangeItem, ChatMessage } from './types/trade';
-import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase } from './lib/supabase';
+import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase, sendTradeProposalToSupabase } from './lib/supabase';
 import { MapPin } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -136,6 +136,20 @@ export const App: React.FC = () => {
     };
 
     const storeId = selectedStore.id;
+
+    // Send proposal record to Supabase DB trades table
+    sendTradeProposalToSupabase(
+      myStore.id,
+      storeId,
+      myMenu.id,
+      targetMenu.id,
+      diffPrice,
+      pickupTime
+    );
+
+    // Send proposal chat message to Supabase DB chat_messages table
+    sendChatMessageToSupabase(storeId, myStore.id, myStore.ownerName, proposalMsgText);
+
     setMessagesMap((prev) => ({
       ...prev,
       [storeId]: [...(prev[storeId] || []), newMsg],
