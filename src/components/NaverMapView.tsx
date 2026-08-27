@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Store } from '../types/trade';
-import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
+import { MapView } from './MapView';
 
 interface NaverMapViewProps {
   stores: Store[];
@@ -80,14 +81,6 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   useEffect(() => {
     if (!scriptLoaded || !window.naver || !window.naver.maps || !mapContainerRef.current) {
       return;
-    }
-
-    // Catch Naver API key authentication fault event
-    if (window.naver.maps.onJSAPIFault) {
-      window.naver.maps.onJSAPIFault = () => {
-        console.warn('Naver Maps API Authentication fault detected.');
-        setAuthFailed(true);
-      };
     }
 
     try {
@@ -182,8 +175,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
         markersRef.current[store.id] = marker;
       });
     } catch (err) {
-      console.error('Naver Maps render error:', err);
-      setAuthFailed(true);
+      console.error('Naver Maps render notice:', err);
     }
   }, [scriptLoaded, stores, selectedStore, myStore, onSelectStore, onMapClickPinLocation]);
 
@@ -194,30 +186,23 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
           <h3 className="font-extrabold text-gray-900 text-sm">
-            🗺️ 네이버 지도 (Naver Maps SDK) 로딩 중...
+            🗺️ 지도 (Naver Maps SDK) 로딩 중...
           </h3>
         </div>
       </div>
     );
   }
 
-  // Auth Error Screen
+  // Auth Error Emergency Fallback
   if (authFailed) {
     return (
-      <div className="relative w-full h-[calc(100vh-64px)] bg-gray-100 flex flex-col items-center justify-center p-6 text-center">
-        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-md space-y-3">
-          <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
-            <AlertCircle className="w-6 h-6" />
-          </div>
-          <h3 className="font-extrabold text-gray-900 text-base">
-            🗺️ 네이버 지도 키 동기화 진행 중 (ncpKeyId: {clientId})
-          </h3>
-          <p className="text-xs text-gray-600 leading-relaxed">
-            네이버 클라우드 플랫폼에서 발급된 신규 Client ID(<code>8ek0m4smqn</code>)를 호출 중입니다.<br/>
-            네이버 게이트웨이 동기화(약 3~5분) 마쳐진 후 새로고침하시면 바로 로드됩니다.
-          </p>
-        </div>
-      </div>
+      <MapView
+        stores={stores}
+        selectedStore={selectedStore}
+        onSelectStore={onSelectStore}
+        myStore={myStore}
+        onMapClickPinLocation={onMapClickPinLocation}
+      />
     );
   }
 
