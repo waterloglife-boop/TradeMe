@@ -211,12 +211,6 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   return (
     <div className="relative w-full h-[calc(100vh-64px)] overflow-hidden">
       <div ref={mapContainerRef} className="w-full h-full z-0" />
-      
-      {/* Top Status Badge */}
-      <div className="absolute top-4 left-4 z-10 bg-white/95 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-gray-200 text-xs font-bold flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-emerald-600" />
-        <span className="text-emerald-900">네이버 지도 (Naver Maps SDK) 고화질 모드</span>
-      </div>
     </div>
   );
 };
