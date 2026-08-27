@@ -498,7 +498,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                         handleSearchAddress();
                       }
                     }}
-                    placeholder="예: 서울특별시 강남구 테헤란로 123"
+                    placeholder="예: 경남 양산시 북정서길 25 104호"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-medium"
                   />
                   <button
@@ -509,6 +509,54 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                     <span>위치 찾기</span>
                   </button>
                 </div>
+              </div>
+
+              {/* 📍 핀 정밀 위치 좌표 조정 (위도/경도 1m 정밀 세동) */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-orange-600" />
+                    지도 핀 정밀 위치 좌표 (위도 / 경도)
+                  </span>
+                  <span className="text-[11px] text-gray-500 font-medium">1m 단위 정밀 위치 조정</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-gray-500 block mb-0.5 font-bold">위도 (Latitude)</span>
+                    <input
+                      type="number"
+                      step="any"
+                      value={currentLat}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          setCurrentLat(val);
+                          if (onUpdatePickedLocation) onUpdatePickedLocation(val, currentLng);
+                        }
+                      }}
+                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs font-mono font-bold bg-white outline-none focus:ring-1 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 block mb-0.5 font-bold">경도 (Longitude)</span>
+                    <input
+                      type="number"
+                      step="any"
+                      value={currentLng}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          setCurrentLng(val);
+                          if (onUpdatePickedLocation) onUpdatePickedLocation(currentLat, val);
+                        }
+                      }}
+                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs font-mono font-bold bg-white outline-none focus:ring-1 focus:ring-orange-500"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-amber-800 font-medium bg-amber-50 p-1.5 rounded border border-amber-200">
+                  💡 팁: 네이버 지도나 카카오맵에서 마우스 오른쪽 버튼으로 얻은 정밀 좌표를 직접 숫자로 입력하셔도 지도 핀이 그 위치로 100% 이동합니다!
+                </p>
               </div>
 
               {/* Operating Hours setup (Replaces Break Time per user request) */}
