@@ -218,6 +218,20 @@ export const App: React.FC = () => {
     return true;
   });
 
+  const handleUpdateProfile = (ownerName: string, storeName: string) => {
+    setUserOwnerName(ownerName);
+    setMyStore((prev) => ({
+      ...prev,
+      ownerName,
+      storeName,
+    }));
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUserOwnerName('로그인 필요');
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col font-sans">
       
@@ -263,11 +277,16 @@ export const App: React.FC = () => {
         />
       </main>
 
-      {/* Auth Modal (Login / Sign up) */}
+      {/* Auth Modal (Login / Sign up / Profile Edit) */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
+        isLoggedIn={isLoggedIn}
+        userOwnerName={userOwnerName}
+        userStoreName={myStore.storeName}
         onLoginSuccess={handleLoginSuccess}
+        onUpdateProfile={handleUpdateProfile}
+        onLogout={handleLogout}
       />
 
       {/* Register Store & Exchange Items Modal */}

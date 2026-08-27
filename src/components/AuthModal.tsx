@@ -1,27 +1,48 @@
-import React, { useState } from 'react';
-import { X, Lock, Mail, Building, ShieldCheck, ArrowRight, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Lock, Mail, Building, ShieldCheck, ArrowRight, User, LogOut, CheckCircle2 } from 'lucide-react';
 import { signUpUser, signInUser, signInWithSocial } from '../lib/supabase';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  isLoggedIn: boolean;
+  userOwnerName: string;
+  userStoreName: string;
   onLoginSuccess: (ownerName: string, storeName: string) => void;
+  onUpdateProfile: (ownerName: string, storeName: string) => void;
+  onLogout: () => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
+  isLoggedIn,
+  userOwnerName,
+  userStoreName,
   onLoginSuccess,
+  onUpdateProfile,
+  onLogout,
 }) => {
-  const [mode, setMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
+  const [mode, setMode] = useState<'LOGIN' | 'SIGNUP' | 'PROFILE'>('LOGIN');
 
   // Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [ownerName, setOwnerName] = useState('');
-  const [storeName, setStoreName] = useState('');
-  const [businessNumber, setBusinessNumber] = useState('');
+  const [ownerName, setOwnerName] = useState(userOwnerName || '사장님 (마라위크)');
+  const [storeName, setStoreName] = useState(userStoreName || '마라위크 (양산 북정점)');
+  const [businessNumber, setBusinessNumber] = useState('123-45-67890');
   const [loading, setLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      setMode('PROFILE');
+      setOwnerName(userOwnerName);
+      setStoreName(userStoreName);
+    } else {
+      setMode('LOGIN');
+    }
+  }, [isLoggedIn, userOwnerName, userStoreName, isOpen]);
 
   if (!isOpen) return null;
 
@@ -29,12 +50,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     e.preventDefault();
     setLoading(true);
 
+    if (mode === 'PROFILE') {
+      onUpdateProfile(ownerName, storeName);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+      setLoading(false);
+      return;
+    }
+
     if (mode === 'LOGIN') {
       const res = await signInUser(email, password);
       if (res.success) {
         onLoginSuccess(
-          res.user?.user_metadata?.owner_name || '홍길동 사장님',
-          res.user?.user_metadata?.store_name || storeName || '내 가게'
+          res.user?.user_metadata?.owner_name || '사장님 (마라위크)',
+          res.user?.user_metadata?.store_name || storeName || '마라위크 (양산 북정점)'
         );
       }
     } else {
@@ -45,7 +74,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
       const res = await signUpUser(email, password, ownerName, storeName, businessNumber);
       if (res.success) {
-        onLoginSuccess(ownerName || '홍길동 사장님', storeName || '신규 등록 가게');
+        onLoginSuccess(ownerName || '사장님 (마라위크)', storeName || '마라위크 (양산 북정점)');
       }
     }
 
@@ -55,7 +84,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleNaverLogin = async () => {
     await signInWithSocial('naver');
-    onLoginSuccess('네이버 사장님', '송정 해운대 식당');
+    onLoginSuccess('네이버 사장님', '마라위크 (양산 북정점)');
     onClose();
   };
 
@@ -64,98 +93,60 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden">
         
         {/* Header Tabs */}
-        <div className="flex border-b border-gray-200 bg-gray-50">
-          <button
-            onClick={() => setMode('LOGIN')}
-            className={`flex-1 py-3 text-sm font-bold transition-all border-b-2 ${
-              mode === 'LOGIN'
-                ? 'border-orange-500 text-orange-600 bg-white'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            로그인
-          </button>
-          <button
-            onClick={() => setMode('SIGNUP')}
-            className={`flex-1 py-3 text-sm font-bold transition-all border-b-2 ${
-              mode === 'SIGNUP'
-                ? 'border-orange-500 text-orange-600 bg-white'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            사장님 회원가입
-          </button>
-          <button
-            onClick={onClose}
-            className="p-3 text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        {isLoggedIn ? (
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-500 to-amber-600 text-white">
+            <div className="flex items-center gap-2 font-bold text-base">
+              <User className="w-5 h-5" />
+              <span>👤 내 사장님 프로필 정보 수정</span>
+            </div>
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/20">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex border-b border-gray-200 bg-gray-50">
+            <button
+              onClick={() => setMode('LOGIN')}
+              className={`flex-1 py-3 text-sm font-bold transition-all border-b-2 ${
+                mode === 'LOGIN'
+                  ? 'border-orange-500 text-orange-600 bg-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              로그인
+            </button>
+            <button
+              onClick={() => setMode('SIGNUP')}
+              className={`flex-1 py-3 text-sm font-bold transition-all border-b-2 ${
+                mode === 'SIGNUP'
+                  ? 'border-orange-500 text-orange-600 bg-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              사장님 회원가입
+            </button>
+            <button
+              onClick={onClose}
+              className="p-3 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
 
         {/* Modal Content */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="text-center mb-2">
-            <h3 className="font-extrabold text-gray-900 text-lg">
-              {mode === 'LOGIN' ? 'Trade Me 로그인' : '소상공인 사장님 회원가입'}
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              1:1 물물교환으로 식사, 상품 및 서비스를 맞교환하세요
-            </p>
-          </div>
-
-          {/* Naver Social Login Button Only */}
-          <div>
-            <button
-              type="button"
-              onClick={handleNaverLogin}
-              className="w-full py-3 px-4 bg-[#03C75A] hover:bg-[#02b350] text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
-            >
-              <span className="font-black text-base bg-white text-[#03C75A] w-5 h-5 rounded-full flex items-center justify-center text-xs">N</span>
-              네이버 아이디로 1초 만에 로그인
-            </button>
-          </div>
-
-          <div className="relative flex py-1 items-center">
-            <div className="flex-grow border-t border-gray-200"></div>
-            <span className="flex-shrink mx-2 text-[11px] text-gray-400 font-medium">또는 자체 계정</span>
-            <div className="flex-grow border-t border-gray-200"></div>
-          </div>
-
-          {/* Email & Password */}
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">이메일 주소</label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-              <input
-                type="email"
-                required
-                placeholder="owner@trademe.kr"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">비밀번호</label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Signup Specific Fields */}
-          {mode === 'SIGNUP' && (
+          
+          {/* PROFILE EDIT MODE */}
+          {mode === 'PROFILE' && (
             <>
+              {saveSuccess && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-bounce">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>프로필 수정사항이 성공적으로 저장되었습니다!</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">사장님 성함</label>
                 <div className="relative">
@@ -163,25 +154,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="홍길동 사장님"
                     value={ownerName}
                     onChange={(e) => setOwnerName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">가게 상호명</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">대표 가게 상호명</label>
                 <div className="relative">
                   <Building className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                   <input
                     type="text"
                     required
-                    placeholder="원조 송정 수제돈까스"
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
                   />
                 </div>
               </div>
@@ -190,30 +179,167 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
                   <span>사업자등록번호 (10자리)</span>
                   <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-                    <ShieldCheck className="w-3 h-3" /> 인증필수
+                    <ShieldCheck className="w-3 h-3" /> 인증완료
                   </span>
                 </label>
                 <input
                   type="text"
-                  required
-                  placeholder="123-45-67890"
                   value={businessNumber}
                   onChange={(e) => setBusinessNumber(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono"
                 />
               </div>
+
+              <div className="pt-2 flex flex-col gap-2">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                >
+                  <span>프로필 수정 내용 저장</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onLogout();
+                    onClose();
+                  }}
+                  className="w-full py-2.5 bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 font-bold text-xs rounded-xl transition-all border border-gray-200 flex items-center justify-center gap-1.5"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>로그아웃</span>
+                </button>
+              </div>
             </>
           )}
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 mt-2"
-          >
-            <span>{loading ? '처리 중...' : mode === 'LOGIN' ? '로그인 하기' : '사장님 무료 가입 및 시작'}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          {/* LOGIN / SIGNUP MODE */}
+          {mode !== 'PROFILE' && (
+            <>
+              <div className="text-center mb-2">
+                <h3 className="font-extrabold text-gray-900 text-lg">
+                  {mode === 'LOGIN' ? 'Trade Me 로그인' : '소상공인 사장님 회원가입'}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  1:1 물물교환으로 식사, 상품 및 서비스를 맞교환하세요
+                </p>
+              </div>
+
+              {/* Naver Social Login Button */}
+              <div>
+                <button
+                  type="button"
+                  onClick={handleNaverLogin}
+                  className="w-full py-3 px-4 bg-[#03C75A] hover:bg-[#02b350] text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="font-black text-base bg-white text-[#03C75A] w-5 h-5 rounded-full flex items-center justify-center text-xs">N</span>
+                  네이버 아이디로 1초 만에 로그인
+                </button>
+              </div>
+
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-gray-200"></div>
+                <span className="flex-shrink mx-2 text-[11px] text-gray-400 font-medium">또는 자체 계정</span>
+                <div className="flex-grow border-t border-gray-200"></div>
+              </div>
+
+              {/* Email & Password */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">이메일 주소</label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="owner@trademe.kr"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">비밀번호</label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Signup Specific Fields */}
+              {mode === 'SIGNUP' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">사장님 성함</label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="사장님 (마라위크)"
+                        value={ownerName}
+                        onChange={(e) => setOwnerName(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">가게 상호명</label>
+                    <div className="relative">
+                      <Building className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="마라위크 (양산 북정점)"
+                        value={storeName}
+                        onChange={(e) => setStoreName(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                      <span>사업자등록번호 (10자리)</span>
+                      <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
+                        <ShieldCheck className="w-3 h-3" /> 인증필수
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="123-45-67890"
+                      value={businessNumber}
+                      onChange={(e) => setBusinessNumber(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 mt-2"
+              >
+                <span>{loading ? '처리 중...' : mode === 'LOGIN' ? '로그인 하기' : '사장님 무료 가입 및 시작'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
         </form>
 
       </div>
