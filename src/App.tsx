@@ -218,12 +218,13 @@ export const App: React.FC = () => {
     return true;
   });
 
-  const handleUpdateProfile = (ownerName: string, storeName: string) => {
+  const handleUpdateProfile = (ownerName: string, storeName: string, phone?: string) => {
     setUserOwnerName(ownerName);
     setMyStore((prev) => ({
       ...prev,
       ownerName,
       storeName,
+      phone: phone || prev.phone,
     }));
   };
 

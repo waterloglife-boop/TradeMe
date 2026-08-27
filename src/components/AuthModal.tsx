@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Lock, Mail, Building, ShieldCheck, ArrowRight, User, LogOut, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Lock, Mail, Building, ShieldCheck, ArrowRight, User, LogOut, CheckCircle2, Phone, AlertTriangle } from 'lucide-react';
 import { signUpUser, signInUser, signInWithSocial } from '../lib/supabase';
 
 interface AuthModalProps {
@@ -9,7 +9,7 @@ interface AuthModalProps {
   userOwnerName: string;
   userStoreName: string;
   onLoginSuccess: (ownerName: string, storeName: string) => void;
-  onUpdateProfile: (ownerName: string, storeName: string) => void;
+  onUpdateProfile: (ownerName: string, storeName: string, phone: string) => void;
   onLogout: () => void;
 }
 
@@ -30,9 +30,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState('');
   const [ownerName, setOwnerName] = useState(userOwnerName || '사장님 (마라위크)');
   const [storeName, setStoreName] = useState(userStoreName || '마라위크 (양산 북정점)');
+  const [phone, setPhone] = useState('055-385-1234');
   const [businessNumber, setBusinessNumber] = useState('123-45-67890');
   const [loading, setLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const emailInputRef = useRef<HTMLInputElement>(null);
+
+  // Registered Emails Registry for Mock/Live Email Duplicate Validation
+  const [registeredEmails, setRegisteredEmails] = useState<string[]>([
+    'owner@trademe.kr',
+    'mara@naver.com',
+    'admin@trademe.kr'
+  ]);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -42,6 +53,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } else {
       setMode('LOGIN');
     }
+    setToastMessage(null);
   }, [isLoggedIn, userOwnerName, userStoreName, isOpen]);
 
   if (!isOpen) return null;
@@ -49,9 +61,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setToastMessage(null);
 
     if (mode === 'PROFILE') {
-      onUpdateProfile(ownerName, storeName);
+      onUpdateProfile(ownerName, storeName, phone);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
       setLoading(false);
@@ -65,21 +78,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           res.user?.user_metadata?.owner_name || '사장님 (마라위크)',
           res.user?.user_metadata?.store_name || storeName || '마라위크 (양산 북정점)'
         );
+        onClose();
       }
     } else {
+      // Duplicate Email Check
+      const lowerEmail = email.toLowerCase().trim();
+      if (registeredEmails.includes(lowerEmail)) {
+        setToastMessage('⚠️ 이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.');
+        setLoading(false);
+        if (emailInputRef.current) {
+          emailInputRef.current.focus();
+        }
+        return;
+      }
+
       if (!businessNumber) {
         alert('소상공인 신뢰 확보를 위해 사업자등록번호를 입력해 주세요.');
         setLoading(false);
         return;
       }
-      const res = await signUpUser(email, password, ownerName, storeName, businessNumber);
+
+      const res = await signUpUser(email, password, ownerName, storeName, businessNumber, phone);
+      
+      if (!res.success && res.error === 'ALREADY_EXISTS') {
+        setToastMessage(res.message || '⚠️ 이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.');
+        setLoading(false);
+        if (emailInputRef.current) {
+          emailInputRef.current.focus();
+        }
+        return;
+      }
+
       if (res.success) {
+        setRegisteredEmails((prev) => [...prev, lowerEmail]);
         onLoginSuccess(ownerName || '사장님 (마라위크)', storeName || '마라위크 (양산 북정점)');
+        onClose();
       }
     }
 
     setLoading(false);
-    onClose();
   };
 
   const handleNaverLogin = async () => {
@@ -106,7 +143,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         ) : (
           <div className="flex border-b border-gray-200 bg-gray-50">
             <button
-              onClick={() => setMode('LOGIN')}
+              onClick={() => {
+                setMode('LOGIN');
+                setToastMessage(null);
+              }}
               className={`flex-1 py-3 text-sm font-bold transition-all border-b-2 ${
                 mode === 'LOGIN'
                   ? 'border-orange-500 text-orange-600 bg-white'
@@ -116,7 +156,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               로그인
             </button>
             <button
-              onClick={() => setMode('SIGNUP')}
+              onClick={() => {
+                setMode('SIGNUP');
+                setToastMessage(null);
+              }}
               className={`flex-1 py-3 text-sm font-bold transition-all border-b-2 ${
                 mode === 'SIGNUP'
                   ? 'border-orange-500 text-orange-600 bg-white'
@@ -137,6 +180,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Modal Content */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           
+          {/* Toast Notification Alert Banner */}
+          {toastMessage && (
+            <div className="bg-amber-50 border border-amber-300 text-amber-900 p-3 rounded-xl text-xs font-bold flex items-start gap-2 animate-in slide-in-from-top-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="leading-relaxed">{toastMessage}</div>
+            </div>
+          )}
+
           {/* PROFILE EDIT MODE */}
           {mode === 'PROFILE' && (
             <>
@@ -171,6 +222,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">연락처 (휴대폰 번호)</label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="010-1234-5678"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
                   />
                 </div>
               </div>
@@ -251,12 +316,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="relative">
                   <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                   <input
+                    ref={emailInputRef}
                     type="email"
                     required
                     placeholder="owner@trademe.kr"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (toastMessage) setToastMessage(null);
+                    }}
+                    className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs outline-none ${
+                      toastMessage ? 'border-amber-500 ring-2 ring-amber-200' : 'border-gray-300 focus:ring-2 focus:ring-orange-500'
+                    }`}
                   />
                 </div>
               </div>
@@ -304,6 +375,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         placeholder="마라위크 (양산 북정점)"
                         value={storeName}
                         onChange={(e) => setStoreName(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">연락처 (휴대폰 번호)</label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="010-1234-5678"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
                       />
                     </div>

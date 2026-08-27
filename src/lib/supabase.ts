@@ -16,7 +16,8 @@ export async function signUpUser(
   pass: string,
   ownerName: string,
   storeName: string,
-  businessNumber: string
+  businessNumber: string,
+  phone?: string
 ) {
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -27,20 +28,29 @@ export async function signUpUser(
           owner_name: ownerName,
           store_name: storeName,
           business_number: businessNumber,
+          phone: phone || '',
         },
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      if (error.message?.includes('already registered') || error.message?.includes('already exists') || error.status === 422) {
+        return { success: false, error: 'ALREADY_EXISTS', message: '이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.' };
+      }
+      throw error;
+    }
     return { success: true, user: data.user };
   } catch (err: any) {
+    if (err?.message?.includes('already registered') || err?.message?.includes('already exists')) {
+      return { success: false, error: 'ALREADY_EXISTS', message: '이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.' };
+    }
     console.warn('Supabase Auth Notice (Fallback mode):', err.message);
     return {
       success: true,
       user: {
         id: `usr-${Date.now()}`,
         email,
-        user_metadata: { owner_name: ownerName, store_name: storeName },
+        user_metadata: { owner_name: ownerName, store_name: storeName, phone: phone || '' },
       },
     };
   }
