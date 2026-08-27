@@ -136,6 +136,23 @@ export async function signUpUser(
       }
       throw error;
     }
+
+    if (data.user) {
+      try {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email,
+          owner_name: ownerName,
+          store_name: storeName,
+          business_number: businessNumber,
+          phone: phone || '',
+          updated_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        // Notice fallback
+      }
+    }
+
     return { success: true, user: data.user };
   } catch (err: any) {
     if (err?.message?.includes('already registered') || err?.message?.includes('already exists')) {
@@ -150,6 +167,24 @@ export async function signUpUser(
         user_metadata: { owner_name: ownerName, store_name: storeName, phone: phone || '' },
       },
     };
+  }
+}
+
+export async function saveProfileToSupabase(ownerName: string, storeName: string, phone?: string) {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData?.user) {
+      await supabase.from('profiles').upsert({
+        id: userData.user.id,
+        email: userData.user.email,
+        owner_name: ownerName,
+        store_name: storeName,
+        phone: phone || '',
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.warn('Profile upsert notice:', err);
   }
 }
 
