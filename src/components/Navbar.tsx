@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Plus, Store, Clock, Utensils, Bed, User, LogIn } from 'lucide-react';
+import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, User, LogIn } from 'lucide-react';
 
 interface NavbarProps {
   myBreakTimeActive: boolean;
@@ -44,12 +44,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
                   Trade Me
                 </span>
-                <span className="px-2 py-0.5 text-xs font-semibold bg-orange-100 text-orange-700 rounded-full border border-orange-200">
-                  소상공인 1:1 바꿔먹기
+                <span className="px-2 py-0.5 text-xs font-bold bg-orange-100 text-orange-800 rounded-full border border-orange-200">
+                  소상공인 1:1 품앗이 물물교환
                 </span>
               </div>
               <p className="text-xs text-gray-500 hidden sm:block">
-                요식업 & 소상공인 등가교환 벼룩시장
+                식사 · 베이커리 · 편의점 신선식품 · 숙박 1:1 자원 맞교환
               </p>
             </div>
           </div>
@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className={`w-2.5 h-2.5 rounded-full ${myBreakTimeActive ? 'bg-amber-500 animate-ping' : 'bg-gray-400'}`}></span>
                 <Clock className={`w-4 h-4 ${myBreakTimeActive ? 'text-amber-600' : 'text-gray-400'}`} />
                 <span className="text-xs sm:text-sm font-semibold hidden md:inline">
-                  내 가게 브레이크 타임:
+                  내 가게 교환가능 상태:
                 </span>
               </div>
               <button
@@ -96,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
-              <span className="hidden sm:inline">메뉴 등록</span>
+              <span className="hidden sm:inline">물물교환 품목 등록</span>
             </button>
 
             {/* Login / Auth Button */}
@@ -142,7 +142,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Utensils className="w-3.5 h-3.5" />
-              요식업 (한식/일식/양식)
+              식당 & 카페
+            </button>
+
+            <button
+              onClick={() => onSelectCategory('CONVENIENCE')}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full font-medium transition-all ${
+                selectedCategory === 'CONVENIENCE'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-amber-500" />
+              편의점 & 베이커리
             </button>
 
             <button
@@ -168,7 +180,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            ☕ 브레이크 타임 교환가능만 보기
+            ☕ 물물교환 가능 사장님만 보기
           </button>
         </div>
       </div>

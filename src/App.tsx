@@ -175,6 +175,7 @@ export const App: React.FC = () => {
     if (onlyBreakTime && !store.breakTimeActive) return false;
     if (selectedCategory === 'ALL') return true;
     if (selectedCategory === 'FOOD') return ['KOREAN', 'JAPANESE', 'WESTERN', 'CHINESE', 'CAFE'].includes(store.category);
+    if (selectedCategory === 'CONVENIENCE') return ['CONVENIENCE', 'BAKERY'].includes(store.category);
     if (selectedCategory === 'ACCOMMODATION') return store.category === 'ACCOMMODATION' || store.category === 'OTHER';
     return true;
   });

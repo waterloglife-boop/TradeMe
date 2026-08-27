@@ -41,6 +41,84 @@ export const INITIAL_STORES: Store[] = [
     ]
   },
   {
+    id: 'store-6',
+    ownerName: '정편의 사장님',
+    storeName: 'CU 송정 해수욕장점 (편의점)',
+    category: 'CONVENIENCE',
+    categoryName: '편의점/신선식품',
+    address: '부산 해운대구 송정해변로 28',
+    lat: 35.1780,
+    lng: 129.2002,
+    phone: '051-703-1212',
+    isVerified: true,
+    breakTimeActive: true,
+    breakTimeHours: '14:00 - 18:00',
+    rating: 4.9,
+    reviewCount: 47,
+    storeImageUrl: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=600&q=80',
+    exchangeItems: [
+      {
+        id: 'item-6-1',
+        storeId: 'store-6',
+        type: 'FOOD',
+        title: '신선 삼각김밥 4개 & 프리미엄 도시락 2종 팩',
+        description: '당일 수거 신선 도시락(제육/불고기) 및 인기도시락 번들 세트입니다.',
+        estimatedPrice: 18000,
+        imageUrl: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=500&q=80',
+        isAvailable: true
+      },
+      {
+        id: 'item-6-2',
+        storeId: 'store-6',
+        type: 'FOOD',
+        title: '클럽 샌드위치 & 햄버거 4종 간식 팩',
+        description: '케이준 치킨 샌드위치, 더블 패티 햄버거 4개 구성 간식 팩.',
+        estimatedPrice: 16000,
+        imageUrl: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=500&q=80',
+        isAvailable: true
+      }
+    ]
+  },
+  {
+    id: 'store-7',
+    ownerName: '박베이커 사장님',
+    storeName: '명가 수제 쌀 베이커리',
+    category: 'BAKERY',
+    categoryName: '베이커리/빵',
+    address: '부산 해운대구 송정중앙로 18',
+    lat: 35.1771,
+    lng: 129.1970,
+    phone: '051-704-8900',
+    isVerified: true,
+    breakTimeActive: true,
+    breakTimeHours: '16:00 - 19:00',
+    rating: 5.0,
+    reviewCount: 63,
+    storeImageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80',
+    exchangeItems: [
+      {
+        id: 'item-7-1',
+        storeId: 'store-7',
+        type: 'FOOD',
+        title: '당일 생산 갓 구운 쌀 식빵 & 맘모스 빵 세트',
+        description: '100% 국산 쌀로 만든 갓 구운 식빵, 밤식빵, 맘모스 빵 모둠입니다.',
+        estimatedPrice: 24000,
+        imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=500&q=80',
+        isAvailable: true
+      },
+      {
+        id: 'item-7-2',
+        storeId: 'store-7',
+        type: 'FOOD',
+        title: '수제 앙버터 & 크루아상 6종 디저트 팩',
+        description: '프랑스 고메버터 앙버터, 초코 크루아상 6가지 프리미엄 빵 팩.',
+        estimatedPrice: 22000,
+        imageUrl: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=500&q=80',
+        isAvailable: true
+      }
+    ]
+  },
+  {
     id: 'store-2',
     ownerName: '최서핑 사장님',
     storeName: '송정 오션스테이 펜션 & 리조트',
@@ -104,74 +182,6 @@ export const INITIAL_STORES: Store[] = [
         description: '참다랑어 가마도로, 성게알, 단새우, 생연어 등 최고급 구성.',
         estimatedPrice: 35000,
         imageUrl: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=500&q=80',
-        isAvailable: true
-      },
-      {
-        id: 'item-3-2',
-        storeId: 'store-3',
-        type: 'FOOD',
-        title: '메로구이 & 연어 머리 소금구이 세트',
-        description: '고소하고 달콤한 특제 간장 메로구이와 사케 안주 세트입니다.',
-        estimatedPrice: 30000,
-        imageUrl: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=500&q=80',
-        isAvailable: true
-      }
-    ]
-  },
-  {
-    id: 'store-4',
-    ownerName: '이파스타 사장님',
-    storeName: '볼로냐 1988 트라토리아',
-    category: 'WESTERN',
-    categoryName: '양식/파스타',
-    address: '부산 해운대구 송정3길 9',
-    lat: 35.1805,
-    lng: 129.1982,
-    phone: '051-703-9911',
-    isVerified: true,
-    breakTimeActive: true,
-    breakTimeHours: '15:00 - 17:00',
-    rating: 4.7,
-    reviewCount: 29,
-    storeImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
-    exchangeItems: [
-      {
-        id: 'item-4-1',
-        storeId: 'store-4',
-        type: 'FOOD',
-        title: '수제 생면 트러플 파스타 & 콰트로 피자',
-        description: '이탈리아 생면과 생트러플 향 가득한 파스타, 화덕 피자 세트.',
-        estimatedPrice: 34000,
-        imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80',
-        isAvailable: true
-      }
-    ]
-  },
-  {
-    id: 'store-5',
-    ownerName: '정바리스타 사장님',
-    storeName: '웨이브 로스터리 로스터스',
-    category: 'CAFE',
-    categoryName: '카페/디저트',
-    address: '부산 해운대구 송정광어골로 48',
-    lat: 35.1812,
-    lng: 129.2028,
-    phone: '051-705-3322',
-    isVerified: true,
-    breakTimeActive: false,
-    breakTimeHours: '14:00 - 16:00',
-    rating: 4.9,
-    reviewCount: 64,
-    storeImageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=600&q=80',
-    exchangeItems: [
-      {
-        id: 'item-5-1',
-        storeId: 'store-5',
-        type: 'FOOD',
-        title: '스페셜티 원두 200g 2팩 & 수제 크로플 4개',
-        description: '직접 로스팅한 에티오피아 예가체프 원두와 프랑스 버터 크로플.',
-        estimatedPrice: 30000,
-        imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=500&q=80',
         isAvailable: true
       }
     ]

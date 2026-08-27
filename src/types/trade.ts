@@ -1,6 +1,15 @@
 export type ItemType = 'FOOD' | 'SERVICE' | 'ITEM';
 
-export type StoreCategory = 'KOREAN' | 'JAPANESE' | 'WESTERN' | 'CHINESE' | 'ACCOMMODATION' | 'CAFE' | 'OTHER';
+export type StoreCategory = 
+  | 'KOREAN' 
+  | 'JAPANESE' 
+  | 'WESTERN' 
+  | 'CHINESE' 
+  | 'ACCOMMODATION' 
+  | 'CAFE' 
+  | 'CONVENIENCE' 
+  | 'BAKERY' 
+  | 'OTHER';
 
 export interface ExchangeItem {
   id: string;
