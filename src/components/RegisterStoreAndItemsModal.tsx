@@ -27,13 +27,36 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   const [storeName, setStoreName] = useState('');
   const [category, setCategory] = useState<StoreCategory>('KOREAN');
   const [categoryName, setCategoryName] = useState('한식/구이');
-  const [address, setAddress] = useState('부산 해운대구 송정해변로 25');
-  const [phone, setPhone] = useState('051-701-1234');
+  const [address, setAddress] = useState('경남 양산시 북정서길 25 (북정동)');
+  const [phone, setPhone] = useState('055-385-1234');
   const [breakTimeActive, setBreakTimeActive] = useState(true);
   const [breakTimeHours, setBreakTimeHours] = useState('15:00 - 17:00');
   const [storeImageUrl, setStoreImageUrl] = useState(
     'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
   );
+
+  // Auto Reverse-Geocode Clicked Map Pin Coordinates to Real Address
+  useEffect(() => {
+    if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.reverseGeocode) {
+      try {
+        window.naver.maps.Service.reverseGeocode(
+          {
+            coords: new window.naver.maps.LatLng(pickedLat, pickedLng),
+          },
+          (status: any, response: any) => {
+            if (status === window.naver.maps.Service.Status.OK && response?.v2?.address) {
+              const roadAddr = response.v2.address.roadAddress || response.v2.address.jibunAddress;
+              if (roadAddr) {
+                setAddress(roadAddr);
+              }
+            }
+          }
+        );
+      } catch (err) {
+        // Fallback gracefully
+      }
+    }
+  }, [pickedLat, pickedLng]);
 
   // Step 2: 2~3 Exchange Items State
   const [items, setItems] = useState<Array<Omit<ExchangeItem, 'id' | 'storeId'>>>([
