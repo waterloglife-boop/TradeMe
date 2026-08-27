@@ -9,7 +9,7 @@ import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import { Store, ExchangeItem, ChatMessage } from './types/trade';
-import { fetchStoresFromSupabase, subscribeToTradeChat } from './lib/supabase';
+import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase } from './lib/supabase';
 import { MapPin } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -167,6 +167,8 @@ export const App: React.FC = () => {
       ...prev,
       [storeId]: [...(prev[storeId] || []), newMsg],
     }));
+
+    sendChatMessageToSupabase(storeId, myStore.id, myStore.ownerName, text);
   };
 
   const filteredStores = stores.filter((store) => {
