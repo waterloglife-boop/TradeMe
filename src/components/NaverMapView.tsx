@@ -89,7 +89,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
     try {
       if (!naverMapInstanceRef.current) {
         const mapOptions = {
-          center: new window.naver.maps.LatLng(35.3605, 129.0468), // 경남 양산시 북정서길 25 (마라위크 / 북정초 인근)
+          center: new window.naver.maps.LatLng(35.360527, 129.046832), // 경남 양산시 북정서길 25 (마라위크 / 북정초 인근)
           zoom: 15,
           mapTypeControl: true,
           mapTypeControlOptions: {
