@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Store as StoreIcon, Utensils, Bed, Check, ArrowRight, ArrowLeft, Image as ImageIcon, Clock, Phone, MapPin } from 'lucide-react';
+import { X, Plus, Store as StoreIcon, Utensils, Bed, Check, ArrowRight, ArrowLeft, Image as ImageIcon, Clock, Phone, MapPin, Upload, CheckCircle2 } from 'lucide-react';
 import { Store, ExchangeItem, StoreCategory, ItemType } from '../types/trade';
 import { insertStoreAndItems } from '../lib/supabase';
 
@@ -11,6 +11,49 @@ interface RegisterStoreAndItemsModalProps {
   pickedLat?: number;
   pickedLng?: number;
   onUpdatePickedLocation?: (lat: number, lng: number) => void;
+}
+
+// 🖼️ 이미지 용량 & 크기 줄이기 캔버스 최적화 헬퍼 함수
+function compressImageFile(file: File, maxWidth = 500, maxHeight = 500, quality = 0.75): Promise<{ dataUrl: string; sizeKb: number }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          const sizeKb = Math.round((dataUrl.length * 3 / 4) / 1024);
+          resolve({ dataUrl, sizeKb });
+        } else {
+          reject(new Error('Canvas context unavailable'));
+        }
+      };
+      img.onerror = (err) => reject(err);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
 }
 
 export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProps> = ({
@@ -38,10 +81,11 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   const [storeName, setStoreName] = useState('');
   const [category, setCategory] = useState<StoreCategory>('KOREAN');
   const [categoryName, setCategoryName] = useState('한식');
-  const [address, setAddress] = useState('경남 양산시 북정서길 25 (북정동)');
+  const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('055-385-1234');
-  const [breakTimeActive, setBreakTimeActive] = useState(true);
-  const [breakTimeHours, setBreakTimeHours] = useState('15:00 - 17:00');
+  const [operatingHoursActive, setOperatingHoursActive] = useState(true);
+  const [operatingHours, setOperatingHours] = useState('10:00 - 22:00 (연중무휴)');
+  const [searchSuccessMessage, setSearchSuccessMessage] = useState<string | null>(null);
   const [storeImageUrl, setStoreImageUrl] = useState(
     'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
   );
@@ -57,7 +101,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
           (status: any, response: any) => {
             if (status === window.naver.maps.Service.Status.OK && response?.v2?.address) {
               const roadAddr = response.v2.address.roadAddress || response.v2.address.jibunAddress;
-              if (roadAddr) {
+              if (roadAddr && !address) {
                 setAddress(roadAddr);
               }
             }
@@ -72,7 +116,10 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   // 1. [Naver Geocoding API 연동 (주소 -> 좌표 실시간 변환)]
   const handleSearchAddress = () => {
     const queryAddr = address.trim();
-    if (!queryAddr) return;
+    if (!queryAddr) {
+      alert('찾으실 도로명 주소(예: 서울특별시 강남구 테헤란로 123)를 입력해 주세요.');
+      return;
+    }
 
     if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode) {
       try {
@@ -90,34 +137,36 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
               if (item.roadAddress || item.jibunAddress) {
                 setAddress(item.roadAddress || item.jibunAddress);
               }
+              setSearchSuccessMessage('✅ 주소 위치 찾기 완료! 지도 핀이 해당 위치로 이동했습니다.');
+              setTimeout(() => setSearchSuccessMessage(null), 3000);
             }
           } else {
-            alert(`'${queryAddr}' 도로명 주소의 위치를 찾을 수 없습니다. 정확한 도로명 주소(예: 경남 양산시 북정서길 25)로 입력해 주세요.`);
+            alert(`'${queryAddr}' 도로명 주소의 위치를 찾을 수 없습니다. 정확한 도로명 주소(예: 서울특별시 강남구 테헤란로 123)로 다시 입력해 주세요.`);
           }
         });
       } catch (err) {
         console.warn('Geocoding search notice:', err);
       }
     } else {
-      alert('네이버 지도 서비스 모듈 로딩 중입니다. 잠시 후 다시 클릭해 주세요.');
+      alert('네이버 지도 검색 모듈 로딩 중입니다. 잠시 후 다시 [위치 찾기]를 눌러주세요.');
     }
   };
 
-  // Step 2: 2~3 Exchange Items State
-  const [items, setItems] = useState<Array<Omit<ExchangeItem, 'id' | 'storeId'>>>([
+  // Step 2: 2~3 Exchange Items State with Item Image Compression Size Track
+  const [items, setItems] = useState<Array<Omit<ExchangeItem, 'id' | 'storeId'> & { imageSizeKb?: number }>>([
     {
       type: 'FOOD',
-      title: '특선 양념 갈비 세트 (2인분)',
-      description: '참숯 직화 초벌 구이 및 파채, 야채 포장 세트입니다.',
-      estimatedPrice: 32000,
+      title: '대표 추천 메뉴 세트 (2인분)',
+      description: '정성스런 인기 수제 메뉴와 사이드, 음료 구성 세트입니다.',
+      estimatedPrice: 28000,
       imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80',
       isAvailable: true,
     },
     {
       type: 'FOOD',
-      title: '한우 차돌 된장찌개 & 비빔밥 세트',
-      description: '깊은 맛의 차돌 된장찌개와 나물 비빔밥 2인 세트.',
-      estimatedPrice: 26000,
+      title: '시그니처 단품 메뉴 (1.5인분)',
+      description: '신선한 재료로 만든 대표 메뉴입니다.',
+      estimatedPrice: 18000,
       imageUrl: 'https://images.unsplash.com/photo-1590301157890-4810ed352733?auto=format&fit=crop&w=500&q=80',
       isAvailable: true,
     },
@@ -136,7 +185,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
         type: 'FOOD',
         title: '',
         description: '',
-        estimatedPrice: 25000,
+        estimatedPrice: 20000,
         imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80',
         isAvailable: true,
       },
@@ -157,28 +206,50 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
     setItems(updated);
   };
 
+  // 🖼️ 이미지 파일 업로드 핸들러 (자동 용량 & 사이즈 다이어트 압축)
+  const handleImageFileUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const { dataUrl, sizeKb } = await compressImageFile(file, 500, 500, 0.75);
+      const updated = [...items];
+      updated[index] = {
+        ...updated[index],
+        imageUrl: dataUrl,
+        imageSizeKb: sizeKb,
+      };
+      setItems(updated);
+    } catch (err) {
+      alert('이미지 파일 압축 처리 중 오류가 발생했습니다.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     const storeInfo: Omit<Store, 'id' | 'exchangeItems'> = {
-      ownerName: currentOwnerName,
+      ownerName: currentOwnerName || '사장님',
       storeName,
       category,
       categoryName,
-      address,
+      address: address || '위치 미지정',
       lat: currentLat,
       lng: currentLng,
       phone,
       isVerified: true,
-      breakTimeActive,
-      breakTimeHours,
+      breakTimeActive: operatingHoursActive,
+      breakTimeHours: operatingHours,
       storeImageUrl,
       rating: 4.9,
       reviewCount: 1,
     };
 
-    const res = await insertStoreAndItems(storeInfo, items);
+    // Strip temporary size property before insertion
+    const cleanItems = items.map(({ imageSizeKb, ...rest }) => rest);
+
+    const res = await insertStoreAndItems(storeInfo, cleanItems);
     setLoading(false);
 
     if (res.success && res.store) {
@@ -212,16 +283,20 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
           {step === 1 && (
             <div className="space-y-4">
               
-              {/* Picked Location Coordinates Badge */}
-              <div className="bg-orange-50 border border-orange-200 p-2.5 rounded-xl flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 text-orange-900 font-bold">
-                  <MapPin className="w-4 h-4 text-orange-600" />
-                  <span>선택된 핀 좌표: {currentLat.toFixed(4)}, {currentLng.toFixed(4)}</span>
+              {/* Info Guide Badge (Coordinates hidden per user request) */}
+              <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-amber-900 font-bold">
+                  <MapPin className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span>💡 도로명 주소를 입력하고 [위치 찾기]를 누르시면 지도 위치가 변경됩니다.</span>
                 </div>
-                <span className="text-[10px] bg-orange-200 text-orange-900 px-2 py-0.5 rounded font-bold">
-                  위치 좌표 확정
-                </span>
               </div>
+
+              {searchSuccessMessage && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 animate-in slide-in-from-top-1">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>{searchSuccessMessage}</span>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">가게 상호명 *</label>
@@ -231,7 +306,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                   placeholder="예: 송정 수제돈까스"
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
                 />
               </div>
 
@@ -290,6 +365,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                     type="text"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    placeholder="055-385-1234"
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none"
                   />
                 </div>
@@ -308,31 +384,31 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                         handleSearchAddress();
                       }
                     }}
-                    placeholder="예: 경남 양산시 북정서길 25"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="예: 서울특별시 강남구 테헤란로 123"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-medium"
                   />
                   <button
                     type="button"
                     onClick={handleSearchAddress}
-                    className="px-3.5 py-2 bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs rounded-xl flex items-center gap-1 whitespace-nowrap shadow-sm"
+                    className="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-xl flex items-center gap-1 whitespace-nowrap shadow-sm active:scale-95 transition-all"
                   >
                     <span>위치 찾기</span>
                   </button>
                 </div>
               </div>
 
-              {/* Break time setup */}
+              {/* Operating Hours setup (Replaces Break Time per user request) */}
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-amber-900 flex items-center gap-1">
                     <Clock className="w-4 h-4 text-amber-600" />
-                    브레이크 타임 (교환 가능 시간)
+                    매장 영업시간 (물물교환 가능 시간)
                   </span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={breakTimeActive}
-                      onChange={(e) => setBreakTimeActive(e.target.checked)}
+                      checked={operatingHoursActive}
+                      onChange={(e) => setOperatingHoursActive(e.target.checked)}
                       className="sr-only peer"
                     />
                     <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
@@ -340,10 +416,10 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                 </div>
                 <input
                   type="text"
-                  placeholder="예: 15:00 - 17:00"
-                  value={breakTimeHours}
-                  onChange={(e) => setBreakTimeHours(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-bold outline-none"
+                  placeholder="예: 10:00 - 22:00 (연중무휴)"
+                  value={operatingHours}
+                  onChange={(e) => setOperatingHours(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-xs font-bold outline-none"
                 />
               </div>
 
@@ -357,7 +433,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                     }
                     setStep(2);
                   }}
-                  className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
                 >
                   <span>다음: 1:1 물물교환 품목 등록 (Step 2)</span>
                   <ArrowRight className="w-4 h-4" />
@@ -384,7 +460,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
               </div>
 
               {items.map((item, idx) => (
-                <div key={idx} className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 relative space-y-2">
+                <div key={idx} className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 relative space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-extrabold text-orange-600">대표 메뉴 #{idx + 1}</span>
                     {items.length > 1 && (
@@ -403,7 +479,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                       <input
                         type="text"
                         required
-                        placeholder="메뉴/서비스명 (예: 양념돼지갈비 2인분)"
+                        placeholder="메뉴/서비스명 (예: 수제 돈까스 세트)"
                         value={item.title}
                         onChange={(e) => handleItemChange(idx, 'title', e.target.value)}
                         className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-bold outline-none"
@@ -424,11 +500,47 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
 
                   <input
                     type="text"
-                    placeholder="구성품 및 상세 설명 (포장, 상추, 양념장 포함 등)"
+                    placeholder="구성품 및 상세 설명 (예: 등심 돈까스 2장 + 우동 세트)"
                     value={item.description}
                     onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
                     className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs outline-none"
                   />
+
+                  {/* 🖼️ 대표 메뉴 이미지 첨부 & 용량/사이즈 다이어트 컴팩트 뷰 */}
+                  <div className="flex items-center gap-3 pt-1 bg-white p-2.5 rounded-xl border border-gray-200">
+                    <img
+                      src={item.imageUrl}
+                      alt={`메뉴 ${idx + 1}`}
+                      className="w-12 h-12 rounded-lg object-cover border border-gray-300 shadow-sm flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <label
+                          htmlFor={`item-img-file-${idx}`}
+                          className="cursor-pointer bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 w-fit transition-all"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-orange-600" />
+                          <span>🖼️ 사진 첨부 (선택)</span>
+                        </label>
+                        <input
+                          id={`item-img-file-${idx}`}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageFileUpload(idx, e)}
+                          className="hidden"
+                        />
+                        {item.imageSizeKb && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                            📷 {item.imageSizeKb} KB (최적화 완료)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-500">
+                        * 첨부 시 자동으로 사이즈와 용량이 경량 축소되어 빠르게 로딩됩니다.
+                      </p>
+                    </div>
+                  </div>
+
                 </div>
               ))}
 
