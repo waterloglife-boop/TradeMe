@@ -25,6 +25,15 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
 
+  // Synchronized Coordinates State
+  const [currentLat, setCurrentLat] = useState<number>(pickedLat);
+  const [currentLng, setCurrentLng] = useState<number>(pickedLng);
+
+  useEffect(() => {
+    setCurrentLat(pickedLat);
+    setCurrentLng(pickedLng);
+  }, [pickedLat, pickedLng]);
+
   // Step 1: Store Information State
   const [storeName, setStoreName] = useState('');
   const [category, setCategory] = useState<StoreCategory>('KOREAN');
@@ -43,7 +52,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
       try {
         window.naver.maps.Service.reverseGeocode(
           {
-            coords: new window.naver.maps.LatLng(pickedLat, pickedLng),
+            coords: new window.naver.maps.LatLng(currentLat, currentLng),
           },
           (status: any, response: any) => {
             if (status === window.naver.maps.Service.Status.OK && response?.v2?.address) {
@@ -58,33 +67,39 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
         // Fallback gracefully
       }
     }
-  }, [pickedLat, pickedLng]);
+  }, [currentLat, currentLng]);
 
-  // 1. [Naver Geocoding API 연동 (주소 -> 좌표 변환)]
+  // 1. [Naver Geocoding API 연동 (주소 -> 좌표 실시간 변환)]
   const handleSearchAddress = () => {
-    if (!address.trim()) return;
+    const queryAddr = address.trim();
+    if (!queryAddr) return;
+
     if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode) {
       try {
-        window.naver.maps.Service.geocode({ query: address }, (status: any, response: any) => {
+        window.naver.maps.Service.geocode({ query: queryAddr }, (status: any, response: any) => {
           if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
             const item = response.v2.addresses[0];
             const lat = parseFloat(item.y);
             const lng = parseFloat(item.x);
             if (!isNaN(lat) && !isNaN(lng)) {
+              setCurrentLat(lat);
+              setCurrentLng(lng);
               if (onUpdatePickedLocation) {
                 onUpdatePickedLocation(lat, lng);
               }
-              if (item.roadAddress) {
-                setAddress(item.roadAddress);
+              if (item.roadAddress || item.jibunAddress) {
+                setAddress(item.roadAddress || item.jibunAddress);
               }
             }
           } else {
-            alert('입력하신 주소의 위치를 찾을 수 없습니다. 도로명 주소를 정확히 입력해 주세요.');
+            alert(`'${queryAddr}' 도로명 주소의 위치를 찾을 수 없습니다. 정확한 도로명 주소(예: 경남 양산시 북정서길 25)로 입력해 주세요.`);
           }
         });
       } catch (err) {
         console.warn('Geocoding search notice:', err);
       }
+    } else {
+      alert('네이버 지도 서비스 모듈 로딩 중입니다. 잠시 후 다시 클릭해 주세요.');
     }
   };
 
@@ -152,8 +167,8 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
       category,
       categoryName,
       address,
-      lat: pickedLat,
-      lng: pickedLng,
+      lat: currentLat,
+      lng: currentLng,
       phone,
       isVerified: true,
       breakTimeActive,
@@ -201,7 +216,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
               <div className="bg-orange-50 border border-orange-200 p-2.5 rounded-xl flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 text-orange-900 font-bold">
                   <MapPin className="w-4 h-4 text-orange-600" />
-                  <span>선택된 핀 좌표: {pickedLat.toFixed(4)}, {pickedLng.toFixed(4)}</span>
+                  <span>선택된 핀 좌표: {currentLat.toFixed(4)}, {currentLng.toFixed(4)}</span>
                 </div>
                 <span className="text-[10px] bg-orange-200 text-orange-900 px-2 py-0.5 rounded font-bold">
                   위치 좌표 확정
