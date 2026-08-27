@@ -84,7 +84,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
             ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
             : 'bg-gray-200 text-gray-700'
         }`}>
-          {store.breakTimeActive ? '☕ 지금 바꿔먹기 가능!' : '영업 중'}
+          {store.breakTimeActive ? '☕ 지금 1:1 물물교환 가능!' : '영업 중'}
         </div>
       </div>
 
@@ -93,14 +93,14 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
             <Tag className="w-4 h-4 text-orange-500" />
-            등록된 바꿔먹기 메뉴 ({store.exchangeItems.length}개)
+            등록된 1:1 물물교환 품목 ({store.exchangeItems.length}개)
           </h3>
-          <span className="text-xs text-gray-500">1:1 등가교환</span>
+          <span className="text-xs text-gray-500">1:1 물물교환</span>
         </div>
 
         {store.exchangeItems.length === 0 ? (
           <div className="text-center py-8 text-gray-400 text-xs">
-            아직 등록된 교환 메뉴가 없습니다.
+            아직 등록된 교환 품목이 없습니다.
           </div>
         ) : (
           store.exchangeItems.map((item) => (
@@ -136,7 +136,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                   className="w-full py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
                 >
                   <ArrowRightLeft className="w-3.5 h-3.5" />
-                  내 메뉴와 바꿔먹기 제안하기
+                  내 품목과 1:1 물물교환 제안하기
                 </button>
               )}
             </div>

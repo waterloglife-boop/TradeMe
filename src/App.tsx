@@ -46,7 +46,7 @@ export const App: React.FC = () => {
         id: 'msg-1',
         senderId: 'store-1',
         senderName: '박해운 사장님',
-        message: '안녕하세요 돈까스 사장님! 오늘 15시에 갈비 도시락 세트 바꿔먹기 가능한가요?',
+        message: '안녕하세요 돈까스 사장님! 오늘 15시에 갈비 도시락 세트 1:1 물물교환 가능한가요?',
         timestamp: '오후 2:15',
         isMe: false,
       },
@@ -123,7 +123,7 @@ export const App: React.FC = () => {
         ? `내가 ${diffPrice.toLocaleString()}원 현장 추가정산`
         : `상대가 ${Math.abs(diffPrice).toLocaleString()}원 현장 추가정산`;
 
-    const proposalMsgText = `[1:1 바꿔먹기 제안]\n내 메뉴: ${myMenu.title} (${myMenu.estimatedPrice.toLocaleString()}원)\n요청 메뉴: ${targetMenu.title} (${targetMenu.estimatedPrice.toLocaleString()}원)\n정산: ${diffText}\n희망 시각: ${pickupTime}`;
+    const proposalMsgText = `[1:1 물물교환 제안]\n내 메뉴: ${myMenu.title} (${myMenu.estimatedPrice.toLocaleString()}원)\n요청 메뉴: ${targetMenu.title} (${targetMenu.estimatedPrice.toLocaleString()}원)\n정산: ${diffText}\n희망 시각: ${pickupTime}`;
 
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,

@@ -59,7 +59,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
 
   const handleAddItem = () => {
     if (items.length >= 3) {
-      alert('바꿔먹기 대표 메뉴는 최대 3개까지 등록 가능합니다.');
+      alert('1:1 물물교환 대표 품목은 최대 3개까지 등록 가능합니다.');
       return;
     }
     setItems([
@@ -77,7 +77,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
 
   const handleRemoveItem = (index: number) => {
     if (items.length <= 1) {
-      alert('최소 1개 이상의 대표 교환 메뉴를 등록해야 합니다.');
+      alert('최소 1개 이상의 대표 교환 품목을 등록해야 합니다.');
       return;
     }
     setItems(items.filter((_, i) => i !== index));
@@ -130,7 +130,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
               STEP {step} / 2
             </span>
             <h2 className="font-extrabold text-base mt-1">
-              {step === 1 ? '🏬 우리 가게 프로필 & 지도 위치 등록' : '🍽️ 바꿔먹을 대표 메뉴 (2~3개) 등록'}
+              {step === 1 ? '🏬 우리 가게 프로필 & 지도 위치 등록' : '🛍️ 1:1 물물교환 대표 품목 (2~3개) 등록'}
             </h2>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/20">
@@ -253,7 +253,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                   }}
                   className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5"
                 >
-                  <span>다음: 바꿔먹기 메뉴 등록 (Step 2)</span>
+                  <span>다음: 1:1 물물교환 품목 등록 (Step 2)</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

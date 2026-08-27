@@ -100,7 +100,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {mode === 'LOGIN' ? 'Trade Me 로그인' : '소상공인 사장님 회원가입'}
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              1:1 등가교환으로 맛있는 식사 및 서비스를 바꿔먹으세요
+              1:1 물물교환으로 식사, 상품 및 서비스를 맞교환하세요
             </p>
           </div>
 

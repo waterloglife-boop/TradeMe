@@ -45,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   Trade Me
                 </span>
                 <span className="px-2 py-0.5 text-xs font-bold bg-orange-100 text-orange-800 rounded-full border border-orange-200">
-                  소상공인 1:1 품앗이 물물교환
+                  소상공인 1:1 물물교환
                 </span>
               </div>
               <p className="text-xs text-gray-500 hidden sm:block">

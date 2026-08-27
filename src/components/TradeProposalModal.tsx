@@ -45,7 +45,7 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
           <div className="flex items-center gap-2">
             <ArrowRightLeft className="w-5 h-5" />
             <h2 className="font-bold text-base">
-              1:1 등가교환 바꿔먹기 제안
+              1:1 물물교환 제안
             </h2>
           </div>
           <button
@@ -169,7 +169,7 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
             className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2"
           >
             <ArrowRightLeft className="w-4 h-4" />
-            1:1 바꿔먹기 제안 채팅 보내기
+            1:1 물물교환 제안 채팅 보내기
           </button>
 
         </div>
