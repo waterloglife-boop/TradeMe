@@ -11,6 +11,7 @@ interface RegisterStoreAndItemsModalProps {
   pickedLat?: number;
   pickedLng?: number;
   onUpdatePickedLocation?: (lat: number, lng: number) => void;
+  currentStore?: Store | null;
 }
 
 // 🖼️ 이미지 용량 & 크기 줄이기 캔버스 최적화 헬퍼 함수
@@ -64,6 +65,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   pickedLat = 35.3605,
   pickedLng = 129.0468,
   onUpdatePickedLocation,
+  currentStore,
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
@@ -89,6 +91,34 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   const [storeImageUrl, setStoreImageUrl] = useState(
     'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
   );
+
+  // Pre-fill fields if currentStore exists and editing
+  useEffect(() => {
+    if (isOpen && currentStore && currentStore.storeName && currentStore.storeName !== '로그인 필요') {
+      setStoreName(currentStore.storeName || '');
+      setCategory(currentStore.category || 'KOREAN');
+      setCategoryName(currentStore.categoryName || '한식');
+      setAddress(currentStore.address || '');
+      setPhone(currentStore.phone || '055-385-1234');
+      setOperatingHours(currentStore.breakTimeHours || '10:00 - 22:00 (연중무휴)');
+      if (currentStore.lat && currentStore.lng) {
+        setCurrentLat(currentStore.lat);
+        setCurrentLng(currentStore.lng);
+      }
+      if (currentStore.exchangeItems && currentStore.exchangeItems.length > 0) {
+        setItems(
+          currentStore.exchangeItems.map((item) => ({
+            type: item.type || 'FOOD',
+            title: item.title,
+            description: item.description,
+            estimatedPrice: item.estimatedPrice,
+            imageUrl: item.imageUrl,
+            isAvailable: true,
+          }))
+        );
+      }
+    }
+  }, [isOpen, currentStore]);
 
   // Auto Reverse-Geocode Clicked Map Pin Coordinates to Real Address
   useEffect(() => {
@@ -269,7 +299,9 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
               STEP {step} / 2
             </span>
             <h2 className="font-extrabold text-base mt-1">
-              {step === 1 ? '🏬 우리 가게 프로필 & 지도 위치 등록' : '🛍️ 1:1 물물교환 대표 품목 (2~3개) 등록'}
+              {step === 1
+                ? (currentStore?.storeName && currentStore?.storeName !== '로그인 필요' ? '✏️ 내 가게 프로필 & 위치 정보 수정' : '🏬 우리 가게 프로필 & 지도 위치 등록')
+                : '🛍️ 1:1 물물교환 대표 품목 (2~3개) 등록/수정'}
             </h2>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/20">
@@ -559,7 +591,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                   className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5"
                 >
                   <Check className="w-4 h-4" />
-                  <span>{loading ? 'Supabase에 저장 중...' : '등록 완료 & 지도 마커 반영'}</span>
+                  <span>{loading ? 'Supabase에 저장 중...' : (currentStore?.storeName && currentStore?.storeName !== '로그인 필요' ? '수정 내용 저장 & 지도 반영' : '등록 완료 & 지도 마커 반영')}</span>
                 </button>
               </div>
             </div>

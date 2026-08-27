@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, User, LogIn } from 'lucide-react';
+import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, User, LogIn, Edit3 } from 'lucide-react';
 
 interface NavbarProps {
   myBreakTimeActive: boolean;
@@ -13,6 +13,7 @@ interface NavbarProps {
   onlyBreakTime: boolean;
   onToggleOnlyBreakTime: () => void;
   storeCount: number;
+  hasRegisteredStore?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -27,6 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onlyBreakTime,
   onToggleOnlyBreakTime,
   storeCount,
+  hasRegisteredStore = false,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
@@ -90,13 +92,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
 
-            {/* Item Registration Button */}
+            {/* Item Registration / Edit Button */}
             <button
               onClick={onOpenRegisterModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95"
+              className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95 ${
+                hasRegisteredStore
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
+                  : 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700'
+              }`}
             >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span className="hidden sm:inline">물물교환 품목 등록</span>
+              {hasRegisteredStore ? (
+                <>
+                  <Edit3 className="w-4 h-4" />
+                  <span className="hidden sm:inline">물물교환 품목 수정</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span className="hidden sm:inline">물물교환 품목 등록</span>
+                </>
+              )}
             </button>
 
             {/* Login / Auth Button */}

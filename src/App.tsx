@@ -246,6 +246,8 @@ export const App: React.FC = () => {
     setUserOwnerName('로그인 필요');
   };
 
+  const hasRegisteredStore = isLoggedIn && !!myStore?.storeName && myStore.storeName !== '로그인 필요';
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col font-sans">
       
@@ -262,6 +264,7 @@ export const App: React.FC = () => {
         onlyBreakTime={onlyBreakTime}
         onToggleOnlyBreakTime={() => setOnlyBreakTime(!onlyBreakTime)}
         storeCount={filteredStores.length}
+        hasRegisteredStore={hasRegisteredStore}
       />
 
       {/* Main Map View */}
