@@ -146,10 +146,9 @@ export async function signUpUser(
           store_name: storeName,
           business_number: businessNumber,
           phone: phone || '',
-          updated_at: new Date().toISOString(),
         });
         if (profileError) {
-          console.warn('Notice upserting to profiles table (Ensure profiles table exists in Supabase):', profileError.message);
+          console.warn('Notice upserting to profiles table:', profileError.message);
         }
       } catch (e) {
         // Notice fallback
@@ -183,7 +182,6 @@ export async function saveProfileToSupabase(ownerName: string, storeName: string
         owner_name: ownerName,
         store_name: storeName,
         phone: phone || '',
-        updated_at: new Date().toISOString(),
       });
     }
   } catch (err) {
