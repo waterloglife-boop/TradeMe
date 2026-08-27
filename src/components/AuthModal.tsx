@@ -133,25 +133,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
       }
     } else {
-      // 1. Duplicate Email Check
+      // 1. Duplicate Email Check for Known Blocked Accounts
       const lowerEmail = email.toLowerCase().trim();
-      if (registeredEmails.includes(lowerEmail)) {
+      if (['owner@trademe.kr', 'admin@trademe.kr'].includes(lowerEmail)) {
         setToastMessage('⚠️ 이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.');
         setDuplicateField('EMAIL');
         setLoading(false);
         if (emailInputRef.current) {
           emailInputRef.current.focus();
-        }
-        return;
-      }
-
-      // 2. Duplicate Phone Number Check
-      if (cleanPhone && registeredPhones.includes(cleanPhone)) {
-        setToastMessage('⚠️ 이미 등록된 휴대폰 번호입니다. 다른 연락처를 입력해 주세요.');
-        setDuplicateField('PHONE');
-        setLoading(false);
-        if (phoneInputRef.current) {
-          phoneInputRef.current.focus();
         }
         return;
       }
