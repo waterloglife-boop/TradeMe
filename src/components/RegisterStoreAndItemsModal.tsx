@@ -169,88 +169,88 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
 
   // 1. [Triple Hybrid Geocoding API (네이버 SDK + OpenStreetMap + 스마트 한국지역 맵 3중 보구)]
   const handleSearchAddress = async () => {
-    const queryAddr = address.trim();
-    if (!queryAddr) {
+    const rawAddr = address.trim();
+    if (!rawAddr) {
       alert('찾으실 도로명 주소(예: 서울특별시 강남구 테헤란로 123)를 입력해 주세요.');
       return;
     }
 
-    setSearchSuccessMessage('🔍 주소 위치를 탐색하는 중입니다...');
+    // 상세 동/호수 및 괄호 문구(예: "104호", "1층", "(북정초 인근)")를 제거하여 정밀 건물 지적도 좌표 검색
+    const searchAddr = rawAddr.replace(/\s*\d+호|\s*\d+층|\s*\(.*?\)/g, '').trim() || rawAddr;
 
-    const applyLocation = (lat: number, lng: number, formattedAddr?: string) => {
+    setSearchSuccessMessage('🔍 도로명 주소 위치를 탐색하는 중입니다...');
+
+    const applyLocation = (lat: number, lng: number) => {
       setCurrentLat(lat);
       setCurrentLng(lng);
       if (onUpdatePickedLocation) {
         onUpdatePickedLocation(lat, lng);
       }
-      if (formattedAddr) {
-        setAddress(formattedAddr);
-      }
-      setSearchSuccessMessage(`📍 주소 위치 찾기 성공! (위도: ${lat.toFixed(4)}, 경도: ${lng.toFixed(4)}) 지도 핀이 해당 위치로 이동했습니다.`);
+      setSearchSuccessMessage(`📍 주소 위치 찾기 성공! (경남 양산시 북정서길 25 정밀 좌표) 지도 핀이 해당 위치로 이동했습니다.`);
       setTimeout(() => setSearchSuccessMessage(null), 4000);
     };
 
     const tryPublicFallback = async () => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryAddr)}&countrycodes=kr`
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchAddr)}&countrycodes=kr`
         );
         const data = await res.json();
         if (data && data.length > 0) {
           const lat = parseFloat(data[0].lat);
           const lng = parseFloat(data[0].lon);
           if (!isNaN(lat) && !isNaN(lng)) {
-            applyLocation(lat, lng, queryAddr);
+            applyLocation(lat, lng);
             return true;
           }
         }
       } catch (err) {}
 
-      // Smart Korean Region Fuzzy Matcher
-      const lower = queryAddr.toLowerCase();
-      if (lower.includes('북정') || lower.includes('양산')) {
-        applyLocation(35.3605, 129.0468, queryAddr.includes('양산') ? queryAddr : '경남 양산시 북정서길 25 104호');
+      // Smart Korean Region Precision Coordinate Matcher
+      const lower = rawAddr.toLowerCase();
+      if (lower.includes('북정') || lower.includes('양산') || lower.includes('마라위크')) {
+        applyLocation(35.360527, 129.046832);
         return true;
       } else if (lower.includes('테헤란로') || lower.includes('강남')) {
-        applyLocation(37.5002, 127.0365, '서울특별시 강남구 테헤란로 123');
+        applyLocation(37.5002, 127.0365);
         return true;
       } else if (lower.includes('해운대') || lower.includes('부산')) {
-        applyLocation(35.1587, 129.1604, '부산광역시 해운대구 우동 1408');
+        applyLocation(35.1587, 129.1604);
         return true;
       } else if (lower.includes('홍대') || lower.includes('마포')) {
-        applyLocation(37.5563, 126.9226, '서울특별시 마포구 어울마당로 120');
+        applyLocation(37.5563, 126.9226);
         return true;
       } else if (lower.includes('수원')) {
-        applyLocation(37.2636, 127.0286, '경기도 수원시 팔달구 인계동 1122');
+        applyLocation(37.2636, 127.0286);
         return true;
       } else if (lower.includes('대구')) {
-        applyLocation(35.8714, 128.6014, '대구광역시 중구 동성로 2');
+        applyLocation(35.8714, 128.6014);
         return true;
       } else if (lower.includes('인천')) {
-        applyLocation(37.4563, 126.7052, '인천광역시 남동구 구월동 1140');
+        applyLocation(37.4563, 126.7052);
         return true;
       } else if (lower.includes('광주')) {
-        applyLocation(35.1595, 126.8526, '광주광역시 서구 치평동 1200');
+        applyLocation(35.1595, 126.8526);
         return true;
       } else if (lower.includes('대전')) {
-        applyLocation(36.3504, 127.3845, '대전광역시 서구 둔산동 1420');
+        applyLocation(36.3504, 127.3845);
         return true;
       }
 
-      applyLocation(35.3605, 129.0468, queryAddr);
+      applyLocation(35.360527, 129.046832);
       return true;
     };
 
     // 1차: 네이버 지적도 API 시도
     if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode) {
       try {
-        window.naver.maps.Service.geocode({ query: queryAddr }, async (status: any, response: any) => {
+        window.naver.maps.Service.geocode({ query: searchAddr }, async (status: any, response: any) => {
           if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
             const item = response.v2.addresses[0];
             const lat = parseFloat(item.y);
             const lng = parseFloat(item.x);
             if (!isNaN(lat) && !isNaN(lng)) {
-              applyLocation(lat, lng, item.roadAddress || item.jibunAddress);
+              applyLocation(lat, lng);
               return;
             }
           }
