@@ -139,7 +139,7 @@ export async function signUpUser(
 
     if (data.user) {
       try {
-        await supabase.from('profiles').upsert({
+        const { error: profileError } = await supabase.from('profiles').upsert({
           id: data.user.id,
           email,
           owner_name: ownerName,
@@ -148,6 +148,9 @@ export async function signUpUser(
           phone: phone || '',
           updated_at: new Date().toISOString(),
         });
+        if (profileError) {
+          console.warn('Notice upserting to profiles table (Ensure profiles table exists in Supabase):', profileError.message);
+        }
       } catch (e) {
         // Notice fallback
       }
