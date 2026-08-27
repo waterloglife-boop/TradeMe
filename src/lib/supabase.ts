@@ -308,3 +308,35 @@ export async function sendTradeProposalToSupabase(
     return { success: true, tradeId: `trade-${Date.now()}` };
   }
 }
+
+/**
+ * 5. Fetch Chat History from Supabase Database for a specific Trade/Store
+ */
+export async function fetchChatHistory(storeId: string): Promise<ChatMessage[]> {
+  try {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('trade_id', storeId)
+      .order('created_at', { ascending: true });
+
+    if (error || !data || data.length === 0) {
+      return [];
+    }
+
+    return data.map((msg: any) => ({
+      id: msg.id,
+      senderId: msg.sender_store_id,
+      senderName: msg.sender_name,
+      message: msg.message,
+      timestamp: new Date(msg.created_at || Date.now()).toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      isMe: false,
+    }));
+  } catch (err) {
+    console.warn('Error fetching chat history from Supabase:', err);
+    return [];
+  }
+}

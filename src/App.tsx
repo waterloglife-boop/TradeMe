@@ -9,7 +9,7 @@ import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import { Store, ExchangeItem, ChatMessage } from './types/trade';
-import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase, sendTradeProposalToSupabase } from './lib/supabase';
+import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase, sendTradeProposalToSupabase, fetchChatHistory } from './lib/supabase';
 import { MapPin } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -64,17 +64,40 @@ export const App: React.FC = () => {
     loadStores();
   }, []);
 
-  // Supabase Realtime Chat Subscription for active chat store
+  // Supabase Realtime Chat Subscription & Past History Loader
   useEffect(() => {
     if (!chatTargetStore) return;
-    const unsubscribe = subscribeToTradeChat(chatTargetStore.id, (newMsg) => {
+
+    const storeId = chatTargetStore.id;
+
+    // 2. [초기 데이터 로딩 최적화] 과거 채팅 내역 Supabase에서 불러오기
+    async function loadHistory() {
+      const history = await fetchChatHistory(storeId);
+      if (history && history.length > 0) {
+        setMessagesMap((prev) => {
+          if (prev[storeId] && prev[storeId].length > 0) return prev;
+          const formattedHistory = history.map((msg) => ({
+            ...msg,
+            isMe: msg.senderId === myStore.id,
+          }));
+          return { ...prev, [storeId]: formattedHistory };
+        });
+      }
+    }
+    loadHistory();
+
+    // 1. [채팅 중복 렌더링 버그 수정] 실시간 소켓 수신 시 자가 송신 메시지 중복 필터링
+    const unsubscribe = subscribeToTradeChat(storeId, (newMsg) => {
+      if (newMsg.senderId === myStore.id) return;
+
       setMessagesMap((prev) => ({
         ...prev,
-        [chatTargetStore.id]: [...(prev[chatTargetStore.id] || []), newMsg],
+        [storeId]: [...(prev[storeId] || []), { ...newMsg, isMe: false }],
       }));
     });
+
     return () => unsubscribe();
-  }, [chatTargetStore]);
+  }, [chatTargetStore, myStore.id]);
 
   const handleLoginSuccess = (ownerName: string, storeName: string) => {
     setIsLoggedIn(true);
