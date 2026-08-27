@@ -23,14 +23,14 @@ export const App: React.FC = () => {
 
   // Location Picker State
   const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>({
-    lat: 35.1782,
-    lng: 129.1985,
+    lat: 35.3620,
+    lng: 129.0503,
   });
 
   // Auth State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [userOwnerName, setUserOwnerName] = useState('홍길동 사장님');
+  const [userOwnerName, setUserOwnerName] = useState('사장님 (마라위크)');
 
   // Modals & Drawers state
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
