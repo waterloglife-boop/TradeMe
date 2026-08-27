@@ -35,14 +35,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [duplicateField, setDuplicateField] = useState<'EMAIL' | 'PHONE' | null>(null);
 
   const emailInputRef = useRef<HTMLInputElement>(null);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
 
   // Registered Emails Registry for Mock/Live Email Duplicate Validation
   const [registeredEmails, setRegisteredEmails] = useState<string[]>([
     'owner@trademe.kr',
     'mara@naver.com',
     'admin@trademe.kr'
+  ]);
+
+  // Registered Phone Numbers Registry for Phone Duplicate Validation
+  const [registeredPhones, setRegisteredPhones] = useState<string[]>([
+    '01012345678',
+    '01099998888',
+    '0553818892'
   ]);
 
   useEffect(() => {
@@ -54,6 +63,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setMode('LOGIN');
     }
     setToastMessage(null);
+    setDuplicateField(null);
   }, [isLoggedIn, userOwnerName, userStoreName, isOpen]);
 
   if (!isOpen) return null;
@@ -62,6 +72,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     e.preventDefault();
     setLoading(true);
     setToastMessage(null);
+    setDuplicateField(null);
+
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
 
     if (mode === 'PROFILE') {
       onUpdateProfile(ownerName, storeName, phone);
@@ -81,13 +94,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
       }
     } else {
-      // Duplicate Email Check
+      // 1. Duplicate Email Check
       const lowerEmail = email.toLowerCase().trim();
       if (registeredEmails.includes(lowerEmail)) {
         setToastMessage('⚠️ 이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.');
+        setDuplicateField('EMAIL');
         setLoading(false);
         if (emailInputRef.current) {
           emailInputRef.current.focus();
+        }
+        return;
+      }
+
+      // 2. Duplicate Phone Number Check
+      if (cleanPhone && registeredPhones.includes(cleanPhone)) {
+        setToastMessage('⚠️ 이미 등록된 휴대폰 번호입니다. 다른 연락처를 입력해 주세요.');
+        setDuplicateField('PHONE');
+        setLoading(false);
+        if (phoneInputRef.current) {
+          phoneInputRef.current.focus();
         }
         return;
       }
@@ -102,6 +127,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       
       if (!res.success && res.error === 'ALREADY_EXISTS') {
         setToastMessage(res.message || '⚠️ 이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.');
+        setDuplicateField('EMAIL');
         setLoading(false);
         if (emailInputRef.current) {
           emailInputRef.current.focus();
@@ -111,6 +137,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       if (res.success) {
         setRegisteredEmails((prev) => [...prev, lowerEmail]);
+        if (cleanPhone) setRegisteredPhones((prev) => [...prev, cleanPhone]);
         onLoginSuccess(ownerName || '사장님 (마라위크)', storeName || '마라위크 (양산 북정점)');
         onClose();
       }
@@ -146,6 +173,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => {
                 setMode('LOGIN');
                 setToastMessage(null);
+                setDuplicateField(null);
               }}
               className={`flex-1 py-3 text-sm font-bold transition-all border-b-2 ${
                 mode === 'LOGIN'
@@ -159,6 +187,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => {
                 setMode('SIGNUP');
                 setToastMessage(null);
+                setDuplicateField(null);
               }}
               className={`flex-1 py-3 text-sm font-bold transition-all border-b-2 ${
                 mode === 'SIGNUP'
@@ -231,11 +260,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="relative">
                   <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                   <input
+                    ref={phoneInputRef}
                     type="text"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (duplicateField === 'PHONE') {
+                        setToastMessage(null);
+                        setDuplicateField(null);
+                      }
+                    }}
                     placeholder="010-1234-5678"
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                    className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs outline-none ${
+                      duplicateField === 'PHONE'
+                        ? 'border-amber-500 ring-2 ring-amber-200'
+                        : 'border-gray-300 focus:ring-2 focus:ring-orange-500'
+                    }`}
                   />
                 </div>
               </div>
@@ -323,10 +363,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
-                      if (toastMessage) setToastMessage(null);
+                      if (duplicateField === 'EMAIL') {
+                        setToastMessage(null);
+                        setDuplicateField(null);
+                      }
                     }}
                     className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs outline-none ${
-                      toastMessage ? 'border-amber-500 ring-2 ring-amber-200' : 'border-gray-300 focus:ring-2 focus:ring-orange-500'
+                      duplicateField === 'EMAIL'
+                        ? 'border-amber-500 ring-2 ring-amber-200'
+                        : 'border-gray-300 focus:ring-2 focus:ring-orange-500'
                     }`}
                   />
                 </div>
@@ -385,11 +430,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <div className="relative">
                       <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                       <input
+                        ref={phoneInputRef}
                         type="text"
                         placeholder="010-1234-5678"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+                        onChange={(e) => {
+                          setPhone(e.target.value);
+                          if (duplicateField === 'PHONE') {
+                            setToastMessage(null);
+                            setDuplicateField(null);
+                          }
+                        }}
+                        className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs outline-none ${
+                          duplicateField === 'PHONE'
+                            ? 'border-amber-500 ring-2 ring-amber-200'
+                            : 'border-gray-300 focus:ring-2 focus:ring-orange-500'
+                        }`}
                       />
                     </div>
                   </div>
