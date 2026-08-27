@@ -1,6 +1,6 @@
 import { Store } from '../types/trade';
 
-// Yangsan Bukjeong-dong (양산시 북정동 / 북정초등학교 상권)
+// Yangsan Bukjeong-dong (양산시 북정동 / 마라위크)
 export const MY_STORE_MOCK: Store = {
   id: 'my-store',
   ownerName: '사장님 (마라위크)',
@@ -22,9 +22,9 @@ export const MY_STORE_MOCK: Store = {
       id: 'my-item-1',
       storeId: 'my-store',
       type: 'FOOD',
-      title: '마라탕 & 꿔바로우(소) 2인 든든 세트',
-      description: '푸짐한 마라탕(소고기/분모자 포함)과 겉바속촉 꿔바로우 포장 세트입니다.',
-      estimatedPrice: 25000,
+      title: '소고기마라탕 & 꿔바로우 1인세트',
+      description: '진하고 알싸한 소고기 마라탕과 겉바속촉 꿔바로우가 포함된 1인 든든 세트입니다.',
+      estimatedPrice: 18000,
       imageUrl: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=500&q=80',
       isAvailable: true
     },
@@ -32,10 +32,20 @@ export const MY_STORE_MOCK: Store = {
       id: 'my-item-2',
       storeId: 'my-store',
       type: 'FOOD',
-      title: '알싸한 마라샹궈 & 수제 딤섬 2인 풀세트',
-      description: '은은한 얼얼함의 마라샹궈와 따끈한 모둠 딤섬 세트입니다.',
-      estimatedPrice: 29000,
+      title: '소고기마라탕 & 꿔바로우(미니) 2인세트',
+      description: '푸짐한 소고기 마라탕 2인분과 쫄깃바삭 미니 꿔바로우 인기 세트입니다.',
+      estimatedPrice: 26000,
       imageUrl: 'https://images.unsplash.com/photo-1541696432-82c6da8ce7bf?auto=format&fit=crop&w=500&q=80',
+      isAvailable: true
+    },
+    {
+      id: 'my-item-3',
+      storeId: 'my-store',
+      type: 'FOOD',
+      title: '소고기마라샹궈 & 꿔바로우(미니) 2인세트',
+      description: '불향 가득 볶아낸 소고기 마라샹궈 2인분과 미니 꿔바로우 풀세트입니다.',
+      estimatedPrice: 31000,
+      imageUrl: 'https://images.unsplash.com/photo-1555126634-323283e090fa?auto=format&fit=crop&w=500&q=80',
       isAvailable: true
     }
   ]
