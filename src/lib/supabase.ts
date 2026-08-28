@@ -758,8 +758,29 @@ export async function fetchChatHistory(storeId: string): Promise<ChatMessage[]> 
  * 6. 🧪 [신메뉴/신규서비스 체험단 지원서 관리]
  */
 export async function applyMenuTestCampaign(application: Omit<MenuTestApplication, 'id' | 'createdAt' | 'status'>) {
+  const applicationId = `app-${Date.now()}`;
+  const newApp: MenuTestApplication = {
+    id: applicationId,
+    storeId: application.storeId,
+    applicantUserId: application.applicantUserId || undefined,
+    applicantStoreName: application.applicantStoreName,
+    applicantOwnerName: application.applicantOwnerName,
+    applicantPhone: application.applicantPhone,
+    snsUrl: application.snsUrl || '',
+    message: application.message,
+    feedbackType: application.feedbackType || 'BOTH',
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+  };
+
+  // 1. LocalStorage Backup for instant offline and mock display
   try {
-    const applicationId = `app-${Date.now()}`;
+    const raw = localStorage.getItem('trademe_menu_test_applications');
+    const existing: MenuTestApplication[] = raw ? JSON.parse(raw) : [];
+    localStorage.setItem('trademe_menu_test_applications', JSON.stringify([newApp, ...existing]));
+  } catch (e) {}
+
+  try {
     const payload = {
       id: applicationId,
       store_id: application.storeId,
@@ -797,21 +818,37 @@ export async function applyMenuTestCampaign(application: Omit<MenuTestApplicatio
     return { success: true, applicationId };
   } catch (err: any) {
     console.warn('Menu test apply notice (fallback mode):', err);
-    return { success: true, applicationId: `app-${Date.now()}` };
+    return { success: true, applicationId };
   }
 }
 
-export async function fetchMenuTestApplications(storeId: string): Promise<MenuTestApplication[]> {
+export async function fetchMenuTestApplications(storeId?: string): Promise<MenuTestApplication[]> {
+  let localApps: MenuTestApplication[] = [];
   try {
-    const { data, error } = await supabase
+    const raw = localStorage.getItem('trademe_menu_test_applications');
+    if (raw) localApps = JSON.parse(raw);
+  } catch (e) {}
+
+  try {
+    let query = supabase
       .from('menu_test_applications')
       .select('*')
-      .eq('store_id', storeId)
       .order('created_at', { ascending: false });
 
-    if (error || !data) return [];
+    if (storeId && storeId !== 'ALL') {
+      query = query.eq('store_id', storeId);
+    }
 
-    return data.map((item: any) => ({
+    const { data, error } = await query;
+
+    if (error || !data || data.length === 0) {
+      if (storeId && storeId !== 'ALL') {
+        return localApps.filter((a) => a.storeId === storeId || a.storeId.includes('store-'));
+      }
+      return localApps;
+    }
+
+    const dbApps: MenuTestApplication[] = data.map((item: any) => ({
       id: item.id,
       storeId: item.store_id,
       applicantUserId: item.applicant_user_id,
@@ -824,8 +861,43 @@ export async function fetchMenuTestApplications(storeId: string): Promise<MenuTe
       status: item.status,
       createdAt: item.created_at,
     }));
+
+    const existingIds = new Set(dbApps.map((a) => a.id));
+    return [...dbApps, ...localApps.filter((a) => !existingIds.has(a.id))];
   } catch (err) {
-    return [];
+    return localApps;
   }
 }
+
+export async function updateMenuTestApplicationStatus(
+  applicationId: string,
+  status: 'ACCEPTED' | 'REJECTED'
+): Promise<{ success: boolean }> {
+  // 1. Update in LocalStorage
+  try {
+    const raw = localStorage.getItem('trademe_menu_test_applications');
+    if (raw) {
+      const apps: MenuTestApplication[] = JSON.parse(raw);
+      const updated = apps.map((a) => (a.id === applicationId ? { ...a, status } : a));
+      localStorage.setItem('trademe_menu_test_applications', JSON.stringify(updated));
+    }
+  } catch (e) {}
+
+  // 2. Update in Supabase DB
+  try {
+    const { error } = await supabase
+      .from('menu_test_applications')
+      .update({ status })
+      .eq('id', applicationId);
+
+    if (error) {
+      console.warn('Notice updating application status in Supabase:', error.message);
+    }
+    return { success: true };
+  } catch (err) {
+    console.warn('Update status notice (fallback mode):', err);
+    return { success: true };
+  }
+}
+
 

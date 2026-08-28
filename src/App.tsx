@@ -8,8 +8,9 @@ import { TradeProposalModal } from './components/TradeProposalModal';
 import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
 import { MenuTestApplyModal } from './components/MenuTestApplyModal';
+import { MenuTestDashboardModal } from './components/MenuTestDashboardModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
-import { Store, ExchangeItem, ChatMessage } from './types/trade';
+import { Store, ExchangeItem, ChatMessage, MenuTestApplication } from './types/trade';
 import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase, sendTradeProposalToSupabase, fetchChatHistory, saveProfileToSupabase, updateStoreStatusInSupabase, fetchUserProfileFromSupabase, fetchUserStoreFromSupabase } from './lib/supabase';
 import { MapPin } from 'lucide-react';
 
@@ -39,9 +40,10 @@ export const App: React.FC = () => {
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [targetProposalItem, setTargetProposalItem] = useState<ExchangeItem | null>(null);
 
-  // 🧪 Menu Test Application Modal state
+  // 🧪 Menu Test Application & Dashboard Modal state
   const [isMenuTestModalOpen, setIsMenuTestModalOpen] = useState(false);
   const [targetMenuTestStore, setTargetMenuTestStore] = useState<Store | null>(null);
+  const [isMenuTestDashboardOpen, setIsMenuTestDashboardOpen] = useState(false);
   
   // Chat state
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
@@ -296,6 +298,55 @@ export const App: React.FC = () => {
     setUserOwnerName('로그인 필요');
   };
 
+  const handleAcceptMenuTestAndOpenChat = (applicant: MenuTestApplication) => {
+    // 1. Resolve or construct applicant store for 1:1 chat
+    const existingStore = stores.find(
+      (s) => s.storeName === applicant.applicantStoreName || s.ownerName === applicant.applicantOwnerName
+    );
+
+    const applicantTargetStore: Store = existingStore || {
+      id: applicant.applicantUserId || `store-applicant-${applicant.id}`,
+      ownerName: applicant.applicantOwnerName,
+      storeName: applicant.applicantStoreName,
+      category: 'FOOD',
+      categoryName: '외식/서비스',
+      address: '인근 이웃 매장',
+      lat: myStore.lat + 0.0015,
+      lng: myStore.lng + 0.0015,
+      phone: applicant.applicantPhone,
+      isVerified: true,
+      breakTimeActive: true,
+      breakTimeHours: '10:00 - 22:00',
+      storeImageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80',
+      exchangeItems: [],
+      rating: 5.0,
+      reviewCount: 1,
+    };
+
+    // 2. Open Chat Drawer with this applicant
+    setChatTargetStore(applicantTargetStore);
+    setIsChatDrawerOpen(true);
+
+    // 3. Send automated acceptance congratulation message
+    const welcomeText = `🎉 축하합니다! [${myStore.menuTestTitle || '신메뉴'}] 1호 시식단으로 최종 선정되셨습니다! 편하신 방문 일시와 동반 인원을 조율해 주세요.`;
+    const newMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      senderId: myStore.id,
+      senderName: myStore.ownerName,
+      message: welcomeText,
+      timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
+      systemAction: 'ACCEPT',
+    };
+
+    setMessagesMap((prev) => ({
+      ...prev,
+      [applicantTargetStore.id]: [...(prev[applicantTargetStore.id] || []), newMsg],
+    }));
+
+    sendChatMessageToSupabase(applicantTargetStore.id, myStore.id, myStore.ownerName, welcomeText);
+  };
+
   const hasRegisteredStore = isLoggedIn && !!myStore?.storeName && myStore.storeName !== '로그인 필요';
 
   return (
@@ -307,6 +358,7 @@ export const App: React.FC = () => {
         onToggleBreakTime={handleToggleBreakTime}
         onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
         isLoggedIn={isLoggedIn}
         userOwnerName={userOwnerName}
         selectedCategory={selectedCategory}
@@ -347,6 +399,7 @@ export const App: React.FC = () => {
             setTargetMenuTestStore(store);
             setIsMenuTestModalOpen(true);
           }}
+          onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
           isMyStore={selectedStore?.id === myStore.id}
         />
       </main>
@@ -387,6 +440,14 @@ export const App: React.FC = () => {
             if (data && data.length > 0) setStores(data);
           });
         }}
+      />
+
+      {/* 🧪 Menu Test Dashboard Modal (신청서 접수 관리) */}
+      <MenuTestDashboardModal
+        isOpen={isMenuTestDashboardOpen}
+        onClose={() => setIsMenuTestDashboardOpen(false)}
+        myStore={myStore}
+        onAcceptAndOpenChat={handleAcceptMenuTestAndOpenChat}
       />
 
       {/* 1:1 Equivalent Exchange Proposal Modal */}

@@ -20,6 +20,7 @@ interface StoreDetailDrawerProps {
   onOpenProposal: (targetItem: ExchangeItem) => void;
   onOpenChat: (store: Store) => void;
   onOpenMenuTestApply?: (store: Store) => void;
+  onOpenMenuTestDashboard?: () => void;
   isMyStore: boolean;
 }
 
@@ -29,6 +30,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
   onOpenProposal,
   onOpenChat,
   onOpenMenuTestApply,
+  onOpenMenuTestDashboard,
   isMyStore,
 }) => {
   if (!store) return null;
@@ -153,8 +155,19 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                 <span>신메뉴 1호 체험단 신청하기</span>
               </button>
             ) : (
-              <div className="text-center text-[11px] text-purple-300 bg-white/5 py-1.5 rounded-lg border border-purple-400/20">
-                👑 내가 모집 중인 신메뉴 테스트 캠페인입니다
+              <div className="space-y-2">
+                <div className="text-center text-[11px] text-purple-300 bg-white/5 py-1.5 rounded-lg border border-purple-400/20">
+                  👑 내가 모집 중인 신메뉴 테스트 캠페인입니다
+                </div>
+                {onOpenMenuTestDashboard && (
+                  <button
+                    onClick={onOpenMenuTestDashboard}
+                    className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                  >
+                    <span>📋</span>
+                    <span>접수된 체험단 신청서 관리 대시보드</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
