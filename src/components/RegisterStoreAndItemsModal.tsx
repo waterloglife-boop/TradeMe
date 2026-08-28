@@ -69,6 +69,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
+  const [naverGeoReady, setNaverGeoReady] = useState(false);
 
   // Synchronized Coordinates State
   const [currentLat, setCurrentLat] = useState<number>(pickedLat);
@@ -78,6 +79,39 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
     setCurrentLat(pickedLat);
     setCurrentLng(pickedLng);
   }, [pickedLat, pickedLng]);
+
+  // ✅ Naver Maps Geocoding 서브모듈 독립 로드 (NaverMapView 와 별도로 보장)
+  useEffect(() => {
+    const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_CLIENT_ID || '8ek0m4smqn';
+    const checkReady = () => {
+      if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode) {
+        setNaverGeoReady(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkReady()) return;
+
+    // 이미 로드된 script 가 있으면 재사용, 없으면 새로 inject
+    const scriptId = 'naver-map-sdk';
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.type = 'text/javascript';
+      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_CLIENT_ID}&submodules=geocoding`;
+      script.async = true;
+      document.head.appendChild(script);
+    }
+
+    // 로드 완료될 때까지 polling
+    const timer = setInterval(() => {
+      if (checkReady()) clearInterval(timer);
+    }, 300);
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Step 1: Store Information State
   const [storeName, setStoreName] = useState('');
@@ -167,100 +201,113 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
     }
   }, [currentLat, currentLng]);
 
-  // 1. [Triple Hybrid Geocoding API (네이버 SDK + OpenStreetMap + 스마트 한국지역 맵 3중 보구)]
+  // 1. [주소 → 좌표 변환: Naver SDK → OpenStreetMap 2중 시도]
   const handleSearchAddress = async () => {
     const rawAddr = address.trim();
     if (!rawAddr) {
-      alert('찾으실 도로명 주소(예: 서울특별시 강남구 테헤란로 123)를 입력해 주세요.');
+      alert('도로명 주소를 입력해 주세요. (예: 경남 양산시 북정서길 25)');
       return;
     }
 
-    // 상세 동/호수 및 괄호 문구(예: "104호", "1층", "(북정초 인근)")를 제거하여 정밀 건물 지적도 좌표 검색
+    // 호수/층수/괄호 제거하여 도로명 건물번호까지만 검색
     const searchAddr = rawAddr.replace(/\s*\d+호|\s*\d+층|\s*\(.*?\)/g, '').trim() || rawAddr;
 
     setSearchSuccessMessage('🔍 도로명 주소 위치를 탐색하는 중입니다...');
 
-    const applyLocation = (lat: number, lng: number) => {
+    const applyLocation = (lat: number, lng: number, source: string) => {
       setCurrentLat(lat);
       setCurrentLng(lng);
       if (onUpdatePickedLocation) {
         onUpdatePickedLocation(lat, lng);
       }
-      setSearchSuccessMessage(`📍 주소 위치 찾기 성공! (경남 양산시 북정서길 25 정밀 좌표) 지도 핀이 해당 위치로 이동했습니다.`);
-      setTimeout(() => setSearchSuccessMessage(null), 4000);
+      setSearchSuccessMessage(`📍 위치 찾기 성공! (${source}) 위도: ${lat.toFixed(6)}, 경도: ${lng.toFixed(6)}`);
+      setTimeout(() => setSearchSuccessMessage(null), 5000);
     };
 
-    const tryPublicFallback = async () => {
+    // 2차: OpenStreetMap Nominatim 검색 (한국 필터)
+    const tryOpenStreetMap = async (): Promise<boolean> => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchAddr)}&countrycodes=kr`
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchAddr)}&countrycodes=kr&limit=5`,
+          { headers: { 'Accept-Language': 'ko' } }
         );
         const data = await res.json();
+        console.log('[Geocoding] OpenStreetMap 결과:', data);
         if (data && data.length > 0) {
           const lat = parseFloat(data[0].lat);
           const lng = parseFloat(data[0].lon);
           if (!isNaN(lat) && !isNaN(lng)) {
-            applyLocation(lat, lng);
+            applyLocation(lat, lng, 'OpenStreetMap');
             return true;
           }
         }
-      } catch (err) {}
-
-      // Smart Korean Region Precision Coordinate Matcher
-      const lower = rawAddr.toLowerCase();
-      if (lower.includes('북정') || lower.includes('양산') || lower.includes('마라위크')) {
-        applyLocation(35.3594007321187, 129.041885145232);
-        return true;
-      } else if (lower.includes('테헤란로') || lower.includes('강남')) {
-        applyLocation(37.5002, 127.0365);
-        return true;
-      } else if (lower.includes('해운대') || lower.includes('부산')) {
-        applyLocation(35.1587, 129.1604);
-        return true;
-      } else if (lower.includes('홍대') || lower.includes('마포')) {
-        applyLocation(37.5563, 126.9226);
-        return true;
-      } else if (lower.includes('수원')) {
-        applyLocation(37.2636, 127.0286);
-        return true;
-      } else if (lower.includes('대구')) {
-        applyLocation(35.8714, 128.6014);
-        return true;
-      } else if (lower.includes('인천')) {
-        applyLocation(37.4563, 126.7052);
-        return true;
-      } else if (lower.includes('광주')) {
-        applyLocation(35.1595, 126.8526);
-        return true;
-      } else if (lower.includes('대전')) {
-        applyLocation(36.3504, 127.3845);
-        return true;
+      } catch (err) {
+        console.warn('[Geocoding] OpenStreetMap 실패:', err);
       }
-
-      applyLocation(35.3594007321187, 129.041885145232);
-      return true;
+      return false;
     };
 
-    // 1차: 네이버 지적도 API 시도
-    if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode) {
+    // 1차: 네이버 지도 JavaScript SDK 지오코딩 시도
+    const naverAvailable = naverGeoReady || !!(window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode);
+    console.log('[Geocoding] Naver SDK 사용가능:', naverAvailable, '| naverGeoReady:', naverGeoReady, '| 검색어:', searchAddr);
+
+    if (naverAvailable) {
       try {
         window.naver.maps.Service.geocode({ query: searchAddr }, async (status: any, response: any) => {
+          console.log('[Geocoding] Naver 응답 status:', status, '| response:', response);
           if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
             const item = response.v2.addresses[0];
             const lat = parseFloat(item.y);
             const lng = parseFloat(item.x);
+            console.log('[Geocoding] Naver 좌표:', lat, lng);
             if (!isNaN(lat) && !isNaN(lng)) {
-              applyLocation(lat, lng);
+              applyLocation(lat, lng, '네이버 지도');
               return;
             }
           }
-          await tryPublicFallback();
+          // Naver 실패 → OpenStreetMap 2차 시도
+          console.warn('[Geocoding] Naver 검색 결과 없음 → OpenStreetMap으로 전환');
+          const ok = await tryOpenStreetMap();
+          if (!ok) {
+            setSearchSuccessMessage('❌ 주소를 찾지 못했습니다. 정확한 도로명 주소를 입력해 주세요. (예: 경남 양산시 북정서길 25)');
+          }
         });
       } catch (err) {
-        await tryPublicFallback();
+        console.error('[Geocoding] Naver SDK 오류:', err);
+        const ok = await tryOpenStreetMap();
+        if (!ok) {
+          setSearchSuccessMessage('❌ 주소를 찾지 못했습니다. 정확한 도로명 주소를 입력해 주세요.');
+        }
       }
     } else {
-      await tryPublicFallback();
+      // Naver SDK 아직 로딩 중 → 잠시 대기 후 재시도
+      setSearchSuccessMessage('⏳ 네이버 지도 SDK 로딩 중... 3초 후 자동 재시도합니다.');
+      setTimeout(async () => {
+        const naverAvailableRetry = !!(window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode);
+        console.log('[Geocoding] 재시도 - Naver SDK 사용가능:', naverAvailableRetry);
+        if (naverAvailableRetry) {
+          setNaverGeoReady(true);
+          window.naver.maps.Service.geocode({ query: searchAddr }, async (status: any, response: any) => {
+            console.log('[Geocoding] 재시도 Naver 응답:', status, response);
+            if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
+              const item = response.v2.addresses[0];
+              const lat = parseFloat(item.y);
+              const lng = parseFloat(item.x);
+              if (!isNaN(lat) && !isNaN(lng)) {
+                applyLocation(lat, lng, '네이버 지도');
+                return;
+              }
+            }
+            await tryOpenStreetMap();
+          });
+        } else {
+          console.warn('[Geocoding] Naver SDK 미로드 → OpenStreetMap으로 전환');
+          const ok = await tryOpenStreetMap();
+          if (!ok) {
+            setSearchSuccessMessage('❌ 주소를 찾지 못했습니다. 정확한 도로명 주소를 입력해 주세요.');
+          }
+        }
+      }, 3000);
     }
   };
 
