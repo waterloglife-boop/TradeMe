@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Store, ExchangeItem, TradeProposal, ChatMessage } from '../types/trade';
+import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication } from '../types/trade';
 import { INITIAL_STORES } from '../data/mockData';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-trade-me.supabase.co';
@@ -294,6 +294,16 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
       storeImageUrl: storeData.store_image_url,
       rating: storeData.rating || 4.9,
       reviewCount: storeData.review_count || 30,
+
+      // 🧪 [신메뉴/신규서비스 체험단 필드 매핑]
+      isMenuTesting: storeData.is_menu_testing ?? false,
+      menuTestTitle: storeData.menu_test_title ?? '',
+      menuTestReward: storeData.menu_test_reward ?? '',
+      menuTestQuota: storeData.menu_test_quota ?? 3,
+      menuTestApplicantCount: storeData.menu_test_applicant_count ?? 0,
+      menuTestFeedbackType: storeData.menu_test_feedback_type ?? 'BOTH',
+      menuTestDescription: storeData.menu_test_description ?? '',
+
       exchangeItems: (storeData.exchange_items || []).map((i: any) => ({
         id: i.id,
         storeId: i.store_id,
@@ -385,6 +395,16 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
       storeImageUrl: s.store_image_url,
       rating: s.rating || 4.9,
       reviewCount: s.review_count || 30,
+
+      // 🧪 [신메뉴/신규서비스 체험단 필드 매핑]
+      isMenuTesting: s.is_menu_testing ?? false,
+      menuTestTitle: s.menu_test_title ?? '',
+      menuTestReward: s.menu_test_reward ?? '',
+      menuTestQuota: s.menu_test_quota ?? 3,
+      menuTestApplicantCount: s.menu_test_applicant_count ?? 0,
+      menuTestFeedbackType: s.menu_test_feedback_type ?? 'BOTH',
+      menuTestDescription: s.menu_test_description ?? '',
+
       exchangeItems: (s.exchange_items || []).map((i: any) => ({
         id: i.id,
         storeId: i.store_id,
@@ -485,6 +505,15 @@ export async function insertStoreAndItems(
       store_image_url: storeInfo.storeImageUrl,
       is_exchange_active: storeInfo.breakTimeActive,
       operating_hours: storeInfo.breakTimeHours,
+
+      // 🧪 [신메뉴 테스트 캠페인 필드]
+      is_menu_testing: storeInfo.isMenuTesting ?? false,
+      menu_test_title: storeInfo.menuTestTitle || '',
+      menu_test_reward: storeInfo.menuTestReward || '',
+      menu_test_quota: storeInfo.menuTestQuota || 3,
+      menu_test_applicant_count: storeInfo.menuTestApplicantCount || 0,
+      menu_test_feedback_type: storeInfo.menuTestFeedbackType || 'BOTH',
+      menu_test_description: storeInfo.menuTestDescription || '',
     };
 
     let { error: storeError } = await supabase.from('stores').upsert(storePayload);
@@ -492,6 +521,13 @@ export async function insertStoreAndItems(
     if (storeError && storeError.message?.includes('column')) {
       delete storePayload.is_exchange_active;
       delete storePayload.operating_hours;
+      delete storePayload.is_menu_testing;
+      delete storePayload.menu_test_title;
+      delete storePayload.menu_test_reward;
+      delete storePayload.menu_test_quota;
+      delete storePayload.menu_test_applicant_count;
+      delete storePayload.menu_test_feedback_type;
+      delete storePayload.menu_test_description;
       storePayload.break_time_active = storeInfo.breakTimeActive;
       storePayload.break_time_hours = storeInfo.breakTimeHours;
       const res = await supabase.from('stores').upsert(storePayload);
@@ -717,3 +753,79 @@ export async function fetchChatHistory(storeId: string): Promise<ChatMessage[]> 
     return [];
   }
 }
+
+/**
+ * 6. 🧪 [신메뉴/신규서비스 체험단 지원서 관리]
+ */
+export async function applyMenuTestCampaign(application: Omit<MenuTestApplication, 'id' | 'createdAt' | 'status'>) {
+  try {
+    const applicationId = `app-${Date.now()}`;
+    const payload = {
+      id: applicationId,
+      store_id: application.storeId,
+      applicant_user_id: application.applicantUserId || null,
+      applicant_store_name: application.applicantStoreName,
+      applicant_owner_name: application.applicantOwnerName,
+      applicant_phone: application.applicantPhone,
+      sns_url: application.snsUrl || '',
+      message: application.message,
+      feedback_type: application.feedbackType || 'BOTH',
+      status: 'PENDING',
+    };
+
+    const { error } = await supabase.from('menu_test_applications').insert(payload);
+
+    if (error) {
+      console.warn('Supabase menu test application insert notice:', error.message);
+    }
+
+    // Increment applicant count on store table if possible
+    try {
+      const { data: storeData } = await supabase
+        .from('stores')
+        .select('menu_test_applicant_count')
+        .eq('id', application.storeId)
+        .maybeSingle();
+
+      const currentCount = storeData?.menu_test_applicant_count || 0;
+      await supabase
+        .from('stores')
+        .update({ menu_test_applicant_count: currentCount + 1 })
+        .eq('id', application.storeId);
+    } catch (e) {}
+
+    return { success: true, applicationId };
+  } catch (err: any) {
+    console.warn('Menu test apply notice (fallback mode):', err);
+    return { success: true, applicationId: `app-${Date.now()}` };
+  }
+}
+
+export async function fetchMenuTestApplications(storeId: string): Promise<MenuTestApplication[]> {
+  try {
+    const { data, error } = await supabase
+      .from('menu_test_applications')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+
+    return data.map((item: any) => ({
+      id: item.id,
+      storeId: item.store_id,
+      applicantUserId: item.applicant_user_id,
+      applicantStoreName: item.applicant_store_name,
+      applicantOwnerName: item.applicant_owner_name,
+      applicantPhone: item.applicant_phone,
+      snsUrl: item.sns_url,
+      message: item.message,
+      feedbackType: item.feedback_type,
+      status: item.status,
+      createdAt: item.created_at,
+    }));
+  } catch (err) {
+    return [];
+  }
+}
+

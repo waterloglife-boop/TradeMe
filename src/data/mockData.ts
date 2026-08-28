@@ -17,6 +17,16 @@ export const MY_STORE_MOCK: Store = {
   rating: 5.0,
   reviewCount: 88,
   storeImageUrl: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80',
+
+  // 🧪 신메뉴 테스트 캠페인
+  isMenuTesting: true,
+  menuTestTitle: '가을 신메뉴 [마라 로제 분모자 떡볶이 & 바질 꿔바로우]',
+  menuTestReward: '신메뉴 2인 풀세트 무료 시식 (정가 32,000원 상당)',
+  menuTestQuota: 5,
+  menuTestApplicantCount: 2,
+  menuTestFeedbackType: 'BOTH',
+  menuTestDescription: '가을 신메뉴 출시 전 이웃 사장님들의 가감 없는 솔직한 맛/양/단가 평가와 블로그/SNS 리뷰 서포터즈를 모십니다!',
+
   exchangeItems: [
     {
       id: 'my-item-1',
@@ -69,6 +79,13 @@ export const INITIAL_STORES: Store[] = [
     rating: 4.9,
     reviewCount: 42,
     storeImageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80',
+    isMenuTesting: true,
+    menuTestTitle: '신메뉴 [숙성 벌집 껍데기 & 수제 된장술밥] 1호 시식단',
+    menuTestReward: '벌집 껍데기 2인분 + 된장술밥 세트 무료 제공',
+    menuTestQuota: 3,
+    menuTestApplicantCount: 1,
+    menuTestFeedbackType: 'BLOG_SNS',
+    menuTestDescription: '술안주 신메뉴 굽기 및 식감 테스트를 도와주실 인근 사장님을 모십니다. 솔직한 블로그/인스타 리뷰 환영합니다!',
     exchangeItems: [
       {
         id: 'item-1-1',

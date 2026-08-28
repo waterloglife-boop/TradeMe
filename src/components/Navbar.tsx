@@ -12,6 +12,9 @@ interface NavbarProps {
   onSelectCategory: (cat: string) => void;
   onlyBreakTime: boolean;
   onToggleOnlyBreakTime: () => void;
+  onlyMenuTesting?: boolean;
+  onToggleOnlyMenuTesting?: () => void;
+  menuTestingStoreCount?: number;
   storeCount: number;
   hasRegisteredStore?: boolean;
 }
@@ -27,6 +30,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectCategory,
   onlyBreakTime,
   onToggleOnlyBreakTime,
+  onlyMenuTesting = false,
+  onToggleOnlyMenuTesting,
+  menuTestingStoreCount = 0,
   storeCount,
   hasRegisteredStore = false,
 }) => {
@@ -209,18 +215,43 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
 
-          {/* Quick Filter */}
-          <button
-            onClick={onToggleOnlyBreakTime}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
-              onlyBreakTime
-                ? 'bg-amber-500 text-white ring-2 ring-amber-300'
-                : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            ☕ 물물교환 가능 사장님만 보기
-          </button>
+          {/* Quick Filters */}
+          <div className="flex items-center gap-2">
+            {/* 🧪 Menu Test Filter */}
+            {onToggleOnlyMenuTesting && (
+              <button
+                onClick={onToggleOnlyMenuTesting}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold transition-all whitespace-nowrap shadow-sm ${
+                  onlyMenuTesting
+                    ? 'bg-purple-600 text-white ring-2 ring-purple-300 shadow-purple-200'
+                    : 'bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100'
+                }`}
+              >
+                <span>🧪</span>
+                <span>신메뉴 테스트 모집중</span>
+                {menuTestingStoreCount > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    onlyMenuTesting ? 'bg-white text-purple-700' : 'bg-purple-600 text-white'
+                  }`}>
+                    {menuTestingStoreCount}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {/* ☕ Break Time Filter */}
+            <button
+              onClick={onToggleOnlyBreakTime}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                onlyBreakTime
+                  ? 'bg-amber-500 text-white ring-2 ring-amber-300'
+                  : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              ☕ 물물교환 가능만 보기
+            </button>
+          </div>
         </div>
       </div>
     </header>

@@ -88,6 +88,12 @@ export const MapView: React.FC<MapViewProps> = ({
         borderColor = 'border-amber-200 ring-4 ring-amber-400/40 animate-pulse';
       }
 
+      if (store.isMenuTesting) {
+        bgColor = 'bg-gradient-to-tr from-purple-600 via-indigo-600 to-purple-700';
+        borderColor = 'border-purple-200 ring-4 ring-purple-400/60 animate-pulse';
+        iconEmoji = '🧪';
+      }
+
       if (isMyStore) {
         bgColor = 'bg-gradient-to-tr from-blue-600 to-indigo-600';
         borderColor = 'border-blue-200 ring-2 ring-blue-400/50';
@@ -96,7 +102,11 @@ export const MapView: React.FC<MapViewProps> = ({
       const html = `
         <div class="relative group cursor-pointer transition-transform transform ${isSelected ? 'scale-125 z-50' : 'hover:scale-110'}">
           ${
-            isBreakTime
+            store.isMenuTesting
+              ? `<div class="absolute -top-6 -left-6 bg-purple-700 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full shadow-lg border border-purple-300 flex items-center gap-0.5 whitespace-nowrap animate-bounce">
+                  <span>🧪 신메뉴 테스트</span>
+                 </div>`
+              : isBreakTime
               ? `<div class="absolute -top-6 -left-4 bg-amber-600 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shadow-lg border border-amber-300 flex items-center gap-0.5 whitespace-nowrap animate-bounce">
                   <span>☕ 교환 가능</span>
                  </div>`

@@ -132,6 +132,10 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
         if (isBreakTime) {
           bgColor = 'background: linear-gradient(135deg, #f59e0b, #ea580c); box-shadow: 0 0 12px rgba(245, 158, 11, 0.7);';
         }
+        if (store.isMenuTesting) {
+          bgColor = 'background: linear-gradient(135deg, #7c3aed, #4338ca); box-shadow: 0 0 16px rgba(124, 58, 237, 0.8);';
+          iconEmoji = '🧪';
+        }
         if (isMyStore) {
           bgColor = 'background: linear-gradient(135deg, #2563eb, #4f46e5);';
         }
@@ -139,7 +143,11 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
         return `
           <div style="position: relative; cursor: pointer; transform: ${isSelected ? 'scale(1.2)' : 'scale(1)'}; transition: transform 0.2s;">
             ${
-              isBreakTime
+              store.isMenuTesting
+                ? `<div style="position: absolute; top: -22px; left: -14px; background: #6d28d9; color: white; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; box-shadow: 0 2px 8px rgba(109,40,217,0.5); border: 1px solid #ddd6fe;">
+                    🧪 신메뉴 테스트
+                   </div>`
+                : isBreakTime
                 ? `<div style="position: absolute; top: -22px; left: -10px; background: #d97706; color: white; font-weight: bold; font-size: 10px; padding: 2px 6px; border-radius: 10px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3); border: 1px solid #fef3c7;">
                     ☕ 교환 가능
                    </div>`

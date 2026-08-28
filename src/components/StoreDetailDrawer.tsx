@@ -19,6 +19,7 @@ interface StoreDetailDrawerProps {
   onClose: () => void;
   onOpenProposal: (targetItem: ExchangeItem) => void;
   onOpenChat: (store: Store) => void;
+  onOpenMenuTestApply?: (store: Store) => void;
   isMyStore: boolean;
 }
 
@@ -27,9 +28,22 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
   onClose,
   onOpenProposal,
   onOpenChat,
+  onOpenMenuTestApply,
   isMyStore,
 }) => {
   if (!store) return null;
+
+  const getFeedbackBadge = (type?: string) => {
+    switch (type) {
+      case 'BLOG_SNS':
+        return '📱 SNS/블로그 후기';
+      case 'SECRET_REPORT':
+        return '🔒 1:1 비밀 피드백';
+      case 'BOTH':
+      default:
+        return '🌟 SNS후기 + 1:1 비밀피드백';
+    }
+  };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 md:left-auto md:right-6 md:bottom-6 md:top-20 z-40 md:w-96 bg-white rounded-t-2xl md:rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[85vh] md:max-h-[calc(100vh-120px)] transition-all animate-in slide-in-from-bottom">
@@ -53,13 +67,18 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
 
         {/* Store Title & Badges */}
         <div className="absolute bottom-3 left-4 right-4 text-white">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="px-2 py-0.5 text-xs font-bold bg-orange-500 text-white rounded-md">
               {store.categoryName}
             </span>
             {store.isVerified && (
               <span className="flex items-center gap-1 text-[11px] font-semibold bg-emerald-500/90 backdrop-blur text-white px-2 py-0.5 rounded-md">
                 <ShieldCheck className="w-3.5 h-3.5" /> 사장님 인증
+              </span>
+            )}
+            {store.isMenuTesting && (
+              <span className="flex items-center gap-1 text-[11px] font-extrabold bg-purple-600 text-white px-2 py-0.5 rounded-md shadow-sm animate-pulse">
+                <span>🧪</span> 신메뉴 시식단 모집중
               </span>
             )}
           </div>
@@ -88,8 +107,60 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
         </div>
       </div>
 
-      {/* Registered Exchange Items Section */}
+      {/* Scrollable Content */}
       <div className="p-4 overflow-y-auto flex-1 space-y-4">
+        
+        {/* 🧪 Highlighted Menu Test Campaign Card */}
+        {store.isMenuTesting && (
+          <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-950 text-white rounded-2xl p-4 shadow-lg border border-purple-400/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="px-2 py-0.5 text-[10px] font-extrabold bg-purple-500 text-white rounded-full flex items-center gap-1 shadow-sm">
+                <span>🧪</span> 신메뉴 1호 시식단 / 서포터즈 모집
+              </span>
+              <span className="text-[11px] font-bold text-purple-200">
+                정원 {store.menuTestQuota || 5}명 중 {store.menuTestApplicantCount || 0}명 지원
+              </span>
+            </div>
+
+            <div>
+              <h3 className="font-extrabold text-base text-white tracking-tight leading-snug">
+                {store.menuTestTitle || '가을 신메뉴 1호 시식단'}
+              </h3>
+              {store.menuTestDescription && (
+                <p className="text-xs text-purple-200 mt-1 leading-relaxed">
+                  {store.menuTestDescription}
+                </p>
+              )}
+            </div>
+
+            <div className="bg-white/10 backdrop-blur rounded-xl p-2.5 text-xs space-y-1.5 border border-white/10">
+              <div className="flex items-center justify-between">
+                <span className="text-purple-300">🎁 제공 혜택</span>
+                <span className="font-bold text-white text-right">{store.menuTestReward || '신메뉴 2인 무료 시식'}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                <span className="text-purple-300">📝 피드백 조건</span>
+                <span className="font-bold text-purple-200">{getFeedbackBadge(store.menuTestFeedbackType)}</span>
+              </div>
+            </div>
+
+            {!isMyStore ? (
+              <button
+                onClick={() => onOpenMenuTestApply && onOpenMenuTestApply(store)}
+                className="w-full py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-gray-950 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+              >
+                <span>🧪</span>
+                <span>신메뉴 1호 체험단 신청하기</span>
+              </button>
+            ) : (
+              <div className="text-center text-[11px] text-purple-300 bg-white/5 py-1.5 rounded-lg border border-purple-400/20">
+                👑 내가 모집 중인 신메뉴 테스트 캠페인입니다
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Registered Exchange Items Section */}
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
             <Tag className="w-4 h-4 text-orange-500" />

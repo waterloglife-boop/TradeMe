@@ -7,6 +7,7 @@ import { RegisterStoreAndItemsModal } from './components/RegisterStoreAndItemsMo
 import { TradeProposalModal } from './components/TradeProposalModal';
 import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
+import { MenuTestApplyModal } from './components/MenuTestApplyModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import { Store, ExchangeItem, ChatMessage } from './types/trade';
 import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase, sendTradeProposalToSupabase, fetchChatHistory, saveProfileToSupabase, updateStoreStatusInSupabase, fetchUserProfileFromSupabase, fetchUserStoreFromSupabase } from './lib/supabase';
@@ -19,6 +20,7 @@ export const App: React.FC = () => {
   const [selectedStore, setSelectedStore] = useState<Store | null>(INITIAL_STORES[0]);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [onlyBreakTime, setOnlyBreakTime] = useState<boolean>(false);
+  const [onlyMenuTesting, setOnlyMenuTesting] = useState<boolean>(false);
   const [mapEngine, setMapEngine] = useState<'LEAFLET' | 'NAVER'>('NAVER');
 
   // Location Picker State
@@ -36,6 +38,10 @@ export const App: React.FC = () => {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [targetProposalItem, setTargetProposalItem] = useState<ExchangeItem | null>(null);
+
+  // 🧪 Menu Test Application Modal state
+  const [isMenuTestModalOpen, setIsMenuTestModalOpen] = useState(false);
+  const [targetMenuTestStore, setTargetMenuTestStore] = useState<Store | null>(null);
   
   // Chat state
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
@@ -254,6 +260,7 @@ export const App: React.FC = () => {
 
   const filteredStores = stores.filter((store) => {
     if (onlyBreakTime && !store.breakTimeActive) return false;
+    if (onlyMenuTesting && !store.isMenuTesting) return false;
     if (selectedCategory === 'ALL') return true;
     if (selectedCategory === 'FOOD') return ['KOREAN', 'JAPANESE', 'WESTERN', 'CHINESE', 'SNACK', 'CAFE', 'PUB'].includes(store.category);
     if (selectedCategory === 'RETAIL') return ['CONVENIENCE', 'BAKERY', 'FRESH_FOOD'].includes(store.category);
@@ -262,6 +269,8 @@ export const App: React.FC = () => {
     if (selectedCategory === 'SERVICE') return ['LAUNDRY', 'FITNESS', 'OTHER'].includes(store.category);
     return true;
   });
+
+  const menuTestingStoreCount = stores.filter((s) => s.isMenuTesting).length;
 
   const handleUpdateProfile = (ownerName: string, storeName: string, phone?: string, businessNumber?: string) => {
     setUserOwnerName(ownerName);
@@ -304,6 +313,9 @@ export const App: React.FC = () => {
         onSelectCategory={setSelectedCategory}
         onlyBreakTime={onlyBreakTime}
         onToggleOnlyBreakTime={() => setOnlyBreakTime(!onlyBreakTime)}
+        onlyMenuTesting={onlyMenuTesting}
+        onToggleOnlyMenuTesting={() => setOnlyMenuTesting(!onlyMenuTesting)}
+        menuTestingStoreCount={menuTestingStoreCount}
         storeCount={filteredStores.length}
         hasRegisteredStore={hasRegisteredStore}
       />
@@ -331,6 +343,10 @@ export const App: React.FC = () => {
           onClose={() => setSelectedStore(null)}
           onOpenProposal={handleOpenProposal}
           onOpenChat={handleOpenChat}
+          onOpenMenuTestApply={(store) => {
+            setTargetMenuTestStore(store);
+            setIsMenuTestModalOpen(true);
+          }}
           isMyStore={selectedStore?.id === myStore.id}
         />
       </main>
@@ -356,6 +372,21 @@ export const App: React.FC = () => {
         pickedLat={pickedLocation.lat}
         pickedLng={pickedLocation.lng}
         onUpdatePickedLocation={(lat, lng) => setPickedLocation({ lat, lng })}
+      />
+
+      {/* 🧪 Menu Test Application Modal */}
+      <MenuTestApplyModal
+        isOpen={isMenuTestModalOpen}
+        onClose={() => setIsMenuTestModalOpen(false)}
+        targetStore={targetMenuTestStore}
+        applicantOwnerName={userOwnerName}
+        applicantStoreName={myStore.storeName}
+        applicantPhone={myStore.phone}
+        onSuccess={() => {
+          fetchStoresFromSupabase().then((data) => {
+            if (data && data.length > 0) setStores(data);
+          });
+        }}
       />
 
       {/* 1:1 Equivalent Exchange Proposal Modal */}

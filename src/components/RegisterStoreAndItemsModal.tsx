@@ -126,6 +126,14 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
     'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
   );
 
+  // 🧪 [신메뉴 테스트 캠페인 상태]
+  const [isMenuTesting, setIsMenuTesting] = useState(false);
+  const [menuTestTitle, setMenuTestTitle] = useState('');
+  const [menuTestReward, setMenuTestReward] = useState('');
+  const [menuTestQuota, setMenuTestQuota] = useState(5);
+  const [menuTestFeedbackType, setMenuTestFeedbackType] = useState<'BLOG_SNS' | 'SECRET_REPORT' | 'BOTH'>('BOTH');
+  const [menuTestDescription, setMenuTestDescription] = useState('');
+
   // Pre-fill fields if currentStore exists or fetch live store from Supabase DB / LocalStorage
   useEffect(() => {
     if (!isOpen) return;
@@ -142,6 +150,15 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
           setCurrentLat(targetStore.lat);
           setCurrentLng(targetStore.lng);
         }
+
+        // 🧪 신메뉴 테스트 데이터 복원
+        setIsMenuTesting(targetStore.isMenuTesting || false);
+        setMenuTestTitle(targetStore.menuTestTitle || '');
+        setMenuTestReward(targetStore.menuTestReward || '');
+        setMenuTestQuota(targetStore.menuTestQuota || 5);
+        setMenuTestFeedbackType(targetStore.menuTestFeedbackType || 'BOTH');
+        setMenuTestDescription(targetStore.menuTestDescription || '');
+
         if (targetStore.exchangeItems && targetStore.exchangeItems.length > 0) {
           setItems(
             targetStore.exchangeItems.map((item) => ({
@@ -410,6 +427,14 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
       storeImageUrl,
       rating: 4.9,
       reviewCount: 1,
+
+      // 🧪 신메뉴 테스트 캠페인
+      isMenuTesting,
+      menuTestTitle: isMenuTesting ? menuTestTitle : '',
+      menuTestReward: isMenuTesting ? menuTestReward : '',
+      menuTestQuota: isMenuTesting ? menuTestQuota : 5,
+      menuTestFeedbackType: isMenuTesting ? menuTestFeedbackType : 'BOTH',
+      menuTestDescription: isMenuTesting ? menuTestDescription : '',
     };
 
     // Strip temporary size property before insertion
@@ -589,6 +614,108 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                   onChange={(e) => setOperatingHours(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-xs font-bold outline-none"
                 />
+              </div>
+
+              {/* 🧪 신메뉴/신규서비스 체험단 & 리뷰 품앗이 모집 설정 */}
+              <div className={`rounded-xl p-3.5 border transition-all ${
+                isMenuTesting
+                  ? 'bg-purple-50/90 border-purple-300 shadow-sm'
+                  : 'bg-gray-50 border-gray-200'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-extrabold text-purple-950 flex items-center gap-1">
+                      <span>🧪</span>
+                      신메뉴/신규서비스 체험단 모집 (리뷰 품앗이)
+                    </span>
+                    <p className="text-[11px] text-gray-500 font-normal">
+                      동네 이웃 사장님들을 1호 시식단으로 모셔 전문 피드백과 SNS 홍보글을 받습니다.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-2">
+                    <input
+                      type="checkbox"
+                      checked={isMenuTesting}
+                      onChange={(e) => setIsMenuTesting(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                  </label>
+                </div>
+
+                {isMenuTesting && (
+                  <div className="space-y-2.5 pt-2 border-t border-purple-200 animate-in fade-in">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                        모집할 신메뉴 / 신규 서비스명 <span className="text-purple-600">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="예: 가을 신메뉴 [마라 로제 분모자 떡볶이 & 바질 꿔바로우]"
+                        value={menuTestTitle}
+                        onChange={(e) => setMenuTestTitle(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-purple-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          🎁 무료 제공 혜택
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="예: 2인 풀세트 무료 시식"
+                          value={menuTestReward}
+                          onChange={(e) => setMenuTestReward(e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-white border border-purple-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          👥 모집 정원 (사장님 수)
+                        </label>
+                        <select
+                          value={menuTestQuota}
+                          onChange={(e) => setMenuTestQuota(parseInt(e.target.value, 10))}
+                          className="w-full px-2.5 py-1.5 bg-white border border-purple-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value={3}>3명 (선착순/선정)</option>
+                          <option value={5}>5명 (추천)</option>
+                          <option value={10}>10명 (대규모)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                        📝 희망하는 피드백 방식
+                      </label>
+                      <select
+                        value={menuTestFeedbackType}
+                        onChange={(e) => setMenuTestFeedbackType(e.target.value as any)}
+                        className="w-full px-2.5 py-1.5 bg-white border border-purple-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-purple-500"
+                      >
+                        <option value="BOTH">🌟 SNS/블로그 후기 + 1:1 비밀 피드백 리포트 (추천)</option>
+                        <option value="BLOG_SNS">📱 네이버 블로그 / 인스타그램 SNS 홍보 후기만</option>
+                        <option value="SECRET_REPORT">🔒 사장님 전용 1:1 비밀 솔직 피드백 리포트만</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                        💬 모집 안내 & 사장님 한마디 (선택)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="예: 정식 출시 전 솔직한 조언과 홍보를 도와주실 사장님들 환영합니다!"
+                        value={menuTestDescription}
+                        onChange={(e) => setMenuTestDescription(e.target.value)}
+                        className="w-full px-2.5 py-1.5 bg-white border border-purple-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 flex justify-end">

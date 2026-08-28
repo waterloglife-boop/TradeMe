@@ -29,6 +29,8 @@ export interface ExchangeItem {
   isAvailable: boolean;
 }
 
+export type MenuTestFeedbackType = 'BLOG_SNS' | 'SECRET_REPORT' | 'BOTH';
+
 export interface Store {
   id: string;
   userId?: string; // 회원 프로필(profiles / auth.users) 연동 ID
@@ -48,6 +50,29 @@ export interface Store {
   exchangeItems: ExchangeItem[];
   rating: number;
   reviewCount: number;
+
+  // 🧪 [신메뉴/신규서비스 체험단 & 리뷰 품앗이]
+  isMenuTesting?: boolean; // 신메뉴 테스트 모집 진행 여부
+  menuTestTitle?: string; // 신메뉴 명
+  menuTestReward?: string; // 제공 혜택 (예: 신메뉴 2인 무료 시식)
+  menuTestQuota?: number; // 모집 인원 (예: 5명)
+  menuTestApplicantCount?: number; // 현재 신청자 수
+  menuTestFeedbackType?: MenuTestFeedbackType; // 희망 피드백 방식
+  menuTestDescription?: string; // 테스트 취지 및 안내 문구
+}
+
+export interface MenuTestApplication {
+  id: string;
+  storeId: string;
+  applicantUserId?: string;
+  applicantStoreName: string;
+  applicantOwnerName: string;
+  applicantPhone: string;
+  snsUrl?: string;
+  message: string;
+  feedbackType: MenuTestFeedbackType;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  createdAt: string;
 }
 
 export interface TradeProposal {
