@@ -30,7 +30,7 @@ export const App: React.FC = () => {
   // Auth State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [userOwnerName, setUserOwnerName] = useState('사장님 (마라위크)');
+  const [userOwnerName, setUserOwnerName] = useState('김동욱');
 
   // Modals & Drawers state
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -56,21 +56,44 @@ export const App: React.FC = () => {
   // Load Stores, User Profile, and User Store from Supabase on Mount
   useEffect(() => {
     async function loadStores() {
+      // 1. Check local storage first
+      try {
+        const savedProfileRaw = localStorage.getItem('trademe_profile');
+        if (savedProfileRaw) {
+          const parsed = JSON.parse(savedProfileRaw);
+          if (parsed.ownerName) setUserOwnerName(parsed.ownerName);
+        }
+      } catch (e) {}
+
+      // 2. Fetch all registered stores from Supabase
       const fetched = await fetchStoresFromSupabase();
       if (fetched && fetched.length > 0) {
         setStores(fetched);
       }
 
-      // Fetch user profile from Supabase DB
+      // 3. Fetch user profile from Supabase DB
       const userProfile = await fetchUserProfileFromSupabase();
-      if (userProfile?.owner_name) {
-        setUserOwnerName(userProfile.owner_name);
+      if (userProfile) {
+        if (userProfile.owner_name) {
+          setUserOwnerName(userProfile.owner_name);
+        }
+        try {
+          localStorage.setItem('trademe_profile', JSON.stringify({
+            ownerName: userProfile.owner_name || '김동욱',
+            storeName: userProfile.store_name || '마라위크',
+            phone: userProfile.phone || '01048548777',
+            businessNumber: userProfile.business_number || '4074913710',
+          }));
+        } catch (e) {}
       }
 
-      // Fetch user store from Supabase DB
+      // 4. Fetch user store from Supabase DB
       const userStore = await fetchUserStoreFromSupabase();
       if (userStore) {
         setMyStore(userStore);
+        try {
+          localStorage.setItem('trademe_my_store', JSON.stringify(userStore));
+        } catch (e) {}
       } else {
         const mySavedRaw = localStorage.getItem('trademe_my_store');
         if (mySavedRaw) {

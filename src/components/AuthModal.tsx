@@ -9,7 +9,7 @@ interface AuthModalProps {
   userOwnerName: string;
   userStoreName: string;
   onLoginSuccess: (ownerName: string, storeName: string) => void;
-  onUpdateProfile: (ownerName: string, storeName: string, phone: string) => void;
+  onUpdateProfile: (ownerName: string, storeName: string, phone: string, businessNumber?: string) => void;
   onLogout: () => void;
 }
 
@@ -39,13 +39,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const [mode, setMode] = useState<'LOGIN' | 'SIGNUP' | 'PROFILE'>('LOGIN');
 
-  // Form State - Always initialized empty for fresh signups
+  // Form State - Always initialized with persistent values
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [ownerName, setOwnerName] = useState('');
-  const [storeName, setStoreName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [businessNumber, setBusinessNumber] = useState('');
+  const [ownerName, setOwnerName] = useState(userOwnerName || '김동욱');
+  const [storeName, setStoreName] = useState(userStoreName || '마라위크');
+  const [phone, setPhone] = useState('01048548777');
+  const [businessNumber, setBusinessNumber] = useState('4074913710');
   const [loading, setLoading] = useState(false);
   const [ntsVerifying, setNtsVerifying] = useState(false);
   const [ntsStatusMessage, setNtsStatusMessage] = useState<string | null>(null);
@@ -86,8 +86,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (isLoggedIn) {
       setMode('PROFILE');
-      setOwnerName(userOwnerName);
-      setStoreName(userStoreName);
+      setOwnerName(userOwnerName || '김동욱');
+      setStoreName(userStoreName || '마라위크');
 
       // 1. Restore from LocalStorage immediately
       try {
@@ -101,7 +101,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       } catch (e) {}
 
-      // 2. Fetch live profile row from Supabase DB
+      // 2. Fetch live profile row directly from Supabase DB
       fetchUserProfileFromSupabase().then((prof) => {
         if (prof) {
           if (prof.owner_name) setOwnerName(prof.owner_name);
@@ -111,10 +111,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           try {
             localStorage.setItem('trademe_profile', JSON.stringify({
-              ownerName: prof.owner_name,
-              storeName: prof.store_name,
-              phone: prof.phone,
-              businessNumber: prof.business_number,
+              ownerName: prof.owner_name || '김동욱',
+              storeName: prof.store_name || '마라위크',
+              phone: prof.phone || '01048548777',
+              businessNumber: prof.business_number || '4074913710',
             }));
           } catch (e) {}
         }

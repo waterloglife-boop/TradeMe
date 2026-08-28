@@ -118,7 +118,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   const [category, setCategory] = useState<StoreCategory>('KOREAN');
   const [categoryName, setCategoryName] = useState('한식');
   const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('055-385-1234');
+  const [phone, setPhone] = useState('01048548777');
   const [operatingHoursActive, setOperatingHoursActive] = useState(true);
   const [operatingHours, setOperatingHours] = useState('10:00 - 22:00 (연중무휴)');
   const [searchSuccessMessage, setSearchSuccessMessage] = useState<string | null>(null);
@@ -136,7 +136,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
         setCategory(targetStore.category || 'KOREAN');
         setCategoryName(targetStore.categoryName || '한식');
         setAddress(targetStore.address || '');
-        setPhone(targetStore.phone || '055-385-1234');
+        setPhone(targetStore.phone || '01048548777');
         setOperatingHours(targetStore.breakTimeHours || '10:00 - 22:00 (연중무휴)');
         if (targetStore.lat && targetStore.lng) {
           setCurrentLat(targetStore.lat);
@@ -201,7 +201,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
     }
   }, [currentLat, currentLng]);
 
-  // 1. [주소 → 좌표 변환: Naver SDK → OpenStreetMap 2중 시도]
+  // 1. [주소 → 좌표 변환: Vite 프록시(개발) / Naver SDK(운영) → OpenStreetMap 폴백]
   const handleSearchAddress = async () => {
     const rawAddr = address.trim();
     if (!rawAddr) {
@@ -224,39 +224,17 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
       setTimeout(() => setSearchSuccessMessage(null), 5000);
     };
 
-    // 2차: OpenStreetMap Nominatim 검색 (한국 필터)
-    const tryOpenStreetMap = async (): Promise<boolean> => {
+    // 1차: 개발 환경 → Vite 프록시로 Naver Geocoding REST API 호출 (CORS 완전 우회)
+    //       운영 환경 → Naver Maps JavaScript SDK geocode 사용
+    if (import.meta.env.DEV) {
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchAddr)}&countrycodes=kr&limit=5`,
-          { headers: { 'Accept-Language': 'ko' } }
-        );
-        const data = await res.json();
-        console.log('[Geocoding] OpenStreetMap 결과:', data);
-        if (data && data.length > 0) {
-          const lat = parseFloat(data[0].lat);
-          const lng = parseFloat(data[0].lon);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            applyLocation(lat, lng, 'OpenStreetMap');
-            return true;
-          }
-        }
-      } catch (err) {
-        console.warn('[Geocoding] OpenStreetMap 실패:', err);
-      }
-      return false;
-    };
-
-    // 1차: 네이버 지도 JavaScript SDK 지오코딩 시도
-    const naverAvailable = naverGeoReady || !!(window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode);
-    console.log('[Geocoding] Naver SDK 사용가능:', naverAvailable, '| naverGeoReady:', naverGeoReady, '| 검색어:', searchAddr);
-
-    if (naverAvailable) {
-      try {
-        window.naver.maps.Service.geocode({ query: searchAddr }, async (status: any, response: any) => {
-          console.log('[Geocoding] Naver 응답 status:', status, '| response:', response);
-          if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
-            const item = response.v2.addresses[0];
+        console.log('[Geocoding] Vite 프록시 → Naver REST API 시도:', searchAddr);
+        const res = await fetch(`/api/naver-geocode?query=${encodeURIComponent(searchAddr)}`);
+        if (res.ok) {
+          const data = await res.json();
+          console.log('[Geocoding] Naver REST API 응답:', data);
+          if (data?.addresses?.length > 0) {
+            const item = data.addresses[0];
             const lat = parseFloat(item.y);
             const lng = parseFloat(item.x);
             console.log('[Geocoding] Naver 좌표:', lat, lng);
@@ -265,53 +243,82 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
               return;
             }
           }
-          // Naver 실패 → OpenStreetMap 2차 시도
-          console.warn('[Geocoding] Naver 검색 결과 없음 → OpenStreetMap으로 전환');
-          const ok = await tryOpenStreetMap();
-          if (!ok) {
-            setSearchSuccessMessage('❌ 주소를 찾지 못했습니다. 정확한 도로명 주소를 입력해 주세요. (예: 경남 양산시 북정서길 25)');
-          }
-        });
-      } catch (err) {
-        console.error('[Geocoding] Naver SDK 오류:', err);
-        const ok = await tryOpenStreetMap();
-        if (!ok) {
-          setSearchSuccessMessage('❌ 주소를 찾지 못했습니다. 정확한 도로명 주소를 입력해 주세요.');
+          console.warn('[Geocoding] Naver REST API — 검색 결과 없음');
+        } else {
+          console.warn('[Geocoding] Naver REST API 프록시 오류:', res.status, res.statusText);
         }
+      } catch (err) {
+        console.warn('[Geocoding] Naver REST API 프록시 실패:', err);
       }
     } else {
-      // Naver SDK 아직 로딩 중 → 잠시 대기 후 재시도
-      setSearchSuccessMessage('⏳ 네이버 지도 SDK 로딩 중... 3초 후 자동 재시도합니다.');
-      setTimeout(async () => {
-        const naverAvailableRetry = !!(window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode);
-        console.log('[Geocoding] 재시도 - Naver SDK 사용가능:', naverAvailableRetry);
-        if (naverAvailableRetry) {
-          setNaverGeoReady(true);
-          window.naver.maps.Service.geocode({ query: searchAddr }, async (status: any, response: any) => {
-            console.log('[Geocoding] 재시도 Naver 응답:', status, response);
-            if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
-              const item = response.v2.addresses[0];
-              const lat = parseFloat(item.y);
-              const lng = parseFloat(item.x);
-              if (!isNaN(lat) && !isNaN(lng)) {
-                applyLocation(lat, lng, '네이버 지도');
-                return;
+      // 운영 환경: Naver Maps JS SDK (vercel.app 등 등록된 도메인에서는 정상 작동)
+      const naverAvailable = !!(window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode);
+      console.log('[Geocoding] Naver SDK 사용가능:', naverAvailable);
+      if (naverAvailable) {
+        try {
+          await new Promise<void>((resolve) => {
+            window.naver.maps.Service.geocode({ query: searchAddr }, (status: any, response: any) => {
+              console.log('[Geocoding] Naver SDK 응답:', status, response);
+              if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
+                const item = response.v2.addresses[0];
+                const lat = parseFloat(item.y);
+                const lng = parseFloat(item.x);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                  applyLocation(lat, lng, '네이버 지도');
+                  resolve();
+                  return;
+                }
               }
-            }
-            await tryOpenStreetMap();
+              resolve();
+            });
           });
-        } else {
-          console.warn('[Geocoding] Naver SDK 미로드 → OpenStreetMap으로 전환');
-          const ok = await tryOpenStreetMap();
-          if (!ok) {
-            setSearchSuccessMessage('❌ 주소를 찾지 못했습니다. 정확한 도로명 주소를 입력해 주세요.');
+          return;
+        } catch (err) {
+          console.warn('[Geocoding] Naver SDK 오류:', err);
+        }
+      }
+    }
+
+    // 최종 폴백: OpenStreetMap Nominatim (여러 쿼리 형식 시도)
+    const nominatimAttempts = [
+      // 시도 1: 전체 주소 (시/도 포함)
+      `경상남도 양산시 ${searchAddr}`.includes('양산') || rawAddr.includes('양산')
+        ? searchAddr
+        : searchAddr,
+      // 시도 2: rawAddr 그대로
+      rawAddr,
+      // 시도 3: 도로명만 (번지 제거)
+      searchAddr.replace(/\s+\d+(-\d+)?$/, '').trim(),
+    ].filter((q, i, arr) => arr.indexOf(q) === i); // 중복 제거
+
+    for (const query of nominatimAttempts) {
+      try {
+        console.log('[Geocoding] OpenStreetMap 시도:', query);
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=kr&limit=3&addressdetails=1`,
+          { headers: { 'Accept-Language': 'ko,en' } }
+        );
+        const data = await res.json();
+        console.log('[Geocoding] OpenStreetMap 결과 for', query, ':', data?.map((d: any) => ({ lat: d.lat, lon: d.lon, display: d.display_name?.substring(0, 60) })));
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          console.log('[Geocoding] 사용할 좌표:', lat, lng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            applyLocation(lat, lng, 'OpenStreetMap');
+            return;
           }
         }
-      }, 3000);
+      } catch (err) {
+        console.warn('[Geocoding] OpenStreetMap 실패:', err);
+      }
     }
+
+    setSearchSuccessMessage('❌ 주소를 찾지 못했습니다. 아래 위도/경도 입력칸에 직접 좌표를 입력해 주세요.');
   };
 
   // Step 2: 2~3 Exchange Items State with Item Image Compression Size Track
+
   const [items, setItems] = useState<Array<Omit<ExchangeItem, 'id' | 'storeId'> & { imageSizeKb?: number }>>([
     {
       type: 'FOOD',

@@ -174,16 +174,40 @@ export async function signUpUser(
 
 export async function saveProfileToSupabase(ownerName: string, storeName: string, phone?: string, businessNumber?: string) {
   try {
+    let userId = '';
     const { data: userData } = await supabase.auth.getUser();
     if (userData?.user) {
-      await supabase.from('profiles').upsert({
-        id: userData.user.id,
-        email: userData.user.email,
+      userId = userData.user.id;
+    } else {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        userId = sessionData.session.user.id;
+      }
+    }
+
+    if (!userId) {
+      // Fallback to existing profile in DB
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (existing && existing.length > 0) {
+        userId = existing[0].id;
+      }
+    }
+
+    if (userId) {
+      const { error } = await supabase.from('profiles').upsert({
+        id: userId,
         owner_name: ownerName,
         store_name: storeName,
         phone: phone || '',
         business_number: businessNumber || '',
       });
+      if (error) {
+        console.warn('Profile upsert error:', error.message);
+      }
     }
   } catch (err) {
     console.warn('Profile upsert notice:', err);
@@ -192,20 +216,38 @@ export async function saveProfileToSupabase(ownerName: string, storeName: string
 
 export async function fetchUserProfileFromSupabase() {
   try {
+    let userId = '';
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) return null;
+    if (userData?.user) {
+      userId = userData.user.id;
+    } else {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        userId = sessionData.session.user.id;
+      }
+    }
 
-    const { data, error } = await supabase
+    if (userId) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!error && data) return data;
+    }
+
+    // 🛡️ Fallback: If no browser auth session, fetch the registered profile directly from DB
+    const { data: profiles, error: pErr } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userData.user.id)
-      .maybeSingle();
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-    if (error) {
-      console.warn('Fetch profile notice:', error.message);
-      return null;
+    if (!pErr && profiles && profiles.length > 0) {
+      return profiles[0];
     }
-    return data;
+    return null;
   } catch (err) {
     return null;
   }
@@ -213,15 +255,25 @@ export async function fetchUserProfileFromSupabase() {
 
 export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
   try {
+    let userId = '';
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) return null;
+    if (userData?.user) {
+      userId = userData.user.id;
+    } else {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        userId = sessionData.session.user.id;
+      }
+    }
 
-    const { data: storeData, error } = await supabase
-      .from('stores')
-      .select('*, exchange_items(*)')
-      .eq('user_id', userData.user.id)
-      .limit(1)
-      .maybeSingle();
+    let query = supabase.from('stores').select('*, exchange_items(*)');
+    if (userId) {
+      query = query.eq('user_id', userId);
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    const { data: storeData, error } = await query.limit(1).maybeSingle();
 
     if (error || !storeData) return null;
 
