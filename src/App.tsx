@@ -472,16 +472,20 @@ export const App: React.FC = () => {
         />
       </main>
 
-      {/* Auth Modal (Login / Sign up / Profile Edit) */}
+      {/* Auth / MyPage Modal (사장님 프로필 & 대시보드 올인원 허브) */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         isLoggedIn={isLoggedIn}
         userOwnerName={userOwnerName}
         userStoreName={myStore.storeName}
+        myStore={myStore}
         onLoginSuccess={handleLoginSuccess}
         onUpdateProfile={handleUpdateProfile}
         onLogout={handleLogout}
+        onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
+        onOpenTradeDashboard={() => setIsTradeDashboardOpen(true)}
+        onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
       />
 
       {/* Register Store & Exchange Items Modal */}
