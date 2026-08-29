@@ -38,8 +38,20 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
       {/* Chat Header */}
       <div className="p-4 bg-gray-900 text-white flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center font-bold text-white shadow-md">
-            🏬
+          <div className="relative">
+            <img
+              src={targetStore.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'}
+              alt={targetStore.storeName}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80';
+              }}
+              className="w-10 h-10 rounded-2xl object-cover border border-white/20 shadow-md"
+            />
+            {targetStore.isVerified && (
+              <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full shadow-sm">
+                <CheckCircle2 className="w-2.5 h-2.5" />
+              </div>
+            )}
           </div>
           <div>
             <h3 className="font-bold text-sm tracking-tight flex items-center gap-1.5">
@@ -89,36 +101,55 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           </span>
         </div>
 
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}
-          >
-            <span className="text-[10px] text-gray-400 mb-1 px-1">{msg.senderName}</span>
-            <div
-              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs shadow-sm ${
-                msg.isMe
-                  ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-none'
-                  : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none'
-              }`}
-            >
-              {/* If Proposal System Action */}
-              {msg.systemAction === 'PROPOSAL' && (
-                <div className="mb-2 p-2 bg-white/20 rounded-lg backdrop-blur border border-white/30 text-white">
-                  <div className="font-extrabold flex items-center gap-1 mb-1">
-                    <ArrowRightLeft className="w-3.5 h-3.5" /> 1:1 물물교환 제안서
-                  </div>
-                  <p className="text-[11px] opacity-90">{msg.message}</p>
-                </div>
-              )}
+        {messages.map((msg) => {
+          const avatarUrl = msg.isMe
+            ? myStore.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
+            : targetStore.storeImageUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80';
 
-              {msg.systemAction !== 'PROPOSAL' && <p className="whitespace-pre-line">{msg.message}</p>}
-              <span className={`block text-[9px] mt-1 text-right ${msg.isMe ? 'text-orange-100' : 'text-gray-400'}`}>
-                {msg.timestamp}
-              </span>
+          return (
+            <div
+              key={msg.id}
+              className={`flex items-end gap-2 ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}
+            >
+              {/* Sender Store Thumbnail Avatar */}
+              <img
+                src={avatarUrl}
+                alt={msg.senderName}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80';
+                }}
+                className="w-7 h-7 rounded-xl object-cover border border-gray-200 shadow-xs flex-shrink-0 mb-1"
+                title={msg.senderName}
+              />
+
+              <div className={`flex flex-col max-w-[80%] ${msg.isMe ? 'items-end' : 'items-start'}`}>
+                <span className="text-[10px] text-gray-400 mb-0.5 px-1">{msg.senderName}</span>
+                <div
+                  className={`rounded-2xl px-3.5 py-2.5 text-xs shadow-sm ${
+                    msg.isMe
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-none'
+                      : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none'
+                  }`}
+                >
+                  {/* If Proposal System Action */}
+                  {msg.systemAction === 'PROPOSAL' && (
+                    <div className="mb-2 p-2 bg-white/20 rounded-lg backdrop-blur border border-white/30 text-white">
+                      <div className="font-extrabold flex items-center gap-1 mb-1">
+                        <ArrowRightLeft className="w-3.5 h-3.5" /> 1:1 물물교환 제안서
+                      </div>
+                      <p className="text-[11px] opacity-90">{msg.message}</p>
+                    </div>
+                  )}
+
+                  {msg.systemAction !== 'PROPOSAL' && <p className="whitespace-pre-line">{msg.message}</p>}
+                  <span className={`block text-[9px] mt-1 text-right ${msg.isMe ? 'text-orange-100' : 'text-gray-400'}`}>
+                    {msg.timestamp}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Quick Suggestion Chips */}

@@ -51,30 +51,33 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
     <div className="fixed bottom-0 left-0 right-0 md:left-auto md:right-6 md:bottom-6 md:top-20 z-40 md:w-96 bg-white rounded-t-2xl md:rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[85vh] md:max-h-[calc(100vh-120px)] transition-all animate-in slide-in-from-bottom">
       
       {/* Header Banner */}
-      <div className="relative h-40 bg-gray-900 flex-shrink-0">
+      <div className="relative h-44 bg-gray-900 flex-shrink-0">
         <img
-          src={store.storeImageUrl}
+          src={store.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'}
           alt={store.storeName}
-          className="w-full h-full object-cover opacity-80"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80';
+          }}
+          className="w-full h-full object-cover opacity-85"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur transition-all"
+          className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/80 backdrop-blur transition-all z-10"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Store Title & Badges */}
         <div className="absolute bottom-3 left-4 right-4 text-white">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="px-2 py-0.5 text-xs font-bold bg-orange-500 text-white rounded-md">
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <span className="px-2 py-0.5 text-xs font-bold bg-orange-500 text-white rounded-md shadow-sm">
               {store.categoryName}
             </span>
             {store.isVerified && (
-              <span className="flex items-center gap-1 text-[11px] font-semibold bg-emerald-500/90 backdrop-blur text-white px-2 py-0.5 rounded-md">
+              <span className="flex items-center gap-1 text-[11px] font-semibold bg-emerald-500/90 backdrop-blur text-white px-2 py-0.5 rounded-md shadow-sm">
                 <ShieldCheck className="w-3.5 h-3.5" /> 사장님 인증
               </span>
             )}
@@ -84,13 +87,33 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
               </span>
             )}
           </div>
-          <h2 className="text-xl font-bold tracking-tight flex items-center justify-between">
-            <span>{store.storeName}</span>
-            {isMyStore && <span className="text-xs bg-blue-500 px-2 py-0.5 rounded text-white font-normal">👑 우리 가게</span>}
-          </h2>
-          <p className="text-xs text-gray-300 flex items-center gap-1 mt-0.5">
-            <MapPin className="w-3 h-3 text-orange-400" /> {store.address}
-          </p>
+          
+          <div className="flex items-end justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-xl font-extrabold tracking-tight truncate flex items-center gap-2">
+                <span>{store.storeName}</span>
+                {isMyStore && <span className="text-xs bg-blue-500 px-2 py-0.5 rounded text-white font-normal">👑 우리 가게</span>}
+              </h2>
+              <p className="text-xs text-gray-300 font-medium flex items-center gap-1 mt-0.5">
+                <span>{store.ownerName} 사장님</span>
+                <span className="text-gray-500">·</span>
+                <MapPin className="w-3 h-3 text-orange-400 flex-shrink-0" />
+                <span className="truncate">{store.address}</span>
+              </p>
+            </div>
+
+            {/* Thumbnail avatar pill */}
+            <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-white/40 shadow-lg flex-shrink-0 bg-gray-800">
+              <img
+                src={store.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'}
+                alt={store.storeName}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80';
+                }}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
