@@ -341,21 +341,31 @@ export const App: React.FC = () => {
 
   const menuTestingStoreCount = stores.filter((s) => s.isMenuTesting).length;
 
-  const handleUpdateProfile = (ownerName: string, storeName: string, phone?: string, businessNumber?: string) => {
+  const handleUpdateProfile = (
+    ownerName: string,
+    storeName: string,
+    phone?: string,
+    businessNumber?: string,
+    storeImageUrl?: string
+  ) => {
     setUserOwnerName(ownerName);
     const updatedMyStore = {
       ...myStore,
       ownerName,
       storeName,
       phone: phone || myStore.phone,
+      storeImageUrl: storeImageUrl || myStore.storeImageUrl,
     };
     setMyStore(updatedMyStore);
     setStores((prevStores) =>
       prevStores.map((s) => (s.id === myStore.id ? updatedMyStore : s))
     );
-    saveProfileToSupabase(ownerName, storeName, phone, businessNumber);
+    saveProfileToSupabase(ownerName, storeName, phone, businessNumber, storeImageUrl);
     try {
-      localStorage.setItem('trademe_profile', JSON.stringify({ ownerName, storeName, phone, businessNumber }));
+      localStorage.setItem(
+        'trademe_profile',
+        JSON.stringify({ ownerName, storeName, phone, businessNumber, storeImageUrl })
+      );
       localStorage.setItem('trademe_my_store', JSON.stringify(updatedMyStore));
     } catch (e) {}
   };

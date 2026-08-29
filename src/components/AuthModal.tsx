@@ -23,8 +23,9 @@ import {
   Sparkles,
   Inbox
 } from 'lucide-react';
-import { signUpUser, signInUser, verifyNtsBusinessStatus, fetchUserProfileFromSupabase } from '../lib/supabase';
+import { signUpUser, signInUser, verifyNtsBusinessStatus, fetchUserProfileFromSupabase, uploadStoreImageToSupabase } from '../lib/supabase';
 import { Store } from '../types/trade';
+import { Camera, Image as ImageIcon } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ interface AuthModalProps {
   userStoreName: string;
   myStore?: Store;
   onLoginSuccess: (ownerName: string, storeName: string) => void;
-  onUpdateProfile: (ownerName: string, storeName: string, phone: string, businessNumber?: string) => void;
+  onUpdateProfile: (ownerName: string, storeName: string, phone: string, businessNumber?: string, storeImageUrl?: string) => void;
   onLogout: () => void;
   onOpenRegisterModal?: () => void;
   onOpenTradeDashboard?: () => void;
@@ -78,6 +79,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [storeName, setStoreName] = useState(userStoreName || '마라위크');
   const [phone, setPhone] = useState('01048548777');
   const [businessNumber, setBusinessNumber] = useState('4074913710');
+  const [storeImageUrl, setStoreImageUrl] = useState(
+    myStore?.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
+  );
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ntsVerifying, setNtsVerifying] = useState(false);
   const [ntsStatusMessage, setNtsStatusMessage] = useState<string | null>(null);
@@ -87,6 +92,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const emailInputRef = useRef<HTMLInputElement>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetFormState = () => {
     setEmail('');
@@ -103,6 +109,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setMode('MYPAGE');
       setOwnerName(userOwnerName || '김동욱');
       setStoreName(userStoreName || '마라위크');
+      if (myStore?.storeImageUrl) setStoreImageUrl(myStore.storeImageUrl);
 
       // 1. Restore from LocalStorage immediately
       try {
@@ -113,6 +120,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           if (parsed.storeName) setStoreName(parsed.storeName);
           if (parsed.phone) setPhone(parsed.phone);
           if (parsed.businessNumber) setBusinessNumber(parsed.businessNumber);
+          if (parsed.storeImageUrl) setStoreImageUrl(parsed.storeImageUrl);
         }
       } catch (e) {}
 
@@ -123,6 +131,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           if (prof.store_name) setStoreName(prof.store_name);
           if (prof.phone) setPhone(prof.phone);
           if (prof.business_number) setBusinessNumber(prof.business_number);
+          if (prof.store_image_url) setStoreImageUrl(prof.store_image_url);
 
           try {
             localStorage.setItem('trademe_profile', JSON.stringify({
@@ -130,6 +139,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               storeName: prof.store_name || '마라위크',
               phone: prof.phone || '01048548777',
               businessNumber: prof.business_number || '4074913710',
+              storeImageUrl: prof.store_image_url || storeImageUrl,
             }));
           } catch (e) {}
         }
@@ -138,9 +148,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setMode('LOGIN');
       resetFormState();
     }
-  }, [isOpen, isLoggedIn, userOwnerName, userStoreName]);
+  }, [isOpen, isLoggedIn, userOwnerName, userStoreName, myStore]);
 
   if (!isOpen) return null;
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setToastMessage(null);
+    const res = await uploadStoreImageToSupabase(file);
+    setUploadingImage(false);
+
+    if (res.success && res.url) {
+      setStoreImageUrl(res.url);
+    } else {
+      setToastMessage(res.error || '이미지 업로드에 실패했습니다.');
+    }
+  };
 
   // 🇰🇷 국세청 실시간 사업자 상태조회 API 핸들러
   const handleVerifyNtsBusiness = async () => {
@@ -169,7 +195,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     const cleanBno = businessNumber.replace(/[^0-9]/g, '');
 
-    onUpdateProfile(ownerName, storeName, cleanPhone, cleanBno);
+    onUpdateProfile(ownerName, storeName, cleanPhone, cleanBno, storeImageUrl);
     setSaveSuccess(true);
     setLoading(false);
     setTimeout(() => {
@@ -467,6 +493,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span>{ntsStatusMessage}</span>
                 </div>
               )}
+
+              {/* Store Image Upload Section */}
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex items-center gap-4">
+                <div className="relative flex-shrink-0">
+                  <img
+                    src={storeImageUrl}
+                    alt={storeName}
+                    className="w-16 h-16 rounded-2xl object-cover border-2 border-orange-200 shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                    className="absolute -bottom-1 -right-1 bg-orange-500 hover:bg-orange-600 text-white p-1.5 rounded-full shadow-md transition-all active:scale-95"
+                    title="매장 사진 변경"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <span className="block text-xs font-bold text-gray-800 mb-0.5">매장 대표 사진</span>
+                  <p className="text-[11px] text-gray-500 mb-2">
+                    {uploadingImage ? '사진 업로드 중...' : '매장 외관이나 간판 사진을 올려주세요'}
+                  </p>
+                  
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageFileChange}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                    className="px-3 py-1.5 bg-white hover:bg-orange-50 text-orange-600 font-extrabold text-[11px] rounded-xl border border-orange-300 shadow-sm transition-all flex items-center gap-1.5"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>{uploadingImage ? '업로드 중...' : '사진 선택 및 변경'}</span>
+                  </button>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-0.5">사장님 성함</label>

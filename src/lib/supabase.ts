@@ -172,7 +172,64 @@ export async function signUpUser(
   }
 }
 
-export async function saveProfileToSupabase(ownerName: string, storeName: string, phone?: string, businessNumber?: string) {
+export async function uploadStoreImageToSupabase(file: File): Promise<{ success: boolean; url: string; error?: string }> {
+  try {
+    // 1. Try uploading to Supabase Storage 'store-images' bucket
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const cleanFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+    const filePath = `stores/${cleanFileName}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('store-images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+      });
+
+    if (!uploadError && uploadData) {
+      const { data: publicUrlData } = supabase.storage
+        .from('store-images')
+        .getPublicUrl(filePath);
+
+      if (publicUrlData?.publicUrl) {
+        return { success: true, url: publicUrlData.publicUrl };
+      }
+    }
+
+    // 2. Fallback gracefully to FileReader Base64 Data URL so user experience is never blocked
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve({
+          success: true,
+          url: reader.result as string,
+        });
+      };
+      reader.onerror = () => {
+        resolve({
+          success: false,
+          url: '',
+          error: '이미지 파일을 읽는 도중 오류가 발생했습니다.',
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  } catch (err: any) {
+    return {
+      success: false,
+      url: '',
+      error: err?.message || '이미지 업로드 중 오류가 발생했습니다.',
+    };
+  }
+}
+
+export async function saveProfileToSupabase(
+  ownerName: string,
+  storeName: string,
+  phone?: string,
+  businessNumber?: string,
+  storeImageUrl?: string
+) {
   try {
     let userId = '';
     const { data: userData } = await supabase.auth.getUser();
@@ -198,17 +255,33 @@ export async function saveProfileToSupabase(ownerName: string, storeName: string
     }
 
     if (userId) {
-      const { error } = await supabase.from('profiles').upsert({
+      const profilePayload: any = {
         id: userId,
         owner_name: ownerName,
         store_name: storeName,
         phone: phone || '',
         business_number: businessNumber || '',
-      });
-      if (error) {
-        console.warn('Profile upsert error:', error.message);
+      };
+      if (storeImageUrl) profilePayload.store_image_url = storeImageUrl;
+
+      const { error: pErr } = await supabase.from('profiles').upsert(profilePayload);
+      if (pErr) {
+        console.warn('Profile upsert warning:', pErr.message);
       }
     }
+
+    // 🏬 Also update stores table so map and drawers reflect the updated store profile
+    const storePayload: any = {
+      owner_name: ownerName,
+      store_name: storeName,
+    };
+    if (phone) storePayload.phone = phone;
+    if (storeImageUrl) storePayload.store_image_url = storeImageUrl;
+
+    if (userId) {
+      await supabase.from('stores').update(storePayload).eq('user_id', userId);
+    }
+    await supabase.from('stores').update(storePayload).eq('owner_name', ownerName);
   } catch (err) {
     console.warn('Profile upsert notice:', err);
   }
