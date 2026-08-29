@@ -63,9 +63,11 @@ export const App: React.FC = () => {
   // 🧪 Menu Test Application & Dashboard Modal state
   const [isMenuTestModalOpen, setIsMenuTestModalOpen] = useState(false);
   const [targetMenuTestStore, setTargetMenuTestStore] = useState<Store | null>(null);
+  const [targetMenuTestCampaign, setTargetMenuTestCampaign] = useState<MenuTestCampaign | null>(null);
   const [isMenuTestDashboardOpen, setIsMenuTestDashboardOpen] = useState(false);
   const [isRegisterMenuTestModalOpen, setIsRegisterMenuTestModalOpen] = useState(false);
-  
+  const [editingCampaign, setEditingCampaign] = useState<MenuTestCampaign | null>(null);
+
   // Chat state
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
   const [chatTargetStore, setChatTargetStore] = useState<Store | null>(null);
@@ -572,8 +574,9 @@ export const App: React.FC = () => {
           onClose={() => setSelectedStore(null)}
           onOpenProposal={handleOpenProposal}
           onOpenChat={handleOpenChat}
-          onOpenMenuTestApply={(store) => {
+          onOpenMenuTestApply={(store, campaign) => {
             setTargetMenuTestStore(store);
+            setTargetMenuTestCampaign(campaign || null);
             setIsMenuTestModalOpen(true);
           }}
           onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
@@ -624,6 +627,7 @@ export const App: React.FC = () => {
         isOpen={isMenuTestModalOpen}
         onClose={() => setIsMenuTestModalOpen(false)}
         targetStore={targetMenuTestStore}
+        targetCampaign={targetMenuTestCampaign}
         applicantOwnerName={userOwnerName}
         applicantStoreName={myStore.storeName}
         applicantPhone={myStore.phone}
@@ -634,21 +638,38 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* 🧪 Menu Test Dashboard Modal (신청서 접수 관리 및 이벤트 목록) */}
+      {/* 🧪 Menu Test Dashboard Modal (신청서 접수 관리 및 이벤트 목록 - 최대 2개 동시 모집) */}
       <MenuTestDashboardModal
         isOpen={isMenuTestDashboardOpen}
         onClose={() => setIsMenuTestDashboardOpen(false)}
         myStore={myStore}
         onAcceptAndOpenChat={handleAcceptMenuTestAndOpenChat}
-        onOpenRegisterMenuTest={() => setIsRegisterMenuTestModalOpen(true)}
+        onOpenRegisterMenuTest={(campaignToEdit) => {
+          setEditingCampaign(campaignToEdit || null);
+          setIsRegisterMenuTestModalOpen(true);
+        }}
       />
 
       {/* 🧪 Register Menu Test Recruitment Modal (신메뉴 모집 단독 폼) */}
       <RegisterMenuTestModal
         isOpen={isRegisterMenuTestModalOpen}
-        onClose={() => setIsRegisterMenuTestModalOpen(false)}
+        onClose={() => {
+          setIsRegisterMenuTestModalOpen(false);
+          setEditingCampaign(null);
+        }}
         myStore={myStore}
-        onSaveMenuTest={handleSaveMenuTest}
+        editingCampaign={editingCampaign}
+        onSaveCampaign={(savedCampaign) => {
+          setMyStore((prev) => ({
+            ...prev,
+            isMenuTesting: savedCampaign.status === 'RECRUITING',
+            menuTestTitle: savedCampaign.title,
+            menuTestReward: savedCampaign.reward,
+            menuTestQuota: savedCampaign.quota,
+            menuTestFeedbackType: savedCampaign.feedbackType,
+            menuTestImageUrl: savedCampaign.imageUrl,
+          }));
+        }}
       />
 
       {/* 🤝 1:1 Trade Proposal Dashboard Modal (교환 제안함 대시보드) */}

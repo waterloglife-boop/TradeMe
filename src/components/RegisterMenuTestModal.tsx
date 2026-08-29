@@ -1,29 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Sparkles, Image as ImageIcon, Camera, Check, AlertCircle, Users, Gift, FileText, ToggleLeft, ToggleRight } from 'lucide-react';
-import { Store, MenuTestFeedbackType } from '../types/trade';
-import { uploadStoreImageToSupabase, supabase } from '../lib/supabase';
+import { Store, MenuTestCampaign, MenuTestFeedbackType } from '../types/trade';
+import { uploadStoreImageToSupabase, saveMenuTestCampaignToSupabase, supabase } from '../lib/supabase';
 
 interface RegisterMenuTestModalProps {
   isOpen: boolean;
   onClose: () => void;
   myStore: Store;
-  onSaveMenuTest: (updatedFields: Partial<Store>) => void;
+  editingCampaign?: MenuTestCampaign | null;
+  activeCampaignCount?: number;
+  onSaveCampaign: (campaign: MenuTestCampaign) => void;
 }
 
 export const RegisterMenuTestModal: React.FC<RegisterMenuTestModalProps> = ({
   isOpen,
   onClose,
   myStore,
-  onSaveMenuTest,
+  editingCampaign,
+  activeCampaignCount = 0,
+  onSaveCampaign,
 }) => {
-  const [title, setTitle] = useState(myStore.menuTestTitle || '가을 신메뉴 1호 시식단');
-  const [reward, setReward] = useState(myStore.menuTestReward || '신메뉴 2인 무료 시식 (음료 포함)');
-  const [quota, setQuota] = useState<number>(myStore.menuTestQuota || 5);
-  const [feedbackType, setFeedbackType] = useState<MenuTestFeedbackType>(myStore.menuTestFeedbackType || 'BOTH');
+  const [title, setTitle] = useState('');
+  const [reward, setReward] = useState('');
+  const [quota, setQuota] = useState<number>(5);
+  const [feedbackType, setFeedbackType] = useState<MenuTestFeedbackType>('BOTH');
   const [imageUrl, setImageUrl] = useState(
-    myStore.menuTestImageUrl || myStore.storeImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'
+    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'
   );
-  const [isMenuTesting, setIsMenuTesting] = useState<boolean>(myStore.isMenuTesting ?? true);
+  const [status, setStatus] = useState<'RECRUITING' | 'CLOSED'>('RECRUITING');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -32,17 +36,28 @@ export const RegisterMenuTestModal: React.FC<RegisterMenuTestModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setTitle(myStore.menuTestTitle || '가을 신메뉴 1호 시식단');
-      setReward(myStore.menuTestReward || '신메뉴 2인 무료 시식 (음료 포함)');
-      setQuota(myStore.menuTestQuota || 5);
-      setFeedbackType(myStore.menuTestFeedbackType || 'BOTH');
-      setImageUrl(
-        myStore.menuTestImageUrl || myStore.storeImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'
-      );
-      setIsMenuTesting(myStore.isMenuTesting ?? true);
+      if (editingCampaign) {
+        setTitle(editingCampaign.title);
+        setReward(editingCampaign.reward);
+        setQuota(editingCampaign.quota);
+        setFeedbackType(editingCampaign.feedbackType);
+        setImageUrl(
+          editingCampaign.imageUrl || myStore.storeImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'
+        );
+        setStatus(editingCampaign.status);
+      } else {
+        setTitle(`신메뉴 ${activeCampaignCount + 1}호 시식단`);
+        setReward('신메뉴 2인 무료 시식 (음료 포함)');
+        setQuota(5);
+        setFeedbackType('BOTH');
+        setImageUrl(
+          myStore.storeImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'
+        );
+        setStatus('RECRUITING');
+      }
       setErrorMessage(null);
     }
-  }, [isOpen, myStore]);
+  }, [isOpen, editingCampaign, myStore, activeCampaignCount]);
 
   if (!isOpen) return null;
 
@@ -68,25 +83,38 @@ export const RegisterMenuTestModal: React.FC<RegisterMenuTestModalProps> = ({
       return;
     }
 
+    if (!editingCampaign && status === 'RECRUITING' && activeCampaignCount >= 2) {
+      setErrorMessage('⚠️ 동시 모집은 최대 2개까지만 가능합니다. 기존 모집글을 마감 후 새로 등록해 주세요.');
+      return;
+    }
+
     setSaving(true);
     setErrorMessage(null);
 
-    const updatedFields: Partial<Store> = {
-      isMenuTesting,
-      menuTestTitle: title.trim(),
-      menuTestReward: reward.trim(),
-      menuTestQuota: quota,
-      menuTestFeedbackType: feedbackType,
-      menuTestImageUrl: imageUrl,
+    const campaignId = editingCampaign?.id || `campaign-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const newOrUpdatedCampaign: MenuTestCampaign = {
+      id: campaignId,
+      storeId: myStore.id,
+      title: title.trim(),
+      reward: reward.trim(),
+      quota,
+      feedbackType,
+      imageUrl,
+      status,
+      createdAt: editingCampaign?.createdAt || new Date().toISOString(),
+      applicantCount: editingCampaign?.applicantCount || 0,
+      acceptedCount: editingCampaign?.acceptedCount || 0,
     };
 
     try {
-      // 1. Sync to Supabase stores table
-      if (myStore.id) {
+      await saveMenuTestCampaignToSupabase(newOrUpdatedCampaign);
+
+      // Sync store table representative fields
+      if (status === 'RECRUITING') {
         await supabase
           .from('stores')
           .update({
-            is_menu_testing: isMenuTesting,
+            is_menu_testing: true,
             menu_test_title: title.trim(),
             menu_test_reward: reward.trim(),
             menu_test_quota: quota,
@@ -96,12 +124,12 @@ export const RegisterMenuTestModal: React.FC<RegisterMenuTestModalProps> = ({
           .eq('id', myStore.id);
       }
 
-      onSaveMenuTest(updatedFields);
+      onSaveCampaign(newOrUpdatedCampaign);
       setSaving(false);
       onClose();
     } catch (err) {
       console.warn('Sync menu test notice:', err);
-      onSaveMenuTest(updatedFields);
+      onSaveCampaign(newOrUpdatedCampaign);
       setSaving(false);
       onClose();
     }

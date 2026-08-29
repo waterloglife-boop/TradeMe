@@ -986,6 +986,8 @@ export async function applyMenuTestCampaign(application: Omit<MenuTestApplicatio
     const payload = {
       id: applicationId,
       store_id: application.storeId,
+      campaign_id: application.campaignId || null,
+      campaign_title: application.campaignTitle || '',
       applicant_user_id: application.applicantUserId || null,
       applicant_store_name: application.applicantStoreName,
       applicant_owner_name: application.applicantOwnerName,
@@ -1053,6 +1055,8 @@ export async function fetchMenuTestApplications(storeId?: string): Promise<MenuT
     const dbApps: MenuTestApplication[] = data.map((item: any) => ({
       id: item.id,
       storeId: item.store_id,
+      campaignId: item.campaign_id,
+      campaignTitle: item.campaign_title,
       applicantUserId: item.applicant_user_id,
       applicantStoreName: item.applicant_store_name,
       applicantOwnerName: item.applicant_owner_name,
@@ -1098,6 +1102,107 @@ export async function updateMenuTestApplicationStatus(
     return { success: true };
   } catch (err) {
     console.warn('Update status notice (fallback mode):', err);
+    return { success: true };
+  }
+}
+
+// ==============================================================================
+// 🧪 [최대 2개 동시 모집] 신메뉴 시식단 캠페인 (menu_test_campaigns) API
+// ==============================================================================
+export async function fetchMenuTestCampaigns(storeId: string): Promise<MenuTestCampaign[]> {
+  let localCampaigns: MenuTestCampaign[] = [];
+  try {
+    const raw = localStorage.getItem(`trademe_campaigns_${storeId}`);
+    if (raw) localCampaigns = JSON.parse(raw);
+  } catch (e) {}
+
+  try {
+    const { data, error } = await supabase
+      .from('menu_test_campaigns')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false });
+
+    if (error || !data || data.length === 0) {
+      return localCampaigns;
+    }
+
+    const dbCampaigns: MenuTestCampaign[] = data.map((item: any) => ({
+      id: item.id,
+      storeId: item.store_id,
+      title: item.title,
+      reward: item.reward,
+      quota: item.quota,
+      feedbackType: item.feedback_type,
+      imageUrl: item.image_url,
+      description: item.description,
+      status: item.status,
+      createdAt: item.created_at,
+    }));
+
+    return dbCampaigns;
+  } catch (err) {
+    return localCampaigns;
+  }
+}
+
+export async function saveMenuTestCampaignToSupabase(
+  campaign: MenuTestCampaign
+): Promise<{ success: boolean; data?: MenuTestCampaign }> {
+  // 1. LocalStorage
+  try {
+    const raw = localStorage.getItem(`trademe_campaigns_${campaign.storeId}`);
+    const list: MenuTestCampaign[] = raw ? JSON.parse(raw) : [];
+    const idx = list.findIndex((c) => c.id === campaign.id);
+    let updatedList: MenuTestCampaign[];
+    if (idx >= 0) {
+      updatedList = list.map((c) => (c.id === campaign.id ? campaign : c));
+    } else {
+      updatedList = [campaign, ...list];
+    }
+    localStorage.setItem(`trademe_campaigns_${campaign.storeId}`, JSON.stringify(updatedList));
+  } catch (e) {}
+
+  // 2. Supabase DB
+  try {
+    const payload = {
+      id: campaign.id,
+      store_id: campaign.storeId,
+      title: campaign.title,
+      reward: campaign.reward,
+      quota: campaign.quota,
+      feedback_type: campaign.feedbackType,
+      image_url: campaign.imageUrl || '',
+      description: campaign.description || '',
+      status: campaign.status,
+    };
+
+    await supabase.from('menu_test_campaigns').upsert(payload);
+    return { success: true, data: campaign };
+  } catch (err) {
+    return { success: true, data: campaign };
+  }
+}
+
+export async function deleteMenuTestCampaignFromSupabase(
+  campaignId: string,
+  storeId: string
+): Promise<{ success: boolean }> {
+  try {
+    const raw = localStorage.getItem(`trademe_campaigns_${storeId}`);
+    if (raw) {
+      const list: MenuTestCampaign[] = JSON.parse(raw);
+      localStorage.setItem(
+        `trademe_campaigns_${storeId}`,
+        JSON.stringify(list.filter((c) => c.id !== campaignId))
+      );
+    }
+  } catch (e) {}
+
+  try {
+    await supabase.from('menu_test_campaigns').delete().eq('id', campaignId);
+    return { success: true };
+  } catch (err) {
     return { success: true };
   }
 }

@@ -17,11 +17,11 @@ import {
 interface StoreDetailDrawerProps {
   store: Store | null;
   onClose: () => void;
-  onOpenProposal: (targetItem: ExchangeItem) => void;
-  onOpenChat: (store: Store) => void;
-  onOpenMenuTestApply?: (store: Store) => void;
+  onOpenProposal: (item: ExchangeItem) => void;
+  onOpenChat: (targetStore: Store) => void;
+  onOpenMenuTestApply?: (store: Store, campaign?: MenuTestCampaign) => void;
   onOpenMenuTestDashboard?: () => void;
-  isMyStore: boolean;
+  isMyStore?: boolean;
 }
 
 export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({

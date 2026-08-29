@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, XCircle, Clock, ExternalLink, Phone, MessageSquare, Sparkles, AlertCircle, RefreshCw, Plus, Edit3, Gift, Users } from 'lucide-react';
-import { MenuTestApplication, Store, MenuTestFeedbackType } from '../types/trade';
-import { fetchMenuTestApplications, updateMenuTestApplicationStatus } from '../lib/supabase';
+import { X, CheckCircle2, XCircle, Clock, ExternalLink, Phone, MessageSquare, Sparkles, AlertCircle, RefreshCw, Plus, Edit3, Gift, Users, Trash2, Tag } from 'lucide-react';
+import { MenuTestApplication, MenuTestCampaign, Store, MenuTestFeedbackType } from '../types/trade';
+import {
+  fetchMenuTestApplications,
+  updateMenuTestApplicationStatus,
+  fetchMenuTestCampaigns,
+  saveMenuTestCampaignToSupabase,
+  deleteMenuTestCampaignFromSupabase
+} from '../lib/supabase';
 
 interface MenuTestDashboardModalProps {
   isOpen: boolean;
   onClose: () => void;
   myStore: Store;
   onAcceptAndOpenChat: (applicant: MenuTestApplication) => void;
-  onOpenRegisterMenuTest?: () => void;
+  onOpenRegisterMenuTest?: (campaignToEdit?: MenuTestCampaign | null) => void;
 }
 
 export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
@@ -18,24 +24,70 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
   onAcceptAndOpenChat,
   onOpenRegisterMenuTest,
 }) => {
+  const [campaigns, setCampaigns] = useState<MenuTestCampaign[]>([]);
   const [applications, setApplications] = useState<MenuTestApplication[]>([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | 'ALL'>('ALL');
   const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-  const loadApplications = async () => {
+  const loadData = async () => {
     setLoading(true);
-    const data = await fetchMenuTestApplications(myStore.id || 'my-store');
-    setApplications(data);
+    const storeId = myStore.id || 'my-store';
+
+    // 1. Fetch campaigns
+    let fetchedCampaigns = await fetchMenuTestCampaigns(storeId);
+    if (!fetchedCampaigns || fetchedCampaigns.length === 0) {
+      // Synthesize initial campaign from myStore
+      const initial: MenuTestCampaign = {
+        id: `campaign-initial-${storeId}`,
+        storeId,
+        title: myStore.menuTestTitle || '가을 신메뉴 1호 시식단',
+        reward: myStore.menuTestReward || '신메뉴 2인 무료 시식 (음료 포함)',
+        quota: myStore.menuTestQuota || 5,
+        feedbackType: myStore.menuTestFeedbackType || 'BOTH',
+        imageUrl: myStore.menuTestImageUrl || myStore.storeImageUrl,
+        status: myStore.isMenuTesting ? 'RECRUITING' : 'CLOSED',
+        createdAt: new Date().toISOString(),
+      };
+      fetchedCampaigns = [initial];
+    }
+    setCampaigns(fetchedCampaigns);
+
+    // 2. Fetch applications
+    const apps = await fetchMenuTestApplications(storeId);
+    setApplications(apps);
     setLoading(false);
   };
 
   useEffect(() => {
     if (isOpen) {
-      loadApplications();
+      loadData();
     }
   }, [isOpen, myStore.id]);
 
   if (!isOpen) return null;
+
+  const activeCampaigns = campaigns.filter((c) => c.status === 'RECRUITING');
+  const activeCount = activeCampaigns.length;
+
+  const handleToggleCampaignStatus = async (campaign: MenuTestCampaign) => {
+    const newStatus = campaign.status === 'RECRUITING' ? 'CLOSED' : 'RECRUITING';
+    if (newStatus === 'RECRUITING' && activeCount >= 2) {
+      alert('⚠️ 동시 모집은 최대 2개까지만 가능합니다. 다른 모집글을 마감 후 활성화해 주세요.');
+      return;
+    }
+
+    const updated = { ...campaign, status: newStatus as any };
+    await saveMenuTestCampaignToSupabase(updated);
+    setCampaigns((prev) => prev.map((c) => (c.id === campaign.id ? updated : c)));
+  };
+
+  const handleDeleteCampaign = async (campaignId: string) => {
+    if (confirm('이 신메뉴 모집글을 삭제하시겠습니까?')) {
+      await deleteMenuTestCampaignFromSupabase(campaignId, myStore.id);
+      setCampaigns((prev) => prev.filter((c) => c.id !== campaignId));
+    }
+  };
 
   const handleStatusChange = async (app: MenuTestApplication, newStatus: 'ACCEPTED' | 'REJECTED') => {
     setActionLoadingId(app.id);
@@ -65,6 +117,10 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
     }
   };
 
+  const filteredApplications = selectedCampaignId === 'ALL'
+    ? applications
+    : applications.filter((a) => a.campaignId === selectedCampaignId);
+
   const pendingCount = applications.filter((a) => a.status === 'PENDING').length;
   const acceptedCount = applications.filter((a) => a.status === 'ACCEPTED').length;
 
@@ -81,6 +137,9 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
             <div>
               <h2 className="font-extrabold text-base tracking-tight flex items-center gap-2">
                 <span>신메뉴 시식단 & 서포터즈 모집 관리</span>
+                <span className="px-2 py-0.5 bg-white/20 text-white font-extrabold text-[10px] rounded-full">
+                  동시 모집 {activeCount}/2개
+                </span>
                 {pendingCount > 0 && (
                   <span className="px-2 py-0.5 bg-amber-400 text-gray-950 font-extrabold text-[10px] rounded-full animate-bounce">
                     새 신청 {pendingCount}건
@@ -97,15 +156,21 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
           <div className="flex items-center gap-2">
             {onOpenRegisterMenuTest && (
               <button
-                onClick={onOpenRegisterMenuTest}
-                className="flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-purple-50 text-purple-800 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 whitespace-nowrap"
+                onClick={() => {
+                  if (activeCount >= 2) {
+                    alert('💡 현재 최대치인 2개의 신메뉴를 동시 모집 중입니다. 새 모집글을 등록하시려면 기존 글 중 하나를 마감해 주세요.');
+                  } else {
+                    onOpenRegisterMenuTest(null);
+                  }
+                }}
+                className="flex items-center gap-1 px-3.5 py-1.5 bg-white hover:bg-purple-50 text-purple-800 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 whitespace-nowrap"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>모집하기</span>
+                <span>신규 모집 (+1)</span>
               </button>
             )}
             <button
-              onClick={loadApplications}
+              onClick={loadData}
               className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-white/20 transition-all"
               title="새로고침"
             >
@@ -120,75 +185,146 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
           </div>
         </div>
 
-        {/* 1. 현재 진행 중인 이벤트 목록 / 상세 뷰 (Active Campaign Showcase) */}
-        <div className="p-4 bg-purple-50/70 border-b border-purple-200 flex-shrink-0">
-          <div className="flex items-start justify-between gap-3 bg-white p-3.5 rounded-2xl border border-purple-200 shadow-xs">
-            <div className="flex items-center gap-3 min-w-0">
-              <img
-                src={myStore.menuTestImageUrl || myStore.storeImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'}
-                alt="이벤트 메뉴"
-                className="w-14 h-14 rounded-xl object-cover border border-purple-200 flex-shrink-0"
-              />
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                    myStore.isMenuTesting
-                      ? 'bg-purple-100 text-purple-800 border border-purple-300 animate-pulse'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {myStore.isMenuTesting ? '📢 모집 진행중' : '⏸️ 모집 일시정지'}
-                  </span>
-                  <span className="font-extrabold text-xs text-gray-900 truncate">
-                    {myStore.menuTestTitle || '가을 신메뉴 1호 시식단'}
-                  </span>
-                </div>
-                <p className="text-[11px] text-gray-600 truncate mt-0.5">
-                  🎁 {myStore.menuTestReward || '신메뉴 2인 무료 시식 (음료 포함)'}
-                </p>
-                <div className="flex items-center gap-3 text-[11px] font-bold text-gray-500 mt-1">
-                  <span>정원: <strong className="text-purple-700">{myStore.menuTestQuota || 5}명</strong></span>
-                  <span>·</span>
-                  <span>신청: <strong className="text-purple-700">{applications.length}명</strong></span>
-                  <span>·</span>
-                  <span>선정: <strong className="text-emerald-700">{acceptedCount}명</strong></span>
-                </div>
-              </div>
-            </div>
+        {/* 1. 진행 중인 신메뉴 모집글 목록 (최대 2개 동시 모집 카드) */}
+        <div className="p-4 bg-purple-50/70 border-b border-purple-200 flex-shrink-0 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
+              <span>📢 등록된 시식단 모집글 목록 ({campaigns.length}개 / 최대 2개 동시 활성화)</span>
+            </span>
+          </div>
 
-            {onOpenRegisterMenuTest && (
-              <button
-                type="button"
-                onClick={onOpenRegisterMenuTest}
-                className="p-2 text-purple-700 hover:bg-purple-50 rounded-xl transition-all border border-purple-200 text-xs font-extrabold flex items-center gap-1 flex-shrink-0"
-                title="모집 설정 수정"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">설정 수정</span>
-              </button>
-            )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {campaigns.map((camp, idx) => {
+              const campApps = applications.filter((a) => a.campaignId === camp.id || (!a.campaignId && idx === 0));
+              const campAccepted = campApps.filter((a) => a.status === 'ACCEPTED').length;
+
+              return (
+                <div
+                  key={camp.id}
+                  className={`bg-white p-3 rounded-2xl border transition-all flex flex-col justify-between ${
+                    camp.status === 'RECRUITING'
+                      ? 'border-purple-300 shadow-sm ring-1 ring-purple-200'
+                      : 'border-gray-200 opacity-75 bg-gray-50/60'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <img
+                      src={camp.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'}
+                      alt={camp.title}
+                      className="w-12 h-12 rounded-xl object-cover border border-purple-200 flex-shrink-0 mt-0.5"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] font-extrabold text-purple-800 bg-purple-100 px-1.5 py-0.5 rounded">
+                          {idx === 0 ? '1호' : '2호'} 시식단
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCampaignStatus(camp)}
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold transition-all ${
+                            camp.status === 'RECRUITING'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : 'bg-gray-200 text-gray-700'
+                          }`}
+                        >
+                          {camp.status === 'RECRUITING' ? '● 모집중' : '마감됨'}
+                        </button>
+                      </div>
+
+                      <h4 className="font-extrabold text-xs text-gray-900 truncate mt-1">
+                        {camp.title}
+                      </h4>
+                      <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                        🎁 {camp.reward}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] font-bold text-gray-600">
+                    <div>
+                      <span>신청: <strong className="text-purple-700">{campApps.length}명</strong></span>
+                      <span className="mx-1">/</span>
+                      <span>정원: <strong>{camp.quota}명</strong></span>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      {onOpenRegisterMenuTest && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenRegisterMenuTest(camp)}
+                          className="p-1 text-purple-700 hover:bg-purple-50 rounded-lg"
+                          title="수정"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {campaigns.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCampaign(camp.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
+
+        {/* Campaign Filter Tabs */}
+        {campaigns.length > 1 && (
+          <div className="px-4 py-2 bg-gray-100 border-b border-gray-200 flex items-center gap-1.5 overflow-x-auto text-xs flex-shrink-0">
+            <button
+              onClick={() => setSelectedCampaignId('ALL')}
+              className={`px-3 py-1 rounded-full font-bold transition-all ${
+                selectedCampaignId === 'ALL'
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'bg-white text-gray-700 border border-gray-200'
+              }`}
+            >
+              전체 지원서 ({applications.length})
+            </button>
+            {campaigns.map((camp, idx) => (
+              <button
+                key={camp.id}
+                onClick={() => setSelectedCampaignId(camp.id)}
+                className={`px-3 py-1 rounded-full font-bold transition-all truncate max-w-[160px] ${
+                  selectedCampaignId === camp.id
+                    ? 'bg-purple-700 text-white shadow-xs'
+                    : 'bg-white text-gray-700 border border-gray-200'
+                }`}
+              >
+                {idx === 0 ? '1호' : '2호'}: {camp.title}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Content Body: Applications Stream */}
         <div className="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50/50">
           <div className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider px-1">
-            접수된 시식단 지원서 목록 ({applications.length})
+            접수된 시식단 지원서 ({filteredApplications.length})
           </div>
-          {loading && applications.length === 0 ? (
+          {loading && filteredApplications.length === 0 ? (
             <div className="text-center py-12 text-gray-500 text-xs">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-purple-600" />
               신청서 목록을 불러오는 중입니다...
             </div>
-          ) : applications.length === 0 ? (
+          ) : filteredApplications.length === 0 ? (
             <div className="text-center py-12 text-gray-400 text-xs space-y-2">
               <div className="text-3xl">📭</div>
-              <p className="font-bold text-gray-700">아직 접수된 신메뉴 체험단 신청서가 없습니다.</p>
+              <p className="font-bold text-gray-700">접수된 신메뉴 체험단 신청서가 없습니다.</p>
               <p className="text-[11px] text-gray-500">
                 인근 이웃 사장님들이 신메뉴 테스트 모집 공고를 확인하면 이곳에 신청서가 실시간으로 표시됩니다.
               </p>
             </div>
           ) : (
-            applications.map((app) => (
+            filteredApplications.map((app) => (
               <div
                 key={app.id}
                 className={`bg-white rounded-2xl p-4 border shadow-sm transition-all space-y-3 ${
@@ -202,13 +338,18 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
                 {/* Card Header */}
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-extrabold text-sm text-gray-900">
                         {app.applicantStoreName}
                       </span>
                       <span className="text-xs text-gray-600 font-medium">
                         ({app.applicantOwnerName} 사장님)
                       </span>
+                      {app.campaignTitle && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-gray-100 text-purple-800 border border-purple-200">
+                          {app.campaignTitle}
+                        </span>
+                      )}
                       {getFeedbackBadge(app.feedbackType)}
                     </div>
                     <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-1">

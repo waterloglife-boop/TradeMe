@@ -7,6 +7,7 @@ interface MenuTestApplyModalProps {
   isOpen: boolean;
   onClose: () => void;
   targetStore: Store | null;
+  targetCampaign?: MenuTestCampaign | null;
   applicantOwnerName: string;
   applicantStoreName: string;
   applicantPhone: string;
@@ -17,6 +18,7 @@ export const MenuTestApplyModal: React.FC<MenuTestApplyModalProps> = ({
   isOpen,
   onClose,
   targetStore,
+  targetCampaign,
   applicantOwnerName,
   applicantStoreName,
   applicantPhone,
@@ -30,6 +32,10 @@ export const MenuTestApplyModal: React.FC<MenuTestApplyModalProps> = ({
 
   if (!isOpen || !targetStore) return null;
 
+  const activeTitle = targetCampaign?.title || targetStore.menuTestTitle || '가을 신메뉴 1호 시식단';
+  const activeReward = targetCampaign?.reward || targetStore.menuTestReward || '신메뉴 2인 무료 시식';
+  const activeFeedbackType = targetCampaign?.feedbackType || targetStore.menuTestFeedbackType || 'BOTH';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) {
@@ -40,12 +46,14 @@ export const MenuTestApplyModal: React.FC<MenuTestApplyModalProps> = ({
     setLoading(true);
     const res = await applyMenuTestCampaign({
       storeId: targetStore.id,
+      campaignId: targetCampaign?.id,
+      campaignTitle: activeTitle,
       applicantStoreName: applicantStoreName || '이웃 사장님 매장',
       applicantOwnerName: applicantOwnerName || '이웃 사장님',
       applicantPhone: applicantPhone || '010-0000-0000',
       snsUrl: snsUrl.trim(),
       message: message.trim(),
-      feedbackType: targetStore.menuTestFeedbackType || 'BOTH',
+      feedbackType: activeFeedbackType,
     });
 
     setLoading(false);
