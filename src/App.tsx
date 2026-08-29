@@ -11,8 +11,19 @@ import { MenuTestApplyModal } from './components/MenuTestApplyModal';
 import { MenuTestDashboardModal } from './components/MenuTestDashboardModal';
 import { TradeDashboardModal } from './components/TradeDashboardModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
-import { Store, ExchangeItem, ChatMessage, MenuTestApplication, TradeProposal } from './types/trade';
-import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase, sendTradeProposalToSupabase, fetchChatHistory, saveProfileToSupabase, updateStoreStatusInSupabase, fetchUserProfileFromSupabase, fetchUserStoreFromSupabase } from './lib/supabase';
+import {
+  fetchStoresFromSupabase,
+  subscribeToTradeChat,
+  sendChatMessageToSupabase,
+  sendTradeProposalToSupabase,
+  fetchTradeProposalsFromSupabase,
+  fetchMenuTestApplications,
+  fetchChatHistory,
+  saveProfileToSupabase,
+  updateStoreStatusInSupabase,
+  fetchUserProfileFromSupabase,
+  fetchUserStoreFromSupabase
+} from './lib/supabase';
 import { MapPin } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -24,6 +35,10 @@ export const App: React.FC = () => {
   const [onlyBreakTime, setOnlyBreakTime] = useState<boolean>(false);
   const [onlyMenuTesting, setOnlyMenuTesting] = useState<boolean>(false);
   const [mapEngine, setMapEngine] = useState<'LEAFLET' | 'NAVER'>('NAVER');
+
+  // Notification Badges State
+  const [pendingTradeCount, setPendingTradeCount] = useState(0);
+  const [pendingMenuTestCount, setPendingMenuTestCount] = useState(0);
 
   // Location Picker State
   const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>({
@@ -116,6 +131,29 @@ export const App: React.FC = () => {
     }
     loadStores();
   }, []);
+
+  // Refresh Pending Alert Counts (Trades + Menu Test Applications)
+  const refreshPendingAlertCounts = async () => {
+    try {
+      // 1. Fetch pending proposals for my store
+      const proposals = await fetchTradeProposalsFromSupabase(myStore.id);
+      const pendingTrades = proposals.filter(
+        (p) => (p.targetStoreId === myStore.id || p.targetStoreId === 'my-store') && p.status === 'PENDING'
+      ).length;
+      setPendingTradeCount(pendingTrades);
+
+      // 2. Fetch pending menu test applications for my store
+      const applications = await fetchMenuTestApplications(myStore.id || 'my-store');
+      const pendingMenuTests = applications.filter((a) => a.status === 'PENDING').length;
+      setPendingMenuTestCount(pendingMenuTests);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    refreshPendingAlertCounts();
+    const interval = setInterval(refreshPendingAlertCounts, 10000);
+    return () => clearInterval(interval);
+  }, [myStore.id]);
 
   // Supabase Realtime Chat Subscription & Past History Loader
   useEffect(() => {
@@ -448,6 +486,7 @@ export const App: React.FC = () => {
         menuTestingStoreCount={menuTestingStoreCount}
         storeCount={filteredStores.length}
         hasRegisteredStore={hasRegisteredStore}
+        pendingAlertCount={pendingTradeCount + pendingMenuTestCount}
       />
 
       {/* Main Map View */}
@@ -496,6 +535,8 @@ export const App: React.FC = () => {
         onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
         onOpenTradeDashboard={() => setIsTradeDashboardOpen(true)}
         onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
+        pendingTradeCount={pendingTradeCount}
+        pendingMenuTestCount={pendingMenuTestCount}
       />
 
       {/* Register Store & Exchange Items Modal */}

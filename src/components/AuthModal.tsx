@@ -40,6 +40,8 @@ interface AuthModalProps {
   onOpenRegisterModal?: () => void;
   onOpenTradeDashboard?: () => void;
   onOpenMenuTestDashboard?: () => void;
+  pendingTradeCount?: number;
+  pendingMenuTestCount?: number;
 }
 
 // 🇰🇷 국세청 사업자등록번호 10자리 검증 알고리즘 (Modulus-11)
@@ -69,6 +71,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onOpenRegisterModal,
   onOpenTradeDashboard,
   onOpenMenuTestDashboard,
+  pendingTradeCount = 0,
+  pendingMenuTestCount = 0,
 }) => {
   const [mode, setMode] = useState<'MYPAGE' | 'EDIT_PROFILE' | 'LOGIN' | 'SIGNUP'>('MYPAGE');
 
@@ -388,6 +392,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <h4 className="font-extrabold text-sm text-gray-900 group-hover:text-amber-700 transition-colors">
                         1:1 물물교환 제안함 (거래 관리)
                       </h4>
+                      {pendingTradeCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-500 text-white animate-bounce shadow-sm">
+                          새 제안 {pendingTradeCount}건
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
                       이웃 사장님들의 실시간 제안 및 비동기 찔러보기 확인
@@ -414,11 +423,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <h4 className="font-extrabold text-sm text-gray-900 group-hover:text-purple-700 transition-colors">
                         신메뉴 시식단 & 서포터즈 모집 관리
                       </h4>
-                      {myStore?.isMenuTesting && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 animate-pulse">
+                      {pendingMenuTestCount > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-500 text-white animate-bounce shadow-sm">
+                          새 신청 {pendingMenuTestCount}건
+                        </span>
+                      ) : myStore?.isMenuTesting ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800">
                           모집중
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
                       접수된 지원서 검토, 시식단 선정 및 1:1 대화방 개설

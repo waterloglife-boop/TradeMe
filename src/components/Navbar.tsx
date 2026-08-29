@@ -19,6 +19,7 @@ interface NavbarProps {
   menuTestingStoreCount?: number;
   storeCount: number;
   hasRegisteredStore?: boolean;
+  pendingAlertCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -39,6 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   menuTestingStoreCount = 0,
   storeCount,
   hasRegisteredStore = false,
+  pendingAlertCount = 0,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
@@ -146,15 +148,27 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Login / Auth Button */}
+            {/* 🏬 Store Management / Auth Button with Notification Badge */}
             <button
               onClick={onOpenAuthModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-all"
+              className={`relative flex items-center gap-1.5 px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all shadow-xs active:scale-95 whitespace-nowrap ${
+                isLoggedIn
+                  ? 'bg-white hover:bg-orange-50/80 text-gray-800 border border-gray-300 hover:border-orange-400'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+              }`}
             >
               {isLoggedIn ? (
                 <>
-                  <User className="w-4 h-4 text-orange-500" />
-                  <span className="hidden sm:inline">{userOwnerName}</span>
+                  <Store className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                  <span className="hidden sm:inline">🏬 내 매장 관리 ({userOwnerName})</span>
+                  <span className="sm:hidden">🏬 내 매장</span>
+
+                  {/* 🔴 Global Pending Alert Badge */}
+                  {pendingAlertCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[19px] h-[19px] px-1 bg-red-500 text-white font-black text-[10px] rounded-full flex items-center justify-center shadow-md animate-bounce border-2 border-white">
+                      {pendingAlertCount}
+                    </span>
+                  )}
                 </>
               ) : (
                 <>
