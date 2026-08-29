@@ -9,6 +9,8 @@ import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
 import { MenuTestApplyModal } from './components/MenuTestApplyModal';
 import { MenuTestDashboardModal } from './components/MenuTestDashboardModal';
+import { RegisterMenuTestModal } from './components/RegisterMenuTestModal';
+import { ManageExchangeItemsModal } from './components/ManageExchangeItemsModal';
 import { TradeDashboardModal } from './components/TradeDashboardModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import {
@@ -53,6 +55,7 @@ export const App: React.FC = () => {
 
   // Modals & Drawers state
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isManageItemsModalOpen, setIsManageItemsModalOpen] = useState(false);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [targetProposalItem, setTargetProposalItem] = useState<ExchangeItem | null>(null);
   const [isTradeDashboardOpen, setIsTradeDashboardOpen] = useState(false);
@@ -61,6 +64,7 @@ export const App: React.FC = () => {
   const [isMenuTestModalOpen, setIsMenuTestModalOpen] = useState(false);
   const [targetMenuTestStore, setTargetMenuTestStore] = useState<Store | null>(null);
   const [isMenuTestDashboardOpen, setIsMenuTestDashboardOpen] = useState(false);
+  const [isRegisterMenuTestModalOpen, setIsRegisterMenuTestModalOpen] = useState(false);
   
   // Chat state
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
@@ -382,28 +386,84 @@ export const App: React.FC = () => {
   const handleUpdateProfile = (
     ownerName: string,
     storeName: string,
-    phone?: string,
+    phone: string,
     businessNumber?: string,
-    storeImageUrl?: string
+    storeImageUrl?: string,
+    address?: string,
+    breakTimeHours?: string,
+    category?: string,
+    lat?: number,
+    lng?: number
   ) => {
     setUserOwnerName(ownerName);
-    const updatedMyStore = {
+    const updatedMyStore: Store = {
       ...myStore,
       ownerName,
       storeName,
       phone: phone || myStore.phone,
       storeImageUrl: storeImageUrl || myStore.storeImageUrl,
+      ...(address ? { address } : {}),
+      ...(breakTimeHours ? { breakTimeHours } : {}),
+      ...(category ? { category: category as any } : {}),
+      ...(lat !== undefined ? { lat } : {}),
+      ...(lng !== undefined ? { lng } : {}),
     };
+
+    if (lat && lng) {
+      setPickedLocation({ lat, lng });
+    }
+
     setMyStore(updatedMyStore);
     setStores((prevStores) =>
       prevStores.map((s) => (s.id === myStore.id ? updatedMyStore : s))
     );
-    saveProfileToSupabase(ownerName, storeName, phone, businessNumber, storeImageUrl);
+
+    saveProfileToSupabase(
+      ownerName,
+      storeName,
+      phone,
+      businessNumber,
+      storeImageUrl,
+      address,
+      breakTimeHours,
+      category,
+      lat,
+      lng
+    );
+
     try {
       localStorage.setItem(
         'trademe_profile',
         JSON.stringify({ ownerName, storeName, phone, businessNumber, storeImageUrl })
       );
+      localStorage.setItem('trademe_my_store', JSON.stringify(updatedMyStore));
+    } catch (e) {}
+  };
+
+  const handleSaveExchangeItems = (updatedItems: ExchangeItem[]) => {
+    const updatedMyStore: Store = {
+      ...myStore,
+      exchangeItems: updatedItems,
+    };
+    setMyStore(updatedMyStore);
+    setStores((prevStores) =>
+      prevStores.map((s) => (s.id === myStore.id ? updatedMyStore : s))
+    );
+    try {
+      localStorage.setItem('trademe_my_store', JSON.stringify(updatedMyStore));
+    } catch (e) {}
+  };
+
+  const handleSaveMenuTest = (updatedFields: Partial<Store>) => {
+    const updatedMyStore: Store = {
+      ...myStore,
+      ...updatedFields,
+    };
+    setMyStore(updatedMyStore);
+    setStores((prevStores) =>
+      prevStores.map((s) => (s.id === myStore.id ? updatedMyStore : s))
+    );
+    try {
       localStorage.setItem('trademe_my_store', JSON.stringify(updatedMyStore));
     } catch (e) {}
   };
@@ -532,6 +592,7 @@ export const App: React.FC = () => {
         onLoginSuccess={handleLoginSuccess}
         onUpdateProfile={handleUpdateProfile}
         onLogout={handleLogout}
+        onOpenManageItems={() => setIsManageItemsModalOpen(true)}
         onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
         onOpenTradeDashboard={() => setIsTradeDashboardOpen(true)}
         onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
@@ -539,7 +600,15 @@ export const App: React.FC = () => {
         pendingMenuTestCount={pendingMenuTestCount}
       />
 
-      {/* Register Store & Exchange Items Modal */}
+      {/* 🍱 1:1 물물교환 대표 품목 직행 관리 모달 (Step 2 단독) */}
+      <ManageExchangeItemsModal
+        isOpen={isManageItemsModalOpen}
+        onClose={() => setIsManageItemsModalOpen(false)}
+        myStore={myStore}
+        onSaveItems={handleSaveExchangeItems}
+      />
+
+      {/* Register Store & Exchange Items Modal (Legacy/Direct) */}
       <RegisterStoreAndItemsModal
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
@@ -565,12 +634,21 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* 🧪 Menu Test Dashboard Modal (신청서 접수 관리) */}
+      {/* 🧪 Menu Test Dashboard Modal (신청서 접수 관리 및 이벤트 목록) */}
       <MenuTestDashboardModal
         isOpen={isMenuTestDashboardOpen}
         onClose={() => setIsMenuTestDashboardOpen(false)}
         myStore={myStore}
         onAcceptAndOpenChat={handleAcceptMenuTestAndOpenChat}
+        onOpenRegisterMenuTest={() => setIsRegisterMenuTestModalOpen(true)}
+      />
+
+      {/* 🧪 Register Menu Test Recruitment Modal (신메뉴 모집 단독 폼) */}
+      <RegisterMenuTestModal
+        isOpen={isRegisterMenuTestModalOpen}
+        onClose={() => setIsRegisterMenuTestModalOpen(false)}
+        myStore={myStore}
+        onSaveMenuTest={handleSaveMenuTest}
       />
 
       {/* 🤝 1:1 Trade Proposal Dashboard Modal (교환 제안함 대시보드) */}

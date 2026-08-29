@@ -4,10 +4,7 @@ import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, Us
 interface NavbarProps {
   myBreakTimeActive: boolean;
   onToggleBreakTime: () => void;
-  onOpenRegisterModal: () => void;
   onOpenAuthModal: () => void;
-  onOpenTradeDashboard?: () => void;
-  onOpenMenuTestDashboard?: () => void;
   isLoggedIn: boolean;
   userOwnerName: string;
   selectedCategory: string;
@@ -25,10 +22,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   myBreakTimeActive,
   onToggleBreakTime,
-  onOpenRegisterModal,
   onOpenAuthModal,
-  onOpenTradeDashboard,
-  onOpenMenuTestDashboard,
   isLoggedIn,
   userOwnerName,
   selectedCategory,
@@ -104,68 +98,24 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
 
-            {/* Item Registration / Edit Button */}
-            <button
-              onClick={onOpenRegisterModal}
-              className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95 ${
-                hasRegisteredStore
-                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
-                  : 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700'
-              }`}
-            >
-              {hasRegisteredStore ? (
-                <>
-                  <Edit3 className="w-4 h-4" />
-                  <span className="hidden sm:inline">물물교환 품목 수정</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4 stroke-[3]" />
-                  <span className="hidden sm:inline">물물교환 품목 등록</span>
-                </>
-              )}
-            </button>
-
-            {/* 🤝 Trade Proposal Dashboard Management Button */}
-            {onOpenTradeDashboard && (
-              <button
-                onClick={onOpenTradeDashboard}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-amber-900 bg-gradient-to-r from-amber-100 to-orange-100 hover:from-amber-200 hover:to-orange-200 border border-amber-300 rounded-lg shadow-sm hover:shadow transition-all active:scale-95 whitespace-nowrap"
-              >
-                <span>🤝</span>
-                <span className="hidden sm:inline">교환 제안함</span>
-              </button>
-            )}
-
-            {/* 🧪 Menu Test Dashboard Management Button */}
-            {onOpenMenuTestDashboard && (
-              <button
-                onClick={onOpenMenuTestDashboard}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap"
-              >
-                <span>🧪</span>
-                <span className="hidden sm:inline">시식단 신청 관리</span>
-              </button>
-            )}
-
-            {/* 🏬 Store Management / Auth Button with Notification Badge */}
+            {/* 🏬 Store Management / Auth Button with Global Notification Badge */}
             <button
               onClick={onOpenAuthModal}
-              className={`relative flex items-center gap-1.5 px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all shadow-xs active:scale-95 whitespace-nowrap ${
+              className={`relative flex items-center gap-2 px-4 py-2 text-xs font-extrabold rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap ${
                 isLoggedIn
-                  ? 'bg-white hover:bg-orange-50/80 text-gray-800 border border-gray-300 hover:border-orange-400'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-md'
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
               }`}
             >
               {isLoggedIn ? (
                 <>
-                  <Store className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                  <Store className="w-4 h-4 text-white flex-shrink-0" />
                   <span className="hidden sm:inline">🏬 내 매장 관리 ({userOwnerName})</span>
                   <span className="sm:hidden">🏬 내 매장</span>
 
                   {/* 🔴 Global Pending Alert Badge */}
                   {pendingAlertCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[19px] h-[19px] px-1 bg-red-500 text-white font-black text-[10px] rounded-full flex items-center justify-center shadow-md animate-bounce border-2 border-white">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 bg-red-600 text-white font-black text-[10px] rounded-full flex items-center justify-center shadow-lg animate-bounce border-2 border-white">
                       {pendingAlertCount}
                     </span>
                   )}

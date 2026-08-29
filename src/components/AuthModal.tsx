@@ -35,8 +35,20 @@ interface AuthModalProps {
   userStoreName: string;
   myStore?: Store;
   onLoginSuccess: (ownerName: string, storeName: string) => void;
-  onUpdateProfile: (ownerName: string, storeName: string, phone: string, businessNumber?: string, storeImageUrl?: string) => void;
+  onUpdateProfile: (
+    ownerName: string,
+    storeName: string,
+    phone: string,
+    businessNumber?: string,
+    storeImageUrl?: string,
+    address?: string,
+    breakTimeHours?: string,
+    category?: string,
+    lat?: number,
+    lng?: number
+  ) => void;
   onLogout: () => void;
+  onOpenManageItems?: () => void;
   onOpenRegisterModal?: () => void;
   onOpenTradeDashboard?: () => void;
   onOpenMenuTestDashboard?: () => void;
@@ -68,6 +80,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onLoginSuccess,
   onUpdateProfile,
   onLogout,
+  onOpenManageItems,
   onOpenRegisterModal,
   onOpenTradeDashboard,
   onOpenMenuTestDashboard,
@@ -83,6 +96,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [storeName, setStoreName] = useState(userStoreName || '마라위크');
   const [phone, setPhone] = useState('01048548777');
   const [businessNumber, setBusinessNumber] = useState('4074913710');
+  const [category, setCategory] = useState(myStore?.category || 'FOOD');
+  const [address, setAddress] = useState(myStore?.address || '경남 양산시 북정서길 25 104호');
+  const [breakTimeHours, setBreakTimeHours] = useState(myStore?.breakTimeHours || '10:00 - 22:00');
+  const [lat, setLat] = useState(myStore?.lat || 35.3594007321187);
+  const [lng, setLng] = useState(myStore?.lng || 129.041885145232);
+  const [geoSearching, setGeoSearching] = useState(false);
+
   const [storeImageUrl, setStoreImageUrl] = useState(
     myStore?.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
   );
@@ -114,6 +134,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setOwnerName(userOwnerName || '김동욱');
       setStoreName(userStoreName || '마라위크');
       if (myStore?.storeImageUrl) setStoreImageUrl(myStore.storeImageUrl);
+      if (myStore?.address) setAddress(myStore.address);
+      if (myStore?.breakTimeHours) setBreakTimeHours(myStore.breakTimeHours);
+      if (myStore?.category) setCategory(myStore.category);
+      if (myStore?.lat) setLat(myStore.lat);
+      if (myStore?.lng) setLng(myStore.lng);
 
       // 1. Restore from LocalStorage immediately
       try {
@@ -125,6 +150,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           if (parsed.phone) setPhone(parsed.phone);
           if (parsed.businessNumber) setBusinessNumber(parsed.businessNumber);
           if (parsed.storeImageUrl) setStoreImageUrl(parsed.storeImageUrl);
+          if (parsed.address) setAddress(parsed.address);
+          if (parsed.breakTimeHours) setBreakTimeHours(parsed.breakTimeHours);
+          if (parsed.category) setCategory(parsed.category);
         }
       } catch (e) {}
 
@@ -144,6 +172,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               phone: prof.phone || '01048548777',
               businessNumber: prof.business_number || '4074913710',
               storeImageUrl: prof.store_image_url || storeImageUrl,
+              address: address,
+              breakTimeHours: breakTimeHours,
+              category: category,
             }));
           } catch (e) {}
         }
@@ -169,6 +200,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setStoreImageUrl(res.url);
     } else {
       setToastMessage(res.error || '이미지 업로드에 실패했습니다.');
+    }
+  };
+
+  // 🗺️ Naver Maps Geocoding handler
+  const handleGeocodeAddress = (addrToSearch: string) => {
+    if (!addrToSearch.trim()) return;
+    if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode) {
+      setGeoSearching(true);
+      window.naver.maps.Service.geocode({ query: addrToSearch }, (status: any, response: any) => {
+        setGeoSearching(false);
+        if (status === window.naver.maps.Service.Status.OK && response.v2.addresses.length > 0) {
+          const first = response.v2.addresses[0];
+          const newLat = parseFloat(first.y);
+          const newLng = parseFloat(first.x);
+          setLat(newLat);
+          setLng(newLng);
+          setToastMessage(`📍 지도 좌표가 자동으로 연동되었습니다! (${newLat.toFixed(4)}, ${newLng.toFixed(4)})`);
+          setTimeout(() => setToastMessage(null), 3000);
+        }
+      });
     }
   };
 
@@ -199,7 +250,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     const cleanBno = businessNumber.replace(/[^0-9]/g, '');
 
-    onUpdateProfile(ownerName, storeName, cleanPhone, cleanBno, storeImageUrl);
+    onUpdateProfile(
+      ownerName,
+      storeName,
+      cleanPhone,
+      cleanBno,
+      storeImageUrl,
+      address,
+      breakTimeHours,
+      category,
+      lat,
+      lng
+    );
     setSaveSuccess(true);
     setLoading(false);
     setTimeout(() => {
@@ -346,11 +408,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 내 매장 관리 & 활동 대시보드
               </div>
 
-              {/* 1. 내 물물교환 등록 품목 관리 */}
+              {/* 1. 내 물물교환 등록 품목 관리 (Step 2 직행) */}
               <div
                 onClick={() => {
                   onClose();
-                  if (onOpenRegisterModal) onOpenRegisterModal();
+                  if (onOpenManageItems) {
+                    onOpenManageItems();
+                  } else if (onOpenRegisterModal) {
+                    onOpenRegisterModal();
+                  }
                 }}
                 className="bg-white hover:bg-orange-50/50 p-4 rounded-2xl border border-gray-200 hover:border-orange-300 shadow-sm hover:shadow transition-all cursor-pointer flex items-center justify-between group active:scale-[0.99]"
               >
@@ -581,6 +647,71 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
+              {/* Category Selection */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">업종 카테고리</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold bg-white"
+                >
+                  <option value="FOOD">🍲 외식업 / 식당 (한식, 일식, 중식, 양식, 분식)</option>
+                  <option value="CAFE">☕ 카페 / 디저트 / 베이커리</option>
+                  <option value="PUB">🍺 주점 / 펍 / 바</option>
+                  <option value="RETAIL">🛒 유통 / 편의 / 청과물</option>
+                  <option value="BEAUTY">💇 미용 / 뷰티 / 헤어샵</option>
+                  <option value="ACCOMMODATION">🏨 숙박 / 공간대여</option>
+                  <option value="SERVICE">🧼 세탁 / 헬스 / 기타 생활서비스</option>
+                </select>
+              </div>
+
+              {/* Road Address Input with Geocode Sync */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-0.5 flex items-center justify-between">
+                  <span>가게 도로명 주소</span>
+                  <span className="text-[10px] text-orange-600 font-bold">지도 좌표 자동연동</span>
+                </label>
+                <p className="text-[11px] text-gray-500 font-normal mb-1">💡 네이버 지도 위치가 주소 기반으로 자동 이동됩니다</p>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <MapPin className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      required
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="예: 경남 양산시 북정서길 25 104호"
+                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleGeocodeAddress(address)}
+                    disabled={geoSearching}
+                    className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 font-extrabold text-xs rounded-xl border border-orange-300 whitespace-nowrap transition-all"
+                  >
+                    {geoSearching ? '조회중...' : '좌표 동기화'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Operating / Exchange Hours */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-0.5">매장 영업시간 (교환 가능 시간)</label>
+                <p className="text-[11px] text-gray-500 font-normal mb-1">💡 이웃 사장님들이 물물교환 또는 픽업 가능한 시간대</p>
+                <div className="relative">
+                  <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    required
+                    value={breakTimeHours}
+                    onChange={(e) => setBreakTimeHours(e.target.value)}
+                    placeholder="예: 10:00 - 22:00 또는 15:00 - 17:00"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-0.5">연락처 (휴대폰 번호)</label>
                 <p className="text-[11px] text-gray-500 font-normal mb-1">💡 (-) 하이픈 제외하고 번호만 입력</p>
@@ -778,6 +909,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         placeholder="예: 송정 수제돈까스"
                         value={storeName}
                         onChange={(e) => setStoreName(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">업종 카테고리</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value as any)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold bg-white"
+                    >
+                      <option value="FOOD">🍲 외식업 / 식당 (한식, 일식, 중식, 양식, 분식)</option>
+                      <option value="CAFE">☕ 카페 / 디저트 / 베이커리</option>
+                      <option value="PUB">🍺 주점 / 펍 / 바</option>
+                      <option value="RETAIL">🛒 유통 / 편의 / 청과물</option>
+                      <option value="BEAUTY">💇 미용 / 뷰티 / 헤어샵</option>
+                      <option value="ACCOMMODATION">🏨 숙박 / 공간대여</option>
+                      <option value="SERVICE">🧼 세탁 / 헬스 / 기타 생활서비스</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-0.5">가게 도로명 주소</label>
+                    <div className="relative">
+                      <MapPin className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="예: 경남 양산시 북정서길 25 104호"
+                        value={address}
+                        onChange={(e) => {
+                          setAddress(e.target.value);
+                          handleGeocodeAddress(e.target.value);
+                        }}
                         className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
                       />
                     </div>

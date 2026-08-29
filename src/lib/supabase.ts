@@ -228,7 +228,12 @@ export async function saveProfileToSupabase(
   storeName: string,
   phone?: string,
   businessNumber?: string,
-  storeImageUrl?: string
+  storeImageUrl?: string,
+  address?: string,
+  breakTimeHours?: string,
+  category?: string,
+  lat?: number,
+  lng?: number
 ) {
   try {
     let userId = '';
@@ -277,6 +282,11 @@ export async function saveProfileToSupabase(
     };
     if (phone) storePayload.phone = phone;
     if (storeImageUrl) storePayload.store_image_url = storeImageUrl;
+    if (address) storePayload.address = address;
+    if (breakTimeHours) storePayload.break_time_hours = breakTimeHours;
+    if (category) storePayload.category = category;
+    if (lat !== undefined) storePayload.lat = lat;
+    if (lng !== undefined) storePayload.lng = lng;
 
     if (userId) {
       await supabase.from('stores').update(storePayload).eq('user_id', userId);

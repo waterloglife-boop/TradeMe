@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, XCircle, Clock, ExternalLink, Phone, MessageSquare, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+import { X, CheckCircle2, XCircle, Clock, ExternalLink, Phone, MessageSquare, Sparkles, AlertCircle, RefreshCw, Plus, Edit3, Gift, Users } from 'lucide-react';
 import { MenuTestApplication, Store, MenuTestFeedbackType } from '../types/trade';
 import { fetchMenuTestApplications, updateMenuTestApplicationStatus } from '../lib/supabase';
 
@@ -8,6 +8,7 @@ interface MenuTestDashboardModalProps {
   onClose: () => void;
   myStore: Store;
   onAcceptAndOpenChat: (applicant: MenuTestApplication) => void;
+  onOpenRegisterMenuTest?: () => void;
 }
 
 export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
@@ -15,6 +16,7 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
   onClose,
   myStore,
   onAcceptAndOpenChat,
+  onOpenRegisterMenuTest,
 }) => {
   const [applications, setApplications] = useState<MenuTestApplication[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,17 +70,17 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 p-4 text-white flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-xl shadow-inner">
+            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shadow-inner">
               🧪
             </div>
             <div>
               <h2 className="font-extrabold text-base tracking-tight flex items-center gap-2">
-                <span>신메뉴 시식단 & 서포터즈 신청 관리</span>
+                <span>신메뉴 시식단 & 서포터즈 모집 관리</span>
                 {pendingCount > 0 && (
                   <span className="px-2 py-0.5 bg-amber-400 text-gray-950 font-extrabold text-[10px] rounded-full animate-bounce">
                     새 신청 {pendingCount}건
@@ -90,7 +92,18 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+
+          {/* Header Action Buttons */}
+          <div className="flex items-center gap-2">
+            {onOpenRegisterMenuTest && (
+              <button
+                onClick={onOpenRegisterMenuTest}
+                className="flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-purple-50 text-purple-800 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 whitespace-nowrap"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>모집하기</span>
+              </button>
+            )}
             <button
               onClick={loadApplications}
               className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-white/20 transition-all"
@@ -107,21 +120,60 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
           </div>
         </div>
 
-        {/* Campaign Info Bar */}
-        <div className="p-3 bg-purple-50 border-b border-purple-200 flex flex-wrap items-center justify-between gap-2 text-xs flex-shrink-0">
-          <div className="flex items-center gap-1.5 text-purple-900 font-bold">
-            <span>📢 모집 신메뉴:</span>
-            <span className="text-gray-900 font-extrabold">{myStore.menuTestTitle || '가을 신메뉴 1호 시식단'}</span>
-          </div>
-          <div className="flex items-center gap-3 text-[11px] font-bold">
-            <span className="text-gray-600">모집 정원: <strong>{myStore.menuTestQuota || 5}명</strong></span>
-            <span className="text-purple-700">총 접수: <strong>{applications.length}명</strong></span>
-            <span className="text-emerald-700">선정 완료: <strong>{acceptedCount}명</strong></span>
+        {/* 1. 현재 진행 중인 이벤트 목록 / 상세 뷰 (Active Campaign Showcase) */}
+        <div className="p-4 bg-purple-50/70 border-b border-purple-200 flex-shrink-0">
+          <div className="flex items-start justify-between gap-3 bg-white p-3.5 rounded-2xl border border-purple-200 shadow-xs">
+            <div className="flex items-center gap-3 min-w-0">
+              <img
+                src={myStore.menuTestImageUrl || myStore.storeImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'}
+                alt="이벤트 메뉴"
+                className="w-14 h-14 rounded-xl object-cover border border-purple-200 flex-shrink-0"
+              />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                    myStore.isMenuTesting
+                      ? 'bg-purple-100 text-purple-800 border border-purple-300 animate-pulse'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {myStore.isMenuTesting ? '📢 모집 진행중' : '⏸️ 모집 일시정지'}
+                  </span>
+                  <span className="font-extrabold text-xs text-gray-900 truncate">
+                    {myStore.menuTestTitle || '가을 신메뉴 1호 시식단'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-600 truncate mt-0.5">
+                  🎁 {myStore.menuTestReward || '신메뉴 2인 무료 시식 (음료 포함)'}
+                </p>
+                <div className="flex items-center gap-3 text-[11px] font-bold text-gray-500 mt-1">
+                  <span>정원: <strong className="text-purple-700">{myStore.menuTestQuota || 5}명</strong></span>
+                  <span>·</span>
+                  <span>신청: <strong className="text-purple-700">{applications.length}명</strong></span>
+                  <span>·</span>
+                  <span>선정: <strong className="text-emerald-700">{acceptedCount}명</strong></span>
+                </div>
+              </div>
+            </div>
+
+            {onOpenRegisterMenuTest && (
+              <button
+                type="button"
+                onClick={onOpenRegisterMenuTest}
+                className="p-2 text-purple-700 hover:bg-purple-50 rounded-xl transition-all border border-purple-200 text-xs font-extrabold flex items-center gap-1 flex-shrink-0"
+                title="모집 설정 수정"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">설정 수정</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Content Body */}
+        {/* Content Body: Applications Stream */}
         <div className="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50/50">
+          <div className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider px-1">
+            접수된 시식단 지원서 목록 ({applications.length})
+          </div>
           {loading && applications.length === 0 ? (
             <div className="text-center py-12 text-gray-500 text-xs">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-purple-600" />
