@@ -213,14 +213,27 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                 </div>
               </div>
 
-              {/* Proposal Action Button */}
+              {/* Proposal Action Button (Chameleon Button based on breakTimeActive) */}
               {!isMyStore && (
                 <button
                   onClick={() => onOpenProposal(item)}
-                  className="w-full py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
+                  className={`w-full py-2.5 font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] text-white ${
+                    store.breakTimeActive
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/20'
+                      : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-500/20'
+                  }`}
                 >
-                  <ArrowRightLeft className="w-3.5 h-3.5" />
-                  내 품목과 1:1 물물교환 제안하기
+                  {store.breakTimeActive ? (
+                    <>
+                      <ArrowRightLeft className="w-3.5 h-3.5" />
+                      <span>🤝 1:1 물물교환 제안하기</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm">👉</span>
+                      <span>나중에 교환 어때요? (찔러보기)</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>

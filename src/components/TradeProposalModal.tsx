@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ArrowRightLeft, Store, Utensils, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { X, ArrowRightLeft, Store, Utensils, CheckCircle, Clock, AlertCircle, Sparkles } from 'lucide-react';
 import { Store as StoreType, ExchangeItem } from '../types/trade';
 
 interface TradeProposalModalProps {
@@ -8,7 +8,14 @@ interface TradeProposalModalProps {
   targetStore: StoreType;
   targetItem: ExchangeItem;
   myStore: StoreType;
-  onSendProposal: (myMenu: ExchangeItem, targetMenu: ExchangeItem, diffPrice: number, pickupTime: string) => void;
+  onSendProposal: (
+    myMenu: ExchangeItem,
+    targetMenu: ExchangeItem,
+    diffPrice: number,
+    pickupTime: string,
+    isPoke: boolean,
+    message?: string
+  ) => void;
 }
 
 export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
@@ -23,16 +30,18 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
     myStore.exchangeItems[0] || null
   );
   const [pickupTime, setPickupTime] = useState('브레이크 타임 (15:00 ~ 16:00)');
+  const [message, setMessage] = useState('');
 
   if (!isOpen) return null;
 
+  const isPoke = !targetStore.breakTimeActive;
   const myPrice = selectedMyItem ? selectedMyItem.estimatedPrice : 0;
   const targetPrice = targetItem.estimatedPrice;
   const priceDiff = targetPrice - myPrice; // > 0 이면 내가 더 냄, < 0 이면 상대가 더 냄
 
   const handleProposalSubmit = () => {
     if (!selectedMyItem) return;
-    onSendProposal(selectedMyItem, targetItem, priceDiff, pickupTime);
+    onSendProposal(selectedMyItem, targetItem, priceDiff, pickupTime, isPoke, message);
     onClose();
   };
 
@@ -41,12 +50,23 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-lg overflow-hidden">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-500 to-amber-600 text-white">
+        <div className={`flex items-center justify-between p-4 text-white ${
+          isPoke
+            ? 'bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-800'
+            : 'bg-gradient-to-r from-orange-500 to-amber-600'
+        }`}>
           <div className="flex items-center gap-2">
-            <ArrowRightLeft className="w-5 h-5" />
-            <h2 className="font-bold text-base">
-              1:1 물물교환 제안
-            </h2>
+            {isPoke ? <span className="text-lg">👉</span> : <ArrowRightLeft className="w-5 h-5" />}
+            <div>
+              <h2 className="font-bold text-base">
+                {isPoke ? '나중에 교환 어때요? (비동기 찔러보기)' : '1:1 물물교환 제안'}
+              </h2>
+              {isPoke && (
+                <p className="text-[11px] text-purple-200">
+                  상대 매장 교환 OFF 상태 · 조용히 제안함으로 전달
+                </p>
+              )}
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -59,6 +79,19 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
         {/* Modal Body */}
         <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
           
+          {/* Poke Mode Explanation Banner */}
+          {isPoke && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs text-indigo-950 flex items-start gap-2">
+              <span className="text-sm flex-shrink-0">💡</span>
+              <div className="space-y-0.5">
+                <p className="font-extrabold text-indigo-900">비동기 찔러보기(Poke) 제안 모드</p>
+                <p className="text-[11px] text-indigo-700 leading-relaxed">
+                  상대 매장이 현재 영업 중이거나 교환 OFF 상태입니다. 실시간 방해 알림 없이 <strong>상대 사장님의 제안함(대시보드)</strong>에 조용히 저장되며, 사장님이 여유가 되실 때 수락하실 수 있습니다.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Comparison Cards: My Item vs Target Item */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
             
@@ -148,7 +181,7 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1">
               <Clock className="w-3.5 h-3.5 text-orange-500" />
-              원하는 교환/픽업 시각
+              희망 교환 / 픽업 시각
             </label>
             <select
               value={pickupTime}
@@ -158,18 +191,46 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
               <option value="브레이크 타임 (15:00 ~ 16:00)">☕ 브레이크 타임 (15:00 ~ 16:00)</option>
               <option value="점심 마감 직후 (14:30)">☀️ 점심 마감 직후 (14:30)</option>
               <option value="저녁 마감 후 (21:30)">🌙 저녁 마감 후 (21:30)</option>
+              <option value="언제든 여유 생기실 때 (찔러보기 맞춤)">👉 언제든 여유 생기실 때 (찔러보기 맞춤)</option>
               <option value="사장님과 채팅으로 상의">💬 사장님과 채팅으로 상의</option>
             </select>
+          </div>
+
+          {/* Optional Message */}
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1">
+              💬 사장님께 남길 한마디 (선택)
+            </label>
+            <input
+              type="text"
+              placeholder={isPoke ? "예: 사장님 오늘 장사 끝나고 저녁에 갈비랑 교환 어떠세요?" : "예: 오늘 15시에 따뜻할 때 바로 교환해요!"}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full text-xs bg-white border border-gray-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+            />
           </div>
 
           {/* Submit Action */}
           <button
             onClick={handleProposalSubmit}
             disabled={!selectedMyItem}
-            className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            className={`w-full py-3 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 ${
+              isPoke
+                ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-500/25'
+                : 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 shadow-orange-500/25'
+            }`}
           >
-            <ArrowRightLeft className="w-4 h-4" />
-            1:1 물물교환 제안 채팅 보내기
+            {isPoke ? (
+              <>
+                <span className="text-base">👉</span>
+                <span>나중에 교환 제안 보내기 (비동기 찔러보기)</span>
+              </>
+            ) : (
+              <>
+                <ArrowRightLeft className="w-4 h-4" />
+                <span>1:1 물물교환 제안 보내기</span>
+              </>
+            )}
           </button>
 
         </div>
@@ -177,3 +238,4 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
     </div>
   );
 };
+

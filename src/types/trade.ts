@@ -81,8 +81,20 @@ export interface TradeProposal {
   targetStoreId: string;
   myExchangeItemId: string;
   targetExchangeItemId: string;
+  myStoreName?: string;
+  myOwnerName?: string;
+  myItemTitle?: string;
+  myItemImageUrl?: string;
+  myItemPrice?: number;
+  targetStoreName?: string;
+  targetOwnerName?: string;
+  targetItemTitle?: string;
+  targetItemImageUrl?: string;
+  targetItemPrice?: number;
   priceDifference: number; // 0, 양수(내가 더 냄), 음수(상대가 더 냄)
   proposedTime: string;
+  isPoke?: boolean; // 👉 비동기 찔러보기 여부 (상대 매장이 교환 OFF 상태일 때)
+  message?: string;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED';
   createdAt: string;
 }

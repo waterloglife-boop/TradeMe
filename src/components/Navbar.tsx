@@ -6,6 +6,7 @@ interface NavbarProps {
   onToggleBreakTime: () => void;
   onOpenRegisterModal: () => void;
   onOpenAuthModal: () => void;
+  onOpenTradeDashboard?: () => void;
   onOpenMenuTestDashboard?: () => void;
   isLoggedIn: boolean;
   userOwnerName: string;
@@ -25,6 +26,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleBreakTime,
   onOpenRegisterModal,
   onOpenAuthModal,
+  onOpenTradeDashboard,
   onOpenMenuTestDashboard,
   isLoggedIn,
   userOwnerName,
@@ -121,6 +123,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </>
               )}
             </button>
+
+            {/* 🤝 Trade Proposal Dashboard Management Button */}
+            {onOpenTradeDashboard && (
+              <button
+                onClick={onOpenTradeDashboard}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-amber-900 bg-gradient-to-r from-amber-100 to-orange-100 hover:from-amber-200 hover:to-orange-200 border border-amber-300 rounded-lg shadow-sm hover:shadow transition-all active:scale-95 whitespace-nowrap"
+              >
+                <span>🤝</span>
+                <span className="hidden sm:inline">교환 제안함</span>
+              </button>
+            )}
 
             {/* 🧪 Menu Test Dashboard Management Button */}
             {onOpenMenuTestDashboard && (

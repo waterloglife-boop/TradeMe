@@ -697,10 +697,55 @@ export async function sendTradeProposalToSupabase(
   requesterItemId: string,
   targetItemId: string,
   priceDifference: number,
-  pickupTime: string
+  pickupTime: string,
+  isPoke: boolean = false,
+  message: string = '',
+  meta?: {
+    myStoreName?: string;
+    myOwnerName?: string;
+    myItemTitle?: string;
+    myItemImageUrl?: string;
+    myItemPrice?: number;
+    targetStoreName?: string;
+    targetOwnerName?: string;
+    targetItemTitle?: string;
+    targetItemImageUrl?: string;
+    targetItemPrice?: number;
+  }
 ) {
+  const tradeId = `trade-${Date.now()}`;
+  const newProposal: TradeProposal = {
+    id: tradeId,
+    myStoreId: requesterStoreId,
+    targetStoreId: targetStoreId,
+    myExchangeItemId: requesterItemId,
+    targetExchangeItemId: targetItemId,
+    myStoreName: meta?.myStoreName,
+    myOwnerName: meta?.myOwnerName,
+    myItemTitle: meta?.myItemTitle,
+    myItemImageUrl: meta?.myItemImageUrl,
+    myItemPrice: meta?.myItemPrice,
+    targetStoreName: meta?.targetStoreName,
+    targetOwnerName: meta?.targetOwnerName,
+    targetItemTitle: meta?.targetItemTitle,
+    targetItemImageUrl: meta?.targetItemImageUrl,
+    targetItemPrice: meta?.targetItemPrice,
+    priceDifference,
+    proposedTime: pickupTime,
+    isPoke,
+    message,
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+  };
+
+  // 1. LocalStorage Backup for instant offline / mock access
   try {
-    const tradeId = `trade-${Date.now()}`;
+    const raw = localStorage.getItem('trademe_trade_proposals');
+    const existing: TradeProposal[] = raw ? JSON.parse(raw) : [];
+    localStorage.setItem('trademe_trade_proposals', JSON.stringify([newProposal, ...existing]));
+  } catch (e) {}
+
+  try {
     const { error } = await supabase.from('trades').insert({
       id: tradeId,
       requester_store_id: requesterStoreId,
@@ -709,18 +754,92 @@ export async function sendTradeProposalToSupabase(
       target_item_id: targetItemId,
       price_difference: priceDifference,
       pickup_time: pickupTime,
+      is_poke: isPoke,
+      message: message,
       status: 'PENDING',
     });
 
     if (error) {
       console.warn('Supabase trades insert notice:', error.message);
     }
-    return { success: true, tradeId };
+    return { success: true, tradeId, proposal: newProposal };
   } catch (err) {
     console.warn('Trades insert notice (fallback mode):', err);
-    return { success: true, tradeId: `trade-${Date.now()}` };
+    return { success: true, tradeId, proposal: newProposal };
   }
 }
+
+export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise<TradeProposal[]> {
+  let localProposals: TradeProposal[] = [];
+  try {
+    const raw = localStorage.getItem('trademe_trade_proposals');
+    if (raw) localProposals = JSON.parse(raw);
+  } catch (e) {}
+
+  try {
+    const { data, error } = await supabase
+      .from('trades')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error || !data || data.length === 0) {
+      if (storeId) {
+        return localProposals.filter((p) => p.targetStoreId === storeId || p.myStoreId === storeId || p.targetStoreId.includes('store-'));
+      }
+      return localProposals;
+    }
+
+    const dbProposals: TradeProposal[] = data.map((item: any) => ({
+      id: item.id,
+      myStoreId: item.requester_store_id,
+      targetStoreId: item.target_store_id,
+      myExchangeItemId: item.requester_item_id,
+      targetExchangeItemId: item.target_item_id,
+      priceDifference: item.price_difference || 0,
+      proposedTime: item.pickup_time || '',
+      isPoke: item.is_poke || false,
+      message: item.message || '',
+      status: item.status || 'PENDING',
+      createdAt: item.created_at || new Date().toISOString(),
+    }));
+
+    const existingIds = new Set(dbProposals.map((p) => p.id));
+    return [...dbProposals, ...localProposals.filter((p) => !existingIds.has(p.id))];
+  } catch (err) {
+    return localProposals;
+  }
+}
+
+export async function updateTradeProposalStatus(
+  proposalId: string,
+  status: 'ACCEPTED' | 'REJECTED'
+): Promise<{ success: boolean }> {
+  // 1. LocalStorage
+  try {
+    const raw = localStorage.getItem('trademe_trade_proposals');
+    if (raw) {
+      const list: TradeProposal[] = JSON.parse(raw);
+      const updated = list.map((p) => (p.id === proposalId ? { ...p, status } : p));
+      localStorage.setItem('trademe_trade_proposals', JSON.stringify(updated));
+    }
+  } catch (e) {}
+
+  // 2. Supabase
+  try {
+    const { error } = await supabase
+      .from('trades')
+      .update({ status })
+      .eq('id', proposalId);
+
+    if (error) {
+      console.warn('Update proposal status notice:', error.message);
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: true };
+  }
+}
+
 
 /**
  * 5. Fetch Chat History from Supabase Database for a specific Trade/Store

@@ -9,8 +9,9 @@ import { ChatDrawer } from './components/ChatDrawer';
 import { AuthModal } from './components/AuthModal';
 import { MenuTestApplyModal } from './components/MenuTestApplyModal';
 import { MenuTestDashboardModal } from './components/MenuTestDashboardModal';
+import { TradeDashboardModal } from './components/TradeDashboardModal';
 import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
-import { Store, ExchangeItem, ChatMessage, MenuTestApplication } from './types/trade';
+import { Store, ExchangeItem, ChatMessage, MenuTestApplication, TradeProposal } from './types/trade';
 import { fetchStoresFromSupabase, subscribeToTradeChat, sendChatMessageToSupabase, sendTradeProposalToSupabase, fetchChatHistory, saveProfileToSupabase, updateStoreStatusInSupabase, fetchUserProfileFromSupabase, fetchUserStoreFromSupabase } from './lib/supabase';
 import { MapPin } from 'lucide-react';
 
@@ -39,6 +40,7 @@ export const App: React.FC = () => {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [targetProposalItem, setTargetProposalItem] = useState<ExchangeItem | null>(null);
+  const [isTradeDashboardOpen, setIsTradeDashboardOpen] = useState(false);
 
   // 🧪 Menu Test Application & Dashboard Modal state
   const [isMenuTestModalOpen, setIsMenuTestModalOpen] = useState(false);
@@ -187,7 +189,9 @@ export const App: React.FC = () => {
     myMenu: ExchangeItem,
     targetMenu: ExchangeItem,
     diffPrice: number,
-    pickupTime: string
+    pickupTime: string,
+    isPoke: boolean = false,
+    memoMessage: string = ''
   ) => {
     if (!selectedStore) return;
 
@@ -198,40 +202,103 @@ export const App: React.FC = () => {
         ? `내가 ${diffPrice.toLocaleString()}원 현장 추가정산`
         : `상대가 ${Math.abs(diffPrice).toLocaleString()}원 현장 추가정산`;
 
-    const proposalMsgText = `[1:1 물물교환 제안]\n내 메뉴: ${myMenu.title} (${myMenu.estimatedPrice.toLocaleString()}원)\n요청 메뉴: ${targetMenu.title} (${targetMenu.estimatedPrice.toLocaleString()}원)\n정산: ${diffText}\n희망 시각: ${pickupTime}`;
-
-    const newMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      senderId: myStore.id,
-      senderName: myStore.ownerName,
-      message: proposalMsgText,
-      timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-      isMe: true,
-      systemAction: 'PROPOSAL',
-    };
-
     const storeId = selectedStore.id;
 
-    // Send proposal record to Supabase DB trades table
+    // Send proposal record to Supabase DB trades table & LocalStorage
     sendTradeProposalToSupabase(
       myStore.id,
       storeId,
       myMenu.id,
       targetMenu.id,
       diffPrice,
-      pickupTime
+      pickupTime,
+      isPoke,
+      memoMessage,
+      {
+        myStoreName: myStore.storeName,
+        myOwnerName: myStore.ownerName,
+        myItemTitle: myMenu.title,
+        myItemImageUrl: myMenu.imageUrl,
+        myItemPrice: myMenu.estimatedPrice,
+        targetStoreName: selectedStore.storeName,
+        targetOwnerName: selectedStore.ownerName,
+        targetItemTitle: targetMenu.title,
+        targetItemImageUrl: targetMenu.imageUrl,
+        targetItemPrice: targetMenu.estimatedPrice,
+      }
     );
 
-    // Send proposal chat message to Supabase DB chat_messages table
-    sendChatMessageToSupabase(storeId, myStore.id, myStore.ownerName, proposalMsgText);
+    // If it's a REALTIME exchange proposal (!isPoke), open chat and send proposal bubble
+    // If it's a POKE (isPoke === true), send asynchronously without intrusive chat popup
+    if (!isPoke) {
+      const proposalMsgText = `[1:1 물물교환 제안]\n내 메뉴: ${myMenu.title} (${myMenu.estimatedPrice.toLocaleString()}원)\n요청 메뉴: ${targetMenu.title} (${targetMenu.estimatedPrice.toLocaleString()}원)\n정산: ${diffText}\n희망 시각: ${pickupTime}${memoMessage ? `\n메모: ${memoMessage}` : ''}`;
+
+      const newMsg: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        senderId: myStore.id,
+        senderName: myStore.ownerName,
+        message: proposalMsgText,
+        timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        isMe: true,
+        systemAction: 'PROPOSAL',
+      };
+
+      // Send proposal chat message to Supabase DB chat_messages table
+      sendChatMessageToSupabase(storeId, myStore.id, myStore.ownerName, proposalMsgText);
+
+      setMessagesMap((prev) => ({
+        ...prev,
+        [storeId]: [...(prev[storeId] || []), newMsg],
+      }));
+
+      setChatTargetStore(selectedStore);
+      setIsChatDrawerOpen(true);
+    } else {
+      alert(`👉 [${selectedStore.storeName}] 사장님께 조용히 '비동기 찔러보기' 제안서를 전달했습니다!\n상대 사장님이 여유가 되실 때 제안함에서 확인 및 수락하실 수 있습니다.`);
+    }
+  };
+
+  const handleAcceptTradeProposalAndOpenChat = (proposal: TradeProposal) => {
+    const counterpartStoreId = proposal.myStoreId === myStore.id ? proposal.targetStoreId : proposal.myStoreId;
+    const counterpartStore = stores.find((s) => s.id === counterpartStoreId) || {
+      id: counterpartStoreId,
+      ownerName: proposal.myOwnerName || '이웃 사장님',
+      storeName: proposal.myStoreName || '이웃 매장',
+      category: 'FOOD',
+      categoryName: '외식업',
+      address: '인근 이웃 매장',
+      lat: myStore.lat + 0.001,
+      lng: myStore.lng + 0.001,
+      phone: '010-0000-0000',
+      isVerified: true,
+      breakTimeActive: true,
+      breakTimeHours: '10:00 - 22:00',
+      storeImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+      exchangeItems: [],
+      rating: 5.0,
+      reviewCount: 1,
+    };
+
+    setChatTargetStore(counterpartStore);
+    setIsChatDrawerOpen(true);
+
+    const acceptText = `🤝 [${myStore.storeName}] 사장님께서 제안하신 1:1 물물교환을 수락하셨습니다! 교환 픽업 시간과 상세 내용을 확인해 주세요.`;
+    const newMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      senderId: myStore.id,
+      senderName: myStore.ownerName,
+      message: acceptText,
+      timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
+      systemAction: 'ACCEPT',
+    };
 
     setMessagesMap((prev) => ({
       ...prev,
-      [storeId]: [...(prev[storeId] || []), newMsg],
+      [counterpartStore.id]: [...(prev[counterpartStore.id] || []), newMsg],
     }));
 
-    setChatTargetStore(selectedStore);
-    setIsChatDrawerOpen(true);
+    sendChatMessageToSupabase(counterpartStore.id, myStore.id, myStore.ownerName, acceptText);
   };
 
   const handleOpenChat = (store: Store) => {
@@ -358,6 +425,7 @@ export const App: React.FC = () => {
         onToggleBreakTime={handleToggleBreakTime}
         onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenTradeDashboard={() => setIsTradeDashboardOpen(true)}
         onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
         isLoggedIn={isLoggedIn}
         userOwnerName={userOwnerName}
@@ -448,6 +516,16 @@ export const App: React.FC = () => {
         onClose={() => setIsMenuTestDashboardOpen(false)}
         myStore={myStore}
         onAcceptAndOpenChat={handleAcceptMenuTestAndOpenChat}
+      />
+
+      {/* 🤝 1:1 Trade Proposal Dashboard Modal (교환 제안함 대시보드) */}
+      <TradeDashboardModal
+        isOpen={isTradeDashboardOpen}
+        onClose={() => setIsTradeDashboardOpen(false)}
+        myStore={myStore}
+        allStores={stores}
+        onAcceptAndOpenChat={handleAcceptTradeProposalAndOpenChat}
+        onOpenChat={handleOpenChat}
       />
 
       {/* 1:1 Equivalent Exchange Proposal Modal */}
