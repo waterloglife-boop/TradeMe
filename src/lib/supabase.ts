@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication } from '../types/trade';
-import { INITIAL_STORES } from '../data/mockData';
+import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign } from '../types/trade';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-trade-me.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-anon-key-12345';
@@ -90,7 +89,7 @@ export async function verifyNtsBusinessStatus(businessNumber: string): Promise<N
       bNo: cleanBno,
       bStt: '계속사업자',
       taxType: '부가가치세 일반과세자',
-      message: '국세청 사업자등록번호 실시간 인증 완료',
+      message: '국세청 사업자등록번호 인증 완료',
     };
   } catch (err) {
     console.warn('NTS API Call notice (Fallback validation):', err);
@@ -106,7 +105,57 @@ export async function verifyNtsBusinessStatus(businessNumber: string): Promise<N
 }
 
 /**
- * 1. Supabase Authentication Helpers
+ * 🖼️ Supabase Storage Image Upload Helper
+ */
+export async function uploadStoreImageToSupabase(file: File): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileName = `store_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+    const filePath = `stores/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('store-images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('[Supabase Storage Error] Image upload failed:', {
+        code: (uploadError as any).code,
+        message: uploadError.message,
+      });
+      // Fallback: convert to base64 data url for preview
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+      return { success: true, url: dataUrl };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('store-images')
+      .getPublicUrl(filePath);
+
+    return { success: true, url: publicUrlData.publicUrl };
+  } catch (err: any) {
+    console.error('[Supabase Storage Error] Exception during upload:', err);
+    try {
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+      return { success: true, url: dataUrl };
+    } catch (e) {
+      return { success: false, error: err.message || '이미지 업로드에 실패했습니다.' };
+    }
+  }
+}
+
+/**
+ * 1. Supabase Authentication Helpers (100% Pure Supabase Auth)
  */
 export async function signUpUser(
   email: string,
@@ -131,10 +180,15 @@ export async function signUpUser(
     });
 
     if (error) {
+      console.error('[Supabase Auth Error] signUp failed:', {
+        code: error.code,
+        message: error.message,
+        status: error.status,
+      });
       if (error.message?.includes('already registered') || error.message?.includes('already exists') || error.status === 422) {
         return { success: false, error: 'ALREADY_EXISTS', message: '이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.' };
       }
-      throw error;
+      return { success: false, error: error.message, message: error.message };
     }
 
     if (data.user) {
@@ -148,81 +202,65 @@ export async function signUpUser(
           phone: phone || '',
         });
         if (profileError) {
-          console.warn('Notice upserting to profiles table:', profileError.message);
+          console.error('[Supabase Error] profiles upsert on signup failed:', profileError);
         }
-      } catch (e) {
-        // Notice fallback
-      }
+      } catch (e) {}
     }
 
     return { success: true, user: data.user };
   } catch (err: any) {
-    if (err?.message?.includes('already registered') || err?.message?.includes('already exists')) {
-      return { success: false, error: 'ALREADY_EXISTS', message: '이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.' };
-    }
-    console.warn('Supabase Auth Notice (Fallback mode):', err.message);
-    return {
-      success: true,
-      user: {
-        id: `usr-${Date.now()}`,
-        email,
-        user_metadata: { owner_name: ownerName, store_name: storeName, phone: phone || '' },
-      },
-    };
-  }
-}
-
-export async function uploadStoreImageToSupabase(file: File): Promise<{ success: boolean; url: string; error?: string }> {
-  try {
-    // 1. Try uploading to Supabase Storage 'store-images' bucket
-    const fileExt = file.name.split('.').pop() || 'jpg';
-    const cleanFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
-    const filePath = `stores/${cleanFileName}`;
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('store-images')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-      });
-
-    if (!uploadError && uploadData) {
-      const { data: publicUrlData } = supabase.storage
-        .from('store-images')
-        .getPublicUrl(filePath);
-
-      if (publicUrlData?.publicUrl) {
-        return { success: true, url: publicUrlData.publicUrl };
-      }
-    }
-
-    // 2. Fallback gracefully to FileReader Base64 Data URL so user experience is never blocked
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve({
-          success: true,
-          url: reader.result as string,
-        });
-      };
-      reader.onerror = () => {
-        resolve({
-          success: false,
-          url: '',
-          error: '이미지 파일을 읽는 도중 오류가 발생했습니다.',
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-  } catch (err: any) {
+    console.error('[Supabase Auth Error] signUpUser exception:', err);
     return {
       success: false,
-      url: '',
-      error: err?.message || '이미지 업로드 중 오류가 발생했습니다.',
+      error: err?.message || '회원가입 중 오류가 발생했습니다.',
+      message: err?.message || '회원가입 중 오류가 발생했습니다.',
     };
   }
 }
 
+export async function signInUser(email: string, pass: string) {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: pass,
+    });
+    if (error) {
+      console.error('[Supabase Auth Error] signInWithPassword failed:', {
+        code: error.code,
+        message: error.message,
+        status: error.status,
+      });
+      return { success: false, error: error.message, message: '이메일 또는 비밀번호가 올바르지 않습니다.' };
+    }
+    return { success: true, user: data.user };
+  } catch (err: any) {
+    console.error('[Supabase Auth Error] signInUser exception:', err);
+    return { success: false, error: err?.message, message: '로그인 중 오류가 발생했습니다.' };
+  }
+}
+
+export async function signInWithSocial(provider: 'kakao' | 'naver') {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: provider as any,
+      options: {
+        redirectTo: `${window.location.origin}/`,
+      },
+    });
+    if (error) {
+      console.error('[Supabase Auth Error] OAuth signIn failed:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true, data };
+  } catch (err: any) {
+    console.error('[Supabase Auth Error] OAuth exception:', err);
+    return { success: false, error: err?.message };
+  }
+}
+
+/**
+ * 1. Supabase Auth & Profile Helpers
+ */
 export async function saveProfileToSupabase(
   ownerName: string,
   storeName: string,
@@ -247,35 +285,28 @@ export async function saveProfileToSupabase(
       }
     }
 
-    if (!userId) {
-      // Fallback to existing profile in DB
-      const { data: existing } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (existing && existing.length > 0) {
-        userId = existing[0].id;
-      }
+    // 1. Profiles Table Upsert
+    const profilePayload: any = {
+      owner_name: ownerName,
+      store_name: storeName,
+    };
+    if (userId) profilePayload.id = userId;
+    if (phone) profilePayload.phone = phone;
+    if (businessNumber) profilePayload.business_number = businessNumber;
+    if (storeImageUrl) profilePayload.store_image_url = storeImageUrl;
+    if (address) profilePayload.address = address;
+
+    const { error: profileError } = await supabase.from('profiles').upsert(profilePayload);
+    if (profileError) {
+      console.error('[Supabase Error] profiles upsert failed:', {
+        code: profileError.code,
+        message: profileError.message,
+        details: profileError.details,
+        hint: profileError.hint,
+      });
     }
 
-    if (userId) {
-      const profilePayload: any = {
-        id: userId,
-        owner_name: ownerName,
-        store_name: storeName,
-        phone: phone || '',
-        business_number: businessNumber || '',
-      };
-      if (storeImageUrl) profilePayload.store_image_url = storeImageUrl;
-
-      const { error: pErr } = await supabase.from('profiles').upsert(profilePayload);
-      if (pErr) {
-        console.warn('Profile upsert warning:', pErr.message);
-      }
-    }
-
-    // 🏬 Also update stores table so map and drawers reflect the updated store profile
+    // 2. Stores Table Update
     const storePayload: any = {
       owner_name: ownerName,
       store_name: storeName,
@@ -289,11 +320,27 @@ export async function saveProfileToSupabase(
     if (lng !== undefined) storePayload.lng = lng;
 
     if (userId) {
-      await supabase.from('stores').update(storePayload).eq('user_id', userId);
+      const { error: storeUserErr } = await supabase.from('stores').update(storePayload).eq('user_id', userId);
+      if (storeUserErr) {
+        console.error('[Supabase Error] stores update by user_id failed:', {
+          code: storeUserErr.code,
+          message: storeUserErr.message,
+          details: storeUserErr.details,
+          hint: storeUserErr.hint,
+        });
+      }
     }
-    await supabase.from('stores').update(storePayload).eq('owner_name', ownerName);
+    const { error: storeOwnerErr } = await supabase.from('stores').update(storePayload).eq('owner_name', ownerName);
+    if (storeOwnerErr) {
+      console.error('[Supabase Error] stores update by owner_name failed:', {
+        code: storeOwnerErr.code,
+        message: storeOwnerErr.message,
+        details: storeOwnerErr.details,
+        hint: storeOwnerErr.hint,
+      });
+    }
   } catch (err) {
-    console.warn('Profile upsert notice:', err);
+    console.error('[Supabase Error] saveProfileToSupabase exception:', err);
   }
 }
 
@@ -317,21 +364,41 @@ export async function fetchUserProfileFromSupabase() {
         .eq('id', userId)
         .maybeSingle();
 
+      if (error) {
+        console.error('[Supabase Error] fetchUserProfile by userId failed:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+      }
+
       if (!error && data) return data;
     }
 
-    // 🛡️ Fallback: If no browser auth session, fetch the registered profile directly from DB
+    // 🛡️ Fallback: search profile from DB
     const { data: profiles, error: pErr } = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(1);
 
-    if (!pErr && profiles && profiles.length > 0) {
+    if (pErr) {
+      console.error('[Supabase Error] fetchUserProfile fallback failed:', {
+        code: pErr.code,
+        message: pErr.message,
+        details: pErr.details,
+        hint: pErr.hint,
+      });
+      return null;
+    }
+
+    if (profiles && profiles.length > 0) {
       return profiles[0];
     }
     return null;
   } catch (err) {
+    console.error('[Supabase Error] fetchUserProfileFromSupabase exception:', err);
     return null;
   }
 }
@@ -349,7 +416,7 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
       }
     }
 
-    let query = supabase.from('stores').select('*, exchange_items(*)');
+    let query = supabase.from('stores').select('*');
     if (userId) {
       query = query.eq('user_id', userId);
     } else {
@@ -358,154 +425,163 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
 
     const { data: storeData, error } = await query.limit(1).maybeSingle();
 
-    if (error || !storeData) return null;
+    if (error) {
+      console.error('[Supabase Error] fetchUserStoreFromSupabase failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return null;
+    }
 
-    const store: Store = {
+    if (!storeData) return null;
+
+    // Fetch items for this store from items table
+    const { data: itemsData, error: itemErr } = await supabase
+      .from('items')
+      .select('*')
+      .eq('store_id', storeData.id);
+
+    if (itemErr) {
+      console.error('[Supabase Error] fetch items for userStore failed:', {
+        code: itemErr.code,
+        message: itemErr.message,
+        details: itemErr.details,
+        hint: itemErr.hint,
+      });
+    }
+
+    const exchangeItems: ExchangeItem[] = (itemsData || []).map((i: any) => ({
+      id: i.id,
+      storeId: i.store_id || storeData.id,
+      type: i.item_type || 'FOOD',
+      title: i.title,
+      description: i.description || '',
+      estimatedPrice: i.estimated_price || 10000,
+      imageUrl: i.image_url || '',
+      isAvailable: i.is_available ?? true,
+    }));
+
+    return {
       id: storeData.id,
       userId: storeData.user_id,
       ownerName: storeData.owner_name,
       storeName: storeData.store_name,
-      category: storeData.category,
-      categoryName: storeData.category_name || storeData.category,
-      address: storeData.address,
-      lat: storeData.lat,
-      lng: storeData.lng,
-      phone: storeData.phone,
-      isVerified: storeData.is_verified,
-      breakTimeActive: storeData.is_exchange_active ?? storeData.break_time_active ?? true,
-      breakTimeHours: storeData.operating_hours ?? storeData.break_time_hours ?? '10:00 - 22:00 (연중무휴)',
-      storeImageUrl: storeData.store_image_url,
-      rating: storeData.rating || 4.9,
-      reviewCount: storeData.review_count || 30,
-
-      // 🧪 [신메뉴/신규서비스 체험단 필드 매핑]
+      category: storeData.category || 'FOOD',
+      categoryName: storeData.category_name || storeData.category || '외식업',
+      address: storeData.address || '',
+      lat: storeData.lat || 35.3594,
+      lng: storeData.lng || 129.0418,
+      phone: storeData.phone || '',
+      isVerified: storeData.is_verified ?? true,
+      breakTimeActive: storeData.is_exchange_active ?? storeData.break_time_active ?? false,
+      breakTimeHours: storeData.operating_hours ?? storeData.break_time_hours ?? '10:00 - 22:00',
+      storeImageUrl: storeData.store_image_url || '',
+      rating: storeData.rating || 5.0,
+      reviewCount: storeData.review_count || 0,
       isMenuTesting: storeData.is_menu_testing ?? false,
       menuTestTitle: storeData.menu_test_title ?? '',
       menuTestReward: storeData.menu_test_reward ?? '',
-      menuTestQuota: storeData.menu_test_quota ?? 3,
+      menuTestQuota: storeData.menu_test_quota ?? 5,
       menuTestApplicantCount: storeData.menu_test_applicant_count ?? 0,
       menuTestFeedbackType: storeData.menu_test_feedback_type ?? 'BOTH',
       menuTestDescription: storeData.menu_test_description ?? '',
-
-      exchangeItems: (storeData.exchange_items || []).map((i: any) => ({
-        id: i.id,
-        storeId: i.store_id,
-        type: i.item_type,
-        title: i.title,
-        description: i.description,
-        estimatedPrice: i.estimated_price,
-        imageUrl: i.image_url,
-        isAvailable: i.is_available,
-      })),
+      menuTestImageUrl: storeData.menu_test_image_url ?? '',
+      exchangeItems,
     };
-    return store;
   } catch (err) {
+    console.error('[Supabase Error] fetchUserStoreFromSupabase exception:', err);
     return null;
   }
 }
 
-export async function signInUser(email: string, pass: string) {
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password: pass,
-    });
-    if (error) throw error;
-    return { success: true, user: data.user };
-  } catch (err: any) {
-    console.warn('Supabase Signin Notice (Fallback mode):', err.message);
-    return {
-      success: true,
-      user: {
-        id: 'usr-demo',
-        email,
-        user_metadata: { owner_name: '홍길동 사장님', store_name: '원조 송정 수제돈까스' },
-      },
-    };
-  }
-}
-
-export async function signInWithSocial(provider: 'kakao' | 'naver') {
-  try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: provider as any,
-      options: {
-        redirectTo: `${window.location.origin}/`,
-      },
-    });
-    if (error) throw error;
-    return { success: true, data };
-  } catch (err: any) {
-    console.warn('Supabase Social Auth Notice:', err.message);
-    return { success: true };
-  }
-}
-
 /**
- * 2. Supabase Store & Exchange Item Database Helpers
+ * 2. Supabase Store & Exchange Item Database Helpers (100% Pure DB)
  */
 export async function fetchStoresFromSupabase(): Promise<Store[]> {
-  let localCustomStores: Store[] = [];
   try {
-    const raw = localStorage.getItem('trademe_custom_stores');
-    if (raw) localCustomStores = JSON.parse(raw);
-  } catch (e) {}
-
-  try {
-    const { data: storesData, error } = await supabase
+    const { data: storesData, error: storesError } = await supabase
       .from('stores')
-      .select('*, exchange_items(*)');
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    if (error || !storesData || storesData.length === 0) {
-      const existingIds = new Set(localCustomStores.map((s) => s.id));
-      return [...localCustomStores, ...INITIAL_STORES.filter((s) => !existingIds.has(s.id))];
+    if (storesError) {
+      console.error('[Supabase Error] Failed to fetch stores from DB:', {
+        code: storesError.code,
+        message: storesError.message,
+        details: storesError.details,
+        hint: storesError.hint,
+      });
+      return [];
     }
+
+    if (!storesData || storesData.length === 0) {
+      return [];
+    }
+
+    // Fetch items for all stores
+    const { data: itemsData, error: itemsError } = await supabase
+      .from('items')
+      .select('*');
+
+    if (itemsError) {
+      console.error('[Supabase Error] Failed to fetch items for stores from DB:', {
+        code: itemsError.code,
+        message: itemsError.message,
+        details: itemsError.details,
+        hint: itemsError.hint,
+      });
+    }
+
+    const itemsByStore: { [storeId: string]: ExchangeItem[] } = {};
+    (itemsData || []).forEach((i: any) => {
+      const sid = i.store_id || i.storeId;
+      if (!itemsByStore[sid]) itemsByStore[sid] = [];
+      itemsByStore[sid].push({
+        id: i.id,
+        storeId: sid,
+        type: i.item_type || 'FOOD',
+        title: i.title,
+        description: i.description || '',
+        estimatedPrice: i.estimated_price || 10000,
+        imageUrl: i.image_url || '',
+        isAvailable: i.is_available ?? true,
+      });
+    });
 
     const dbStores: Store[] = storesData.map((s: any) => ({
       id: s.id,
       userId: s.user_id,
       ownerName: s.owner_name,
       storeName: s.store_name,
-      category: s.category,
-      categoryName: s.category_name || s.category,
-      address: s.address,
-      lat: s.lat,
-      lng: s.lng,
-      phone: s.phone,
-      isVerified: s.is_verified,
-      breakTimeActive: s.is_exchange_active ?? s.break_time_active ?? true,
-      breakTimeHours: s.operating_hours ?? s.break_time_hours ?? '10:00 - 22:00 (연중무휴)',
-      storeImageUrl: s.store_image_url,
-      rating: s.rating || 4.9,
-      reviewCount: s.review_count || 30,
-
-      // 🧪 [신메뉴/신규서비스 체험단 필드 매핑]
+      category: s.category || 'FOOD',
+      categoryName: s.category_name || s.category || '외식업',
+      address: s.address || '',
+      lat: s.lat || 35.3594,
+      lng: s.lng || 129.0418,
+      phone: s.phone || '',
+      isVerified: s.is_verified ?? true,
+      breakTimeActive: s.is_exchange_active ?? s.break_time_active ?? false,
+      breakTimeHours: s.operating_hours ?? s.break_time_hours ?? '10:00 - 22:00',
+      storeImageUrl: s.store_image_url || '',
+      rating: s.rating || 5.0,
+      reviewCount: s.review_count || 0,
       isMenuTesting: s.is_menu_testing ?? false,
       menuTestTitle: s.menu_test_title ?? '',
       menuTestReward: s.menu_test_reward ?? '',
-      menuTestQuota: s.menu_test_quota ?? 3,
+      menuTestQuota: s.menu_test_quota ?? 5,
       menuTestApplicantCount: s.menu_test_applicant_count ?? 0,
       menuTestFeedbackType: s.menu_test_feedback_type ?? 'BOTH',
       menuTestDescription: s.menu_test_description ?? '',
-
-      exchangeItems: (s.exchange_items || []).map((i: any) => ({
-        id: i.id,
-        storeId: i.store_id,
-        type: i.item_type,
-        title: i.title,
-        description: i.description,
-        estimatedPrice: i.estimated_price,
-        imageUrl: i.image_url,
-        isAvailable: i.is_available,
-      })),
+      menuTestImageUrl: s.menu_test_image_url ?? '',
+      exchangeItems: itemsByStore[s.id] || [],
     }));
 
-    const existingIds = new Set([...dbStores.map((s) => s.id), ...localCustomStores.map((s) => s.id)]);
-    const mergedStores = [...localCustomStores, ...dbStores, ...INITIAL_STORES.filter((s) => !existingIds.has(s.id))];
-    return mergedStores;
+    return dbStores;
   } catch (err) {
-    const existingIds = new Set(localCustomStores.map((s) => s.id));
-    return [...localCustomStores, ...INITIAL_STORES.filter((s) => !existingIds.has(s.id))];
+    console.error('[Supabase Error] fetchStoresFromSupabase exception:', err);
+    return [];
   }
 }
 
@@ -618,15 +694,21 @@ export async function insertStoreAndItems(
     }
 
     if (storeError) {
-      console.warn('Supabase store upsert notice:', storeError.message);
+      console.error('[Supabase Error] stores upsert in insertStoreAndItems failed:', {
+        code: storeError.code,
+        message: storeError.message,
+        details: storeError.details,
+        hint: storeError.hint,
+      });
     }
 
-    // 4. Clean up old items before inserting fresh 3 items if updating
+    // 4. Clean up old items before inserting fresh items if updating
     if (isUpdate) {
+      await supabase.from('items').delete().eq('store_id', finalStoreId);
       await supabase.from('exchange_items').delete().eq('store_id', finalStoreId);
     }
 
-    // 5. Insert fresh 3 exchange items
+    // 5. Insert fresh exchange items into items table
     const itemRecords = items.map((item, idx) => ({
       id: `item-${Date.now()}-${idx}`,
       store_id: finalStoreId,
@@ -638,10 +720,19 @@ export async function insertStoreAndItems(
       is_available: true,
     }));
 
-    const { error: itemsError } = await supabase.from('exchange_items').insert(itemRecords);
+    const { error: itemsError } = await supabase.from('items').insert(itemRecords);
     if (itemsError) {
-      console.warn('Supabase items insert notice:', itemsError.message);
+      console.error('[Supabase Error] items insert failed:', {
+        code: itemsError.code,
+        message: itemsError.message,
+        details: itemsError.details,
+        hint: itemsError.hint,
+      });
     }
+
+    try {
+      await supabase.from('exchange_items').insert(itemRecords);
+    } catch (e) {}
 
     const createdStore: Store = {
       ...storeInfo,
@@ -853,23 +944,30 @@ export async function sendTradeProposalToSupabase(
 }
 
 export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise<TradeProposal[]> {
-  let localProposals: TradeProposal[] = [];
   try {
-    const raw = localStorage.getItem('trademe_trade_proposals');
-    if (raw) localProposals = JSON.parse(raw);
-  } catch (e) {}
-
-  try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('trades')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      if (storeId) {
-        return localProposals.filter((p) => p.targetStoreId === storeId || p.myStoreId === storeId || p.targetStoreId.includes('store-'));
-      }
-      return localProposals;
+    if (storeId) {
+      query = query.or(`target_store_id.eq.${storeId},requester_store_id.eq.${storeId}`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[Supabase Error] fetchTradeProposalsFromSupabase failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
     }
 
     const dbProposals: TradeProposal[] = data.map((item: any) => ({
@@ -886,10 +984,10 @@ export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise
       createdAt: item.created_at || new Date().toISOString(),
     }));
 
-    const existingIds = new Set(dbProposals.map((p) => p.id));
-    return [...dbProposals, ...localProposals.filter((p) => !existingIds.has(p.id))];
+    return dbProposals;
   } catch (err) {
-    return localProposals;
+    console.error('[Supabase Error] fetchTradeProposalsFromSupabase exception:', err);
+    return [];
   }
 }
 
@@ -897,17 +995,6 @@ export async function updateTradeProposalStatus(
   proposalId: string,
   status: 'ACCEPTED' | 'REJECTED'
 ): Promise<{ success: boolean }> {
-  // 1. LocalStorage
-  try {
-    const raw = localStorage.getItem('trademe_trade_proposals');
-    if (raw) {
-      const list: TradeProposal[] = JSON.parse(raw);
-      const updated = list.map((p) => (p.id === proposalId ? { ...p, status } : p));
-      localStorage.setItem('trademe_trade_proposals', JSON.stringify(updated));
-    }
-  } catch (e) {}
-
-  // 2. Supabase
   try {
     const { error } = await supabase
       .from('trades')
@@ -915,14 +1002,20 @@ export async function updateTradeProposalStatus(
       .eq('id', proposalId);
 
     if (error) {
-      console.warn('Update proposal status notice:', error.message);
+      console.error('[Supabase Error] updateTradeProposalStatus failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return { success: false };
     }
     return { success: true };
   } catch (err) {
-    return { success: true };
+    console.error('[Supabase Error] updateTradeProposalStatus exception:', err);
+    return { success: false };
   }
 }
-
 
 /**
  * 5. Fetch Chat History from Supabase Database for a specific Trade/Store
@@ -935,7 +1028,17 @@ export async function fetchChatHistory(storeId: string): Promise<ChatMessage[]> 
       .eq('trade_id', storeId)
       .order('created_at', { ascending: true });
 
-    if (error || !data || data.length === 0) {
+    if (error) {
+      console.error('[Supabase Error] fetchChatHistory failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return [];
+    }
+
+    if (!data || data.length === 0) {
       return [];
     }
 
@@ -951,7 +1054,7 @@ export async function fetchChatHistory(storeId: string): Promise<ChatMessage[]> 
       isMe: false,
     }));
   } catch (err) {
-    console.warn('Error fetching chat history from Supabase:', err);
+    console.error('[Supabase Error] fetchChatHistory exception:', err);
     return [];
   }
 }
@@ -961,27 +1064,6 @@ export async function fetchChatHistory(storeId: string): Promise<ChatMessage[]> 
  */
 export async function applyMenuTestCampaign(application: Omit<MenuTestApplication, 'id' | 'createdAt' | 'status'>) {
   const applicationId = `app-${Date.now()}`;
-  const newApp: MenuTestApplication = {
-    id: applicationId,
-    storeId: application.storeId,
-    applicantUserId: application.applicantUserId || undefined,
-    applicantStoreName: application.applicantStoreName,
-    applicantOwnerName: application.applicantOwnerName,
-    applicantPhone: application.applicantPhone,
-    snsUrl: application.snsUrl || '',
-    message: application.message,
-    feedbackType: application.feedbackType || 'BOTH',
-    status: 'PENDING',
-    createdAt: new Date().toISOString(),
-  };
-
-  // 1. LocalStorage Backup for instant offline and mock display
-  try {
-    const raw = localStorage.getItem('trademe_menu_test_applications');
-    const existing: MenuTestApplication[] = raw ? JSON.parse(raw) : [];
-    localStorage.setItem('trademe_menu_test_applications', JSON.stringify([newApp, ...existing]));
-  } catch (e) {}
-
   try {
     const payload = {
       id: applicationId,
@@ -1001,7 +1083,12 @@ export async function applyMenuTestCampaign(application: Omit<MenuTestApplicatio
     const { error } = await supabase.from('menu_test_applications').insert(payload);
 
     if (error) {
-      console.warn('Supabase menu test application insert notice:', error.message);
+      console.error('[Supabase Error] applyMenuTestCampaign insert failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
     }
 
     // Increment applicant count on store table if possible
@@ -1019,20 +1106,14 @@ export async function applyMenuTestCampaign(application: Omit<MenuTestApplicatio
         .eq('id', application.storeId);
     } catch (e) {}
 
-    return { success: true, applicationId };
+    return { success: !error, applicationId };
   } catch (err: any) {
-    console.warn('Menu test apply notice (fallback mode):', err);
-    return { success: true, applicationId };
+    console.error('[Supabase Error] applyMenuTestCampaign exception:', err);
+    return { success: false, applicationId };
   }
 }
 
 export async function fetchMenuTestApplications(storeId?: string): Promise<MenuTestApplication[]> {
-  let localApps: MenuTestApplication[] = [];
-  try {
-    const raw = localStorage.getItem('trademe_menu_test_applications');
-    if (raw) localApps = JSON.parse(raw);
-  } catch (e) {}
-
   try {
     let query = supabase
       .from('menu_test_applications')
@@ -1045,11 +1126,18 @@ export async function fetchMenuTestApplications(storeId?: string): Promise<MenuT
 
     const { data, error } = await query;
 
-    if (error || !data || data.length === 0) {
-      if (storeId && storeId !== 'ALL') {
-        return localApps.filter((a) => a.storeId === storeId || a.storeId.includes('store-'));
-      }
-      return localApps;
+    if (error) {
+      console.error('[Supabase Error] fetchMenuTestApplications failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
     }
 
     const dbApps: MenuTestApplication[] = data.map((item: any) => ({
@@ -1068,10 +1156,10 @@ export async function fetchMenuTestApplications(storeId?: string): Promise<MenuT
       createdAt: item.created_at,
     }));
 
-    const existingIds = new Set(dbApps.map((a) => a.id));
-    return [...dbApps, ...localApps.filter((a) => !existingIds.has(a.id))];
+    return dbApps;
   } catch (err) {
-    return localApps;
+    console.error('[Supabase Error] fetchMenuTestApplications exception:', err);
+    return [];
   }
 }
 
@@ -1079,17 +1167,6 @@ export async function updateMenuTestApplicationStatus(
   applicationId: string,
   status: 'ACCEPTED' | 'REJECTED'
 ): Promise<{ success: boolean }> {
-  // 1. Update in LocalStorage
-  try {
-    const raw = localStorage.getItem('trademe_menu_test_applications');
-    if (raw) {
-      const apps: MenuTestApplication[] = JSON.parse(raw);
-      const updated = apps.map((a) => (a.id === applicationId ? { ...a, status } : a));
-      localStorage.setItem('trademe_menu_test_applications', JSON.stringify(updated));
-    }
-  } catch (e) {}
-
-  // 2. Update in Supabase DB
   try {
     const { error } = await supabase
       .from('menu_test_applications')
@@ -1097,12 +1174,18 @@ export async function updateMenuTestApplicationStatus(
       .eq('id', applicationId);
 
     if (error) {
-      console.warn('Notice updating application status in Supabase:', error.message);
+      console.error('[Supabase Error] updateMenuTestApplicationStatus failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return { success: false };
     }
     return { success: true };
   } catch (err) {
-    console.warn('Update status notice (fallback mode):', err);
-    return { success: true };
+    console.error('[Supabase Error] updateMenuTestApplicationStatus exception:', err);
+    return { success: false };
   }
 }
 
@@ -1110,12 +1193,6 @@ export async function updateMenuTestApplicationStatus(
 // 🧪 [최대 2개 동시 모집] 신메뉴 시식단 캠페인 (menu_test_campaigns) API
 // ==============================================================================
 export async function fetchMenuTestCampaigns(storeId: string): Promise<MenuTestCampaign[]> {
-  let localCampaigns: MenuTestCampaign[] = [];
-  try {
-    const raw = localStorage.getItem(`trademe_campaigns_${storeId}`);
-    if (raw) localCampaigns = JSON.parse(raw);
-  } catch (e) {}
-
   try {
     const { data, error } = await supabase
       .from('menu_test_campaigns')
@@ -1123,8 +1200,18 @@ export async function fetchMenuTestCampaigns(storeId: string): Promise<MenuTestC
       .eq('store_id', storeId)
       .order('created_at', { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      return localCampaigns;
+    if (error) {
+      console.error('[Supabase Error] fetchMenuTestCampaigns failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
     }
 
     const dbCampaigns: MenuTestCampaign[] = data.map((item: any) => ({
@@ -1142,28 +1229,14 @@ export async function fetchMenuTestCampaigns(storeId: string): Promise<MenuTestC
 
     return dbCampaigns;
   } catch (err) {
-    return localCampaigns;
+    console.error('[Supabase Error] fetchMenuTestCampaigns exception:', err);
+    return [];
   }
 }
 
 export async function saveMenuTestCampaignToSupabase(
   campaign: MenuTestCampaign
 ): Promise<{ success: boolean; data?: MenuTestCampaign }> {
-  // 1. LocalStorage
-  try {
-    const raw = localStorage.getItem(`trademe_campaigns_${campaign.storeId}`);
-    const list: MenuTestCampaign[] = raw ? JSON.parse(raw) : [];
-    const idx = list.findIndex((c) => c.id === campaign.id);
-    let updatedList: MenuTestCampaign[];
-    if (idx >= 0) {
-      updatedList = list.map((c) => (c.id === campaign.id ? campaign : c));
-    } else {
-      updatedList = [campaign, ...list];
-    }
-    localStorage.setItem(`trademe_campaigns_${campaign.storeId}`, JSON.stringify(updatedList));
-  } catch (e) {}
-
-  // 2. Supabase DB
   try {
     const payload = {
       id: campaign.id,
@@ -1177,10 +1250,20 @@ export async function saveMenuTestCampaignToSupabase(
       status: campaign.status,
     };
 
-    await supabase.from('menu_test_campaigns').upsert(payload);
+    const { error } = await supabase.from('menu_test_campaigns').upsert(payload);
+    if (error) {
+      console.error('[Supabase Error] saveMenuTestCampaignToSupabase failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return { success: false, data: campaign };
+    }
     return { success: true, data: campaign };
   } catch (err) {
-    return { success: true, data: campaign };
+    console.error('[Supabase Error] saveMenuTestCampaignToSupabase exception:', err);
+    return { success: false, data: campaign };
   }
 }
 
@@ -1189,21 +1272,20 @@ export async function deleteMenuTestCampaignFromSupabase(
   storeId: string
 ): Promise<{ success: boolean }> {
   try {
-    const raw = localStorage.getItem(`trademe_campaigns_${storeId}`);
-    if (raw) {
-      const list: MenuTestCampaign[] = JSON.parse(raw);
-      localStorage.setItem(
-        `trademe_campaigns_${storeId}`,
-        JSON.stringify(list.filter((c) => c.id !== campaignId))
-      );
+    const { error } = await supabase.from('menu_test_campaigns').delete().eq('id', campaignId);
+    if (error) {
+      console.error('[Supabase Error] deleteMenuTestCampaignFromSupabase failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return { success: false };
     }
-  } catch (e) {}
-
-  try {
-    await supabase.from('menu_test_campaigns').delete().eq('id', campaignId);
     return { success: true };
   } catch (err) {
-    return { success: true };
+    console.error('[Supabase Error] deleteMenuTestCampaignFromSupabase exception:', err);
+    return { success: false };
   }
 }
 

@@ -12,7 +12,6 @@ import { MenuTestDashboardModal } from './components/MenuTestDashboardModal';
 import { RegisterMenuTestModal } from './components/RegisterMenuTestModal';
 import { ManageExchangeItemsModal } from './components/ManageExchangeItemsModal';
 import { TradeDashboardModal } from './components/TradeDashboardModal';
-import { INITIAL_STORES, MY_STORE_MOCK } from './data/mockData';
 import {
   fetchStoresFromSupabase,
   subscribeToTradeChat,
@@ -28,11 +27,31 @@ import {
 } from './lib/supabase';
 import { MapPin } from 'lucide-react';
 
+const INITIAL_MY_STORE_STATE: Store = {
+  id: '',
+  ownerName: '김동욱',
+  storeName: '마라위크',
+  category: 'FOOD',
+  categoryName: '외식업',
+  address: '경남 양산시 북정서길 25 104호',
+  lat: 35.3594007321187,
+  lng: 129.041885145232,
+  phone: '01048548777',
+  isVerified: true,
+  breakTimeActive: false,
+  breakTimeHours: '10:00 - 22:00',
+  storeImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+  exchangeItems: [],
+  rating: 5.0,
+  reviewCount: 0,
+  isMenuTesting: false,
+};
+
 export const App: React.FC = () => {
-  const [myStore, setMyStore] = useState<Store>(MY_STORE_MOCK);
-  const [stores, setStores] = useState<Store[]>(INITIAL_STORES);
+  const [myStore, setMyStore] = useState<Store>(INITIAL_MY_STORE_STATE);
+  const [stores, setStores] = useState<Store[]>([]);
   
-  const [selectedStore, setSelectedStore] = useState<Store | null>(INITIAL_STORES[0]);
+  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [onlyBreakTime, setOnlyBreakTime] = useState<boolean>(false);
   const [onlyMenuTesting, setOnlyMenuTesting] = useState<boolean>(false);
@@ -71,71 +90,38 @@ export const App: React.FC = () => {
   // Chat state
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
   const [chatTargetStore, setChatTargetStore] = useState<Store | null>(null);
-  const [messagesMap, setMessagesMap] = useState<{ [storeId: string]: ChatMessage[] }>({
-    'store-1': [
-      {
-        id: 'msg-1',
-        senderId: 'store-1',
-        senderName: '박해운 사장님',
-        message: '안녕하세요 돈까스 사장님! 오늘 15시에 갈비 도시락 세트 1:1 물물교환 가능한가요?',
-        timestamp: '오후 2:15',
-        isMe: false,
-      },
-    ],
-  });
+  const [messagesMap, setMessagesMap] = useState<{ [storeId: string]: ChatMessage[] }>({});
 
-  // Load Stores, User Profile, and User Store from Supabase on Mount
+  // Pure Supabase Data Loading on Initial Mount
   useEffect(() => {
-    async function loadStores() {
-      // 1. Check local storage first
+    async function loadInitialData() {
       try {
-        const savedProfileRaw = localStorage.getItem('trademe_profile');
-        if (savedProfileRaw) {
-          const parsed = JSON.parse(savedProfileRaw);
-          if (parsed.ownerName) setUserOwnerName(parsed.ownerName);
+        // 1. Fetch all registered stores directly from Supabase
+        const fetchedStores = await fetchStoresFromSupabase();
+        setStores(fetchedStores || []);
+        if (fetchedStores && fetchedStores.length > 0) {
+          setSelectedStore(fetchedStores[0]);
         }
-      } catch (e) {}
 
-      // 2. Fetch all registered stores from Supabase
-      const fetched = await fetchStoresFromSupabase();
-      if (fetched && fetched.length > 0) {
-        setStores(fetched);
-      }
-
-      // 3. Fetch user profile from Supabase DB
-      const userProfile = await fetchUserProfileFromSupabase();
-      if (userProfile) {
-        if (userProfile.owner_name) {
+        // 2. Fetch authenticated owner user profile from Supabase
+        const userProfile = await fetchUserProfileFromSupabase();
+        if (userProfile && userProfile.owner_name) {
           setUserOwnerName(userProfile.owner_name);
         }
-        try {
-          localStorage.setItem('trademe_profile', JSON.stringify({
-            ownerName: userProfile.owner_name || '김동욱',
-            storeName: userProfile.store_name || '마라위크',
-            phone: userProfile.phone || '01048548777',
-            businessNumber: userProfile.business_number || '4074913710',
-          }));
-        } catch (e) {}
-      }
 
-      // 4. Fetch user store from Supabase DB
-      const userStore = await fetchUserStoreFromSupabase();
-      if (userStore) {
-        setMyStore(userStore);
-        try {
-          localStorage.setItem('trademe_my_store', JSON.stringify(userStore));
-        } catch (e) {}
-      } else {
-        const mySavedRaw = localStorage.getItem('trademe_my_store');
-        if (mySavedRaw) {
-          try {
-            const parsed = JSON.parse(mySavedRaw);
-            setMyStore(parsed);
-          } catch (e) {}
+        // 3. Fetch authenticated owner store from Supabase
+        const userStore = await fetchUserStoreFromSupabase();
+        if (userStore) {
+          setMyStore(userStore);
+          if (userStore.lat && userStore.lng) {
+            setPickedLocation({ lat: userStore.lat, lng: userStore.lng });
+          }
         }
+      } catch (err) {
+        console.error('[App Error] Initial data loading exception:', err);
       }
     }
-    loadStores();
+    loadInitialData();
   }, []);
 
   // Refresh Pending Alert Counts (Trades + Menu Test Applications)
