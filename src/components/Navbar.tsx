@@ -17,6 +17,7 @@ interface NavbarProps {
   storeCount: number;
   hasRegisteredStore?: boolean;
   pendingAlertCount?: number;
+  onOpenCommunityModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -35,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   storeCount,
   hasRegisteredStore = false,
   pendingAlertCount = 0,
+  onOpenCommunityModal,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
@@ -63,10 +65,22 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Action Controls */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             
+            {/* ☕ 사장님 사랑방 커뮤니티 버튼 */}
+            {onOpenCommunityModal && (
+              <button
+                onClick={onOpenCommunityModal}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-amber-500/20 active:scale-95 transition whitespace-nowrap"
+              >
+                <span className="text-sm">☕</span>
+                <span className="hidden sm:inline">사장님 사랑방</span>
+                <span className="sm:hidden">사랑방</span>
+              </button>
+            )}
+
             {/* Break Time Toggle Box */}
-            <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-full border transition-all ${
+            <div className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-full border transition-all ${
               myBreakTimeActive
                 ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-sm'
                 : 'bg-gray-100 border-gray-200 text-gray-600'
@@ -75,7 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className={`w-2.5 h-2.5 rounded-full ${myBreakTimeActive ? 'bg-amber-500 animate-ping' : 'bg-gray-400'}`}></span>
                 <Clock className={`w-4 h-4 ${myBreakTimeActive ? 'text-amber-600' : 'text-gray-400'}`} />
                 <span className="text-xs sm:text-sm font-semibold hidden md:inline">
-                  내 가게 교환가능 상태:
+                  내 가게 교환가능:
                 </span>
               </div>
               <button
@@ -94,14 +108,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 />
               </button>
               <span className={`text-xs font-bold ${myBreakTimeActive ? 'text-amber-700' : 'text-gray-500'}`}>
-                {myBreakTimeActive ? '교환 ON' : 'OFF'}
+                {myBreakTimeActive ? 'ON' : 'OFF'}
               </span>
             </div>
 
             {/* 🏬 Store Management / Auth Button with Global Notification Badge */}
             <button
               onClick={onOpenAuthModal}
-              className={`relative flex items-center gap-2 px-4 py-2 text-xs font-extrabold rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap ${
+              className={`relative flex items-center gap-2 px-3.5 sm:px-4 py-2 text-xs font-extrabold rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap ${
                 isLoggedIn
                   ? 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-md'
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'

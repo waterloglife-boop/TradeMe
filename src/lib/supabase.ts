@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign } from '../types/trade';
+import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign, CommunityPost, CommunityComment, CommunityCategory } from '../types/trade';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-trade-me.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-anon-key-12345';
@@ -1287,6 +1287,296 @@ export async function deleteMenuTestCampaignFromSupabase(
     console.error('[Supabase Error] deleteMenuTestCampaignFromSupabase exception:', err);
     return { success: false };
   }
+}
+
+/**
+ * ☕ [사장님 사랑방] 올인원 커뮤니티 데이터 API
+ */
+
+const LOCAL_POSTS_KEY = 'trademe_community_posts_cache';
+const LOCAL_COMMENTS_KEY = 'trademe_community_comments_cache';
+
+const DEFAULT_WELCOME_POSTS: CommunityPost[] = [
+  {
+    id: 'post_welcome_1',
+    storeId: '',
+    authorName: '박해운 사장님',
+    storeName: '해운대갈비 양산점',
+    isAnonymous: false,
+    category: 'DAILY_TALK',
+    title: '오늘 비가 와서 그런지 저녁 홀이 조금 조용하네요 ㅠㅠ 다들 어떠세요?',
+    content: '재료 신선하게 준비해뒀는데 빗줄기가 굵어져서 배달만 조금씩 들어오네요. 북정동 이웃 사장님들 오늘 하루도 다들 고생 많으셨습니다! 힘내시고 마감까지 파이팅입니다.',
+    likesCount: 5,
+    commentsCount: 2,
+    createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'post_welcome_2',
+    storeId: '',
+    authorName: '이수민 사장님',
+    storeName: '달콤베이커리 북정점',
+    isAnonymous: false,
+    category: 'URGENT_TRADE',
+    title: '[마감임박] 당일 생산 크로와상 & 소금빵 4세트 남았습니다! 야식 교환해요 🥐',
+    content: '마감 1시간 전인데 오늘 구운 버터 풍미 가득한 크로와상이랑 소금빵이 남아 아깝네요. 이웃 사장님들 중 떡볶이, 치킨, 커피나 식사 메뉴로 맞바꾸실 분 계시면 바로 교환 제안 눌러주세요!',
+    urgentExchangeItem: '갓 구운 크로와상 2개 + 소금빵 2개 세트 ↔ 야식/식사/음료',
+    likesCount: 8,
+    commentsCount: 3,
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'post_welcome_3',
+    storeId: '',
+    authorName: '익명의 사장님',
+    storeName: '북정동 이웃 매장',
+    isAnonymous: true,
+    category: 'TIPS_QNA',
+    title: '북정동 쪽 냉장고/쇼케이스 수리 잘 보시는 기사님 추천 부탁드립니다',
+    content: '업소용 반찬 쇼케이스 온도가 오늘 낮부터 조금 안 내려가서 급하게 점검을 받아봐야 할 것 같은데, 바가지 안 씌우시고 친절하게 봐주시는 동네 수리기사님 아시는 분 계실까요?',
+    likesCount: 3,
+    commentsCount: 1,
+    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export async function fetchCommunityPosts(category?: string): Promise<CommunityPost[]> {
+  try {
+    let query = supabase
+      .from('community_posts')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (category && category !== 'ALL') {
+      query = query.eq('category', category);
+    }
+
+    const { data, error } = await query;
+
+    if (!error && data && data.length > 0) {
+      const dbPosts = data.map((row: any) => ({
+        id: row.id,
+        storeId: row.store_id || '',
+        authorName: row.author_name || '익명 사장님',
+        storeName: row.store_name || '이웃 매장',
+        isAnonymous: !!row.is_anonymous,
+        category: row.category as CommunityCategory,
+        title: row.title,
+        content: row.content,
+        imageUrl: row.image_url || undefined,
+        urgentExchangeItem: row.urgent_exchange_item || undefined,
+        likesCount: row.likes_count || 0,
+        commentsCount: row.comments_count || 0,
+        createdAt: row.created_at,
+      }));
+      try {
+        localStorage.setItem(LOCAL_POSTS_KEY, JSON.stringify(dbPosts));
+      } catch (e) {}
+      return dbPosts;
+    }
+  } catch (err) {
+    console.warn('[Community Notice] Falling back to local cache:', err);
+  }
+
+  // Fallback to local storage or defaults
+  try {
+    const raw = localStorage.getItem(LOCAL_POSTS_KEY);
+    let cached: CommunityPost[] = raw ? JSON.parse(raw) : DEFAULT_WELCOME_POSTS;
+    if (category && category !== 'ALL') {
+      cached = cached.filter((p) => p.category === category);
+    }
+    return cached;
+  } catch (e) {
+    return DEFAULT_WELCOME_POSTS;
+  }
+}
+
+export async function createCommunityPost(
+  post: Omit<CommunityPost, 'id' | 'createdAt' | 'likesCount' | 'commentsCount'>
+): Promise<{ success: boolean; data?: CommunityPost; error?: string }> {
+  const id = `post_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const createdPost: CommunityPost = {
+    id,
+    storeId: post.storeId || '',
+    authorName: post.authorName,
+    storeName: post.storeName,
+    isAnonymous: post.isAnonymous,
+    category: post.category,
+    title: post.title,
+    content: post.content,
+    imageUrl: post.imageUrl || undefined,
+    urgentExchangeItem: post.urgentExchangeItem || undefined,
+    likesCount: 0,
+    commentsCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+
+  // Always update local cache first
+  try {
+    const raw = localStorage.getItem(LOCAL_POSTS_KEY);
+    const cached: CommunityPost[] = raw ? JSON.parse(raw) : [...DEFAULT_WELCOME_POSTS];
+    cached.unshift(createdPost);
+    localStorage.setItem(LOCAL_POSTS_KEY, JSON.stringify(cached));
+  } catch (e) {}
+
+  try {
+    const payload = {
+      id,
+      store_id: post.storeId || null,
+      author_name: post.authorName,
+      store_name: post.storeName,
+      is_anonymous: post.isAnonymous,
+      category: post.category,
+      title: post.title,
+      content: post.content,
+      image_url: post.imageUrl || null,
+      urgent_exchange_item: post.urgentExchangeItem || null,
+      likes_count: 0,
+      comments_count: 0,
+    };
+
+    const { error } = await supabase.from('community_posts').insert(payload);
+    if (error) {
+      console.warn('[Supabase Notice] DB sync pending (migration SQL may need execution):', error.message);
+    }
+  } catch (err) {
+    console.warn('[Supabase Notice] DB insert exception, cached locally:', err);
+  }
+
+  return { success: true, data: createdPost };
+}
+
+export async function deleteCommunityPost(postId: string): Promise<boolean> {
+  try {
+    await supabase.from('community_posts').delete().eq('id', postId);
+  } catch (e) {}
+
+  try {
+    const raw = localStorage.getItem(LOCAL_POSTS_KEY);
+    if (raw) {
+      const cached: CommunityPost[] = JSON.parse(raw);
+      const updated = cached.filter((p) => p.id !== postId);
+      localStorage.setItem(LOCAL_POSTS_KEY, JSON.stringify(updated));
+    }
+  } catch (e) {}
+
+  return true;
+}
+
+export async function likeCommunityPost(postId: string, currentLikes: number): Promise<number> {
+  const newLikes = currentLikes + 1;
+  try {
+    await supabase
+      .from('community_posts')
+      .update({ likes_count: newLikes })
+      .eq('id', postId);
+  } catch (e) {}
+
+  try {
+    const raw = localStorage.getItem(LOCAL_POSTS_KEY);
+    if (raw) {
+      const cached: CommunityPost[] = JSON.parse(raw);
+      const updated = cached.map((p) => (p.id === postId ? { ...p, likesCount: newLikes } : p));
+      localStorage.setItem(LOCAL_POSTS_KEY, JSON.stringify(updated));
+    }
+  } catch (e) {}
+
+  return newLikes;
+}
+
+export async function fetchPostComments(postId: string): Promise<CommunityComment[]> {
+  try {
+    const { data, error } = await supabase
+      .from('community_comments')
+      .select('*')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      return data.map((row: any) => ({
+        id: row.id,
+        postId: row.post_id,
+        storeId: row.store_id || '',
+        authorName: row.author_name || '익명 사장님',
+        storeName: row.store_name || '이웃 매장',
+        isAnonymous: !!row.is_anonymous,
+        content: row.content,
+        createdAt: row.created_at,
+      }));
+    }
+  } catch (e) {}
+
+  // Fallback
+  try {
+    const raw = localStorage.getItem(LOCAL_COMMENTS_KEY);
+    if (raw) {
+      const allComments: CommunityComment[] = JSON.parse(raw);
+      return allComments.filter((c) => c.postId === postId);
+    }
+  } catch (e) {}
+
+  return [];
+}
+
+export async function createPostComment(
+  comment: Omit<CommunityComment, 'id' | 'createdAt'>
+): Promise<{ success: boolean; data?: CommunityComment; error?: string }> {
+  const id = `cmt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const createdComment: CommunityComment = {
+    id,
+    postId: comment.postId,
+    storeId: comment.storeId || '',
+    authorName: comment.authorName,
+    storeName: comment.storeName,
+    isAnonymous: comment.isAnonymous,
+    content: comment.content,
+    createdAt: new Date().toISOString(),
+  };
+
+  try {
+    const raw = localStorage.getItem(LOCAL_COMMENTS_KEY);
+    const allComments: CommunityComment[] = raw ? JSON.parse(raw) : [];
+    allComments.push(createdComment);
+    localStorage.setItem(LOCAL_COMMENTS_KEY, JSON.stringify(allComments));
+  } catch (e) {}
+
+  try {
+    const payload = {
+      id,
+      post_id: comment.postId,
+      store_id: comment.storeId || null,
+      author_name: comment.authorName,
+      store_name: comment.storeName,
+      is_anonymous: comment.isAnonymous,
+      content: comment.content,
+    };
+    await supabase.from('community_comments').insert(payload);
+  } catch (e) {}
+
+  return { success: true, data: createdComment };
+}
+
+export function subscribeToCommunity(onUpdate: () => void) {
+  const channel = supabase
+    .channel('public:community_realtime')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'community_posts' },
+      () => {
+        onUpdate();
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'community_comments' },
+      () => {
+        onUpdate();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 

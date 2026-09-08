@@ -12,6 +12,7 @@ import { MenuTestDashboardModal } from './components/MenuTestDashboardModal';
 import { RegisterMenuTestModal } from './components/RegisterMenuTestModal';
 import { ManageExchangeItemsModal } from './components/ManageExchangeItemsModal';
 import { TradeDashboardModal } from './components/TradeDashboardModal';
+import { CommunityModal } from './components/CommunityModal';
 import {
   fetchStoresFromSupabase,
   subscribeToTradeChat,
@@ -60,6 +61,9 @@ export const App: React.FC = () => {
   // Notification Badges State
   const [pendingTradeCount, setPendingTradeCount] = useState(0);
   const [pendingMenuTestCount, setPendingMenuTestCount] = useState(0);
+
+  // ☕ 사장님 사랑방 커뮤니티 State
+  const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
 
   // Location Picker State
   const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>({
@@ -535,6 +539,7 @@ export const App: React.FC = () => {
         storeCount={filteredStores.length}
         hasRegisteredStore={hasRegisteredStore}
         pendingAlertCount={pendingTradeCount + pendingMenuTestCount}
+        onOpenCommunityModal={() => setIsCommunityModalOpen(true)}
       />
 
       {/* Main Map View */}
@@ -688,6 +693,27 @@ export const App: React.FC = () => {
         myStore={myStore}
         messages={chatTargetStore ? messagesMap[chatTargetStore.id] || [] : []}
         onSendMessage={handleSendChatMessage}
+      />
+
+      {/* ☕ 사장님 사랑방 커뮤니티 모달 */}
+      <CommunityModal
+        isOpen={isCommunityModalOpen}
+        onClose={() => setIsCommunityModalOpen(false)}
+        myStore={myStore}
+        userOwnerName={userOwnerName}
+        stores={stores}
+        onOpenProposalForStore={(targetStore, urgentItem) => {
+          setIsCommunityModalOpen(false);
+          setSelectedStore(targetStore);
+          if (targetStore.exchangeItems && targetStore.exchangeItems.length > 0) {
+            setTargetProposalItem(targetStore.exchangeItems[0]);
+            setIsProposalModalOpen(true);
+          }
+        }}
+        onOpenChatForStore={(targetStore) => {
+          setIsCommunityModalOpen(false);
+          handleOpenChat(targetStore);
+        }}
       />
 
     </div>

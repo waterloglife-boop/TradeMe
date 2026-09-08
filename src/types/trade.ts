@@ -127,3 +127,33 @@ export interface ChatMessage {
   isMe: boolean;
   systemAction?: 'PROPOSAL' | 'ACCEPT' | 'COMPLETED';
 }
+
+// ☕ [사장님 사랑방] 올인원 커뮤니티 타입 정의
+export type CommunityCategory = 'DAILY_TALK' | 'URGENT_TRADE' | 'TIPS_QNA';
+
+export interface CommunityPost {
+  id: string;
+  storeId?: string;
+  authorName: string;
+  storeName: string;
+  isAnonymous: boolean;
+  category: CommunityCategory;
+  title: string;
+  content: string;
+  imageUrl?: string;
+  urgentExchangeItem?: string; // 🚨 마감 번개교환 품목
+  likesCount: number;
+  commentsCount: number;
+  createdAt: string;
+}
+
+export interface CommunityComment {
+  id: string;
+  postId: string;
+  storeId?: string;
+  authorName: string;
+  storeName: string;
+  isAnonymous: boolean;
+  content: string;
+  createdAt: string;
+}
