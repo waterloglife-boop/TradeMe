@@ -18,7 +18,9 @@ import {
   RefreshCw,
   Store as StoreIcon,
   ShieldCheck,
-  UserCheck
+  UserCheck,
+  MapPin,
+  Navigation
 } from 'lucide-react';
 import { CommunityCategory, CommunityPost, CommunityComment, Store } from '../types/trade';
 import {
@@ -30,6 +32,9 @@ import {
   subscribeToCommunity,
 } from '../lib/supabase';
 import { CreateCommunityPostModal } from './CreateCommunityPostModal';
+import { parseNeighborhoodInfo, calculateDistanceKm, getTravelTimeEstimate } from '../utils/location';
+
+export type RadiusFilter = 3 | 5 | 8 | 10 | 'ALL';
 
 interface CommunityModalProps {
   isOpen: boolean;
@@ -51,10 +56,13 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
   onOpenChatForStore,
 }) => {
   const [activeCategory, setActiveCategory] = useState<'ALL' | CommunityCategory>('ALL');
+  const [selectedRadius, setSelectedRadius] = useState<RadiusFilter>(10); // 기본 10km (차량 30분 생활권)
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const neighborhood = parseNeighborhoodInfo(myStore.address);
 
   // Active comments drawer/accordion map: { [postId: string]: boolean }
   const [openCommentsMap, setOpenCommentsMap] = useState<{ [postId: string]: boolean }>({});
@@ -138,8 +146,8 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
     setSubmittingComment((prev) => ({ ...prev, [postId]: true }));
 
     const isAnon = !!commentAnonymous[postId];
-    const author = isAnon ? '익명의 사장님' : `${userOwnerName || '김동욱'} 사장님`;
-    const store = isAnon ? '북정동 이웃 매장' : (myStore.storeName || '마라위크');
+    const author = isAnon ? '익명의 사장님' : `${userOwnerName || '사장님'} 사장님`;
+    const store = isAnon ? neighborhood.anonStore : (myStore.storeName || '우리 매장');
 
     const res = await createPostComment({
       postId,
@@ -170,42 +178,74 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
     if (post.storeId) {
       return stores.find((s) => s.id === post.storeId);
     }
+    if (post.storeName) {
+      return stores.find((s) => s.storeName === post.storeName);
+    }
     return undefined;
   };
+
+  // Calculate distance between myStore and a post
+  const getPostDistance = (post: CommunityPost): number => {
+    if (post.storeId && post.storeId === myStore.id) return 0;
+    if (post.storeName && myStore.storeName && post.storeName === myStore.storeName) return 0;
+
+    const targetStore = findStoreByPost(post);
+    if (targetStore && targetStore.lat && targetStore.lng && myStore.lat && myStore.lng) {
+      return calculateDistanceKm(myStore.lat, myStore.lng, targetStore.lat, targetStore.lng);
+    }
+
+    // Default sample posts fallback distances for realistic demo in Yangsan
+    if (post.id === 'post_welcome_1') return 0.8;
+    if (post.id === 'post_welcome_2') return 1.2;
+    if (post.id === 'post_welcome_3') return 0.5;
+
+    return 2.5;
+  };
+
+  // Filter posts by selected radius
+  const filteredPosts = posts.filter((post) => {
+    if (selectedRadius === 'ALL') return true;
+    if (post.storeId === myStore.id || (myStore.storeName && post.storeName === myStore.storeName)) {
+      return true;
+    }
+    const distance = getPostDistance(post);
+    return distance <= selectedRadius;
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-orange-100 flex flex-col h-[92vh]">
         {/* Top Header */}
-        <div className="px-5 py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 flex items-center justify-between text-white shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-xl shadow-inner">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 flex items-center justify-between text-white shadow-md gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-lg sm:text-xl shadow-inner flex-shrink-0">
               ☕
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black tracking-tight">사장님 사랑방</h2>
-                <span className="bg-white/20 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full backdrop-blur">
-                  양산 북정동 & 인근 상권
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h2 className="text-sm sm:text-lg font-black tracking-tight whitespace-nowrap">사장님 사랑방</h2>
+                <span className="bg-white/20 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full backdrop-blur flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
+                  <MapPin className="w-2.5 h-2.5 text-amber-200 flex-shrink-0" />
+                  <span>{neighborhood.fullRegion}</span>
                 </span>
               </div>
-              <p className="text-xs text-orange-100 font-medium">
+              <p className="text-[11px] text-orange-100 font-medium truncate hidden sm:block">
                 오늘 장사 넋두리, 마감 로스 제로 번개교환, 실시간 정보 교류
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="px-3.5 py-2 bg-white text-orange-600 hover:bg-orange-50 rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 transition active:scale-95"
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-white text-orange-600 hover:bg-orange-50 rounded-xl text-xs font-black shadow-md flex items-center gap-1 transition active:scale-95 whitespace-nowrap flex-shrink-0"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>글쓰기</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+              <span className="whitespace-nowrap">글쓰기</span>
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-white/20 text-white transition"
+              className="p-1.5 sm:p-2 rounded-full hover:bg-white/20 text-white transition flex-shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
@@ -213,7 +253,7 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
         </div>
 
         {/* Category Filter Tabs */}
-        <div className="px-5 py-2.5 bg-amber-50/50 border-b border-orange-100 flex items-center justify-between gap-2 overflow-x-auto">
+        <div className="px-4 sm:px-5 py-2.5 bg-amber-50/50 border-b border-orange-100 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-1.5 min-w-max">
             <button
               onClick={() => setActiveCategory('ALL')}
@@ -269,10 +309,52 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
               loadPosts(false).then(() => setIsRefreshing(false));
             }}
             title="새로고침"
-            className="p-1.5 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 transition"
+            className="p-1.5 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 transition flex-shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-orange-600' : ''}`} />
           </button>
+        </div>
+
+        {/* Radius Filter Bar (동네 반경 필터) */}
+        <div className="px-4 sm:px-5 py-2 bg-white border-b border-gray-100 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar text-xs">
+          <div className="flex items-center gap-1.5 min-w-max">
+            <div className="flex items-center gap-1 text-gray-500 font-extrabold text-[11px] mr-1">
+              <Navigation className="w-3.5 h-3.5 text-orange-500" />
+              <span>동네 반경:</span>
+            </div>
+            {(
+              [
+                { value: 3, label: '3km', sub: '도보권' },
+                { value: 5, label: '5km', sub: '15분' },
+                { value: 8, label: '8km', sub: '20분' },
+                { value: 10, label: '10km', sub: '차량 30분' },
+                { value: 'ALL', label: '전국', sub: '전체' },
+              ] as const
+            ).map((r) => {
+              const isSelected = selectedRadius === r.value;
+              return (
+                <button
+                  key={r.value}
+                  onClick={() => setSelectedRadius(r.value)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-black transition-all flex items-center gap-1 whitespace-nowrap ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm ring-2 ring-orange-200 scale-105'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <span>{r.label}</span>
+                  <span className={`text-[10px] ${isSelected ? 'text-orange-100' : 'text-gray-400'}`}>
+                    ({r.sub})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="text-[11px] text-gray-400 hidden sm:block whitespace-nowrap">
+            {selectedRadius === 'ALL'
+              ? '전국 사장님 게시글 표시'
+              : `내 매장 기준 ${selectedRadius}km 이내`}
+          </div>
         </div>
 
         {/* Posts Feed Area */}
@@ -302,12 +384,40 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
                 <span>첫 번째 이야기 남기기</span>
               </button>
             </div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="py-16 px-4 bg-white rounded-3xl border border-dashed border-gray-300 text-center flex flex-col items-center justify-center animate-fade-in">
+              <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-3xl mb-3 shadow-inner">
+                📍
+              </div>
+              <h3 className="text-base font-black text-gray-800 mb-1">
+                {selectedRadius}km 반경 내에 등록된 이야기가 없습니다
+              </h3>
+              <p className="text-xs text-gray-500 max-w-sm mb-5 leading-relaxed">
+                선택하신 반경 내에는 아직 등록된 글이 없습니다. 반경을 10km나 전국으로 넓혀보시겠어요?
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedRadius(10)}
+                  className="px-4 py-2 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-xl text-xs font-black transition flex items-center gap-1"
+                >
+                  <span>🚗 10km(차량 30분)로 넓히기</span>
+                </button>
+                <button
+                  onClick={() => setSelectedRadius('ALL')}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-xl text-xs font-black transition flex items-center gap-1"
+                >
+                  <span>🌏 전국 글 보기</span>
+                </button>
+              </div>
+            </div>
           ) : (
-            posts.map((post) => {
+            filteredPosts.map((post) => {
               const targetStore = findStoreByPost(post);
-              const isMine = post.storeId === myStore.id;
+              const isMine = post.storeId === myStore.id || (myStore.storeName && post.storeName === myStore.storeName);
               const isCommentsOpen = !!openCommentsMap[post.id];
               const comments = commentsMap[post.id] || [];
+              const postDistance = getPostDistance(post);
+              const travelTime = getTravelTimeEstimate(postDistance);
 
               return (
                 <div
@@ -342,7 +452,7 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
+                        <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5 flex-wrap">
                           <span>{formatTimeAgo(post.createdAt)}</span>
                           <span>·</span>
                           <span
@@ -359,6 +469,11 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
                               : post.category === 'URGENT_TRADE'
                               ? '🚨 마감 번개교환'
                               : '💡 동네 꿀팁·질문'}
+                          </span>
+                          <span>·</span>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
+                            <MapPin className="w-2.5 h-2.5 text-orange-500" />
+                            <span>{postDistance === 0 ? '내 매장' : `${postDistance}km (${travelTime})`}</span>
                           </span>
                         </div>
                       </div>
@@ -399,9 +514,12 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
                     {post.category === 'URGENT_TRADE' && post.urgentExchangeItem && (
                       <div className="mt-3 bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="space-y-0.5">
-                          <div className="text-[11px] font-black text-rose-700 flex items-center gap-1">
+                          <div className="text-[11px] font-black text-rose-700 flex items-center gap-1.5 flex-wrap">
                             <span>🚨</span>
                             <span>마감 번개교환 희망 품목 (로스 제로)</span>
+                            <span className="bg-rose-100 text-rose-800 border border-rose-300 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold">
+                              {postDistance === 0 ? '내 매장' : `${postDistance}km · ${travelTime}`}
+                            </span>
                           </div>
                           <div className="text-xs font-black text-gray-900">
                             {post.urgentExchangeItem}

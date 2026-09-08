@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Sparkles, Image as ImageIcon, Camera, Loader2, MessageSquare, Zap, HelpCircle, UserCheck, ShieldCheck } from 'lucide-react';
 import { CommunityCategory, CommunityPost, Store } from '../types/trade';
 import { createCommunityPost, uploadStoreImageToSupabase } from '../lib/supabase';
+import { parseNeighborhoodInfo } from '../utils/location';
 
 interface CreateCommunityPostModalProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ export const CreateCommunityPostModal: React.FC<CreateCommunityPostModalProps> =
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const neighborhood = parseNeighborhoodInfo(myStore.address);
 
   if (!isOpen) return null;
 
@@ -69,8 +72,8 @@ export const CreateCommunityPostModal: React.FC<CreateCommunityPostModalProps> =
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const author = isAnonymous ? '익명의 사장님' : `${userOwnerName || '김동욱'} 사장님`;
-    const store = isAnonymous ? '북정동 이웃 매장' : (myStore.storeName || '마라위크');
+    const author = isAnonymous ? '익명의 사장님' : `${userOwnerName || '사장님'} 사장님`;
+    const store = isAnonymous ? neighborhood.anonStore : (myStore.storeName || '우리 매장');
 
     const result = await createCommunityPost({
       storeId: myStore.id,
@@ -101,31 +104,27 @@ export const CreateCommunityPostModal: React.FC<CreateCommunityPostModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-orange-100 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 flex items-center justify-between text-white shadow-md">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">☕</span>
-            <div>
-              <h2 className="text-lg font-black tracking-tight">사랑방 이야기 쓰기</h2>
-              <p className="text-xs text-orange-100 font-medium">우리 동네 이웃 사장님들과 따뜻한 소통을 시작하세요</p>
-            </div>
+        <div className="px-5 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-2 font-black text-base">
+            <Sparkles className="w-5 h-5 text-amber-200 animate-pulse" />
+            <span>사랑방 이야기 나누기</span>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-white/20 transition text-white"
+            className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content Form */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
           {errorMessage && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-bold flex items-center gap-2">
-              <span>⚠️</span>
-              <span>{errorMessage}</span>
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-bold">
+              ⚠️ {errorMessage}
             </div>
           )}
 
@@ -182,10 +181,10 @@ export const CreateCommunityPostModal: React.FC<CreateCommunityPostModalProps> =
               </div>
               <div>
                 <div className="text-xs font-black text-gray-800">
-                  {isAnonymous ? '익명으로 게시하기' : `매장명 노출: ${myStore.storeName || '마라위크'}`}
+                  {isAnonymous ? '익명으로 게시하기' : `매장명 노출: ${myStore.storeName || '우리 매장'}`}
                 </div>
                 <div className="text-[11px] text-gray-500 font-medium">
-                  {isAnonymous ? '상호명이 숨겨지고 "북정동 이웃 사장님"으로 표기됩니다' : '이웃 사장님들에게 내 가게를 홍보할 수 있습니다'}
+                  {isAnonymous ? `상호명이 숨겨지고 "${neighborhood.anonStore}"으로 표기됩니다` : '이웃 사장님들에게 내 가게를 홍보할 수 있습니다'}
                 </div>
               </div>
             </div>
