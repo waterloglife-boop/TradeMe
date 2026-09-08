@@ -62,10 +62,19 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 md:left-auto md:right-6 md:bottom-6 md:top-20 z-40 md:w-96 bg-white rounded-t-2xl md:rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[85vh] md:max-h-[calc(100vh-120px)] transition-all animate-in slide-in-from-bottom">
+    <div className="fixed bottom-0 left-0 right-0 md:left-auto md:right-6 md:bottom-6 md:top-20 z-40 md:w-96 bg-white rounded-t-3xl md:rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[72vh] md:max-h-[calc(100vh-120px)] transition-all animate-in slide-in-from-bottom">
       
+      {/* Mobile Top Drag / Grab Bar Handle */}
+      <div 
+        onClick={onClose}
+        className="w-full flex items-center justify-center pt-2 pb-1 md:hidden bg-gray-950/80 backdrop-blur-sm cursor-pointer"
+        title="탭하여 닫기"
+      >
+        <div className="w-10 h-1 bg-white/60 rounded-full" />
+      </div>
+
       {/* Header Banner */}
-      <div className="relative h-44 bg-gray-900 flex-shrink-0">
+      <div className="relative h-36 sm:h-44 bg-gray-900 flex-shrink-0">
         <img
           src={store.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'}
           alt={store.storeName}
@@ -79,7 +88,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/80 backdrop-blur transition-all z-10"
+          className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/90 backdrop-blur transition-all z-10"
         >
           <X className="w-5 h-5" />
         </button>

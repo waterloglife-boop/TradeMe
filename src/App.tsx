@@ -107,7 +107,9 @@ export const App: React.FC = () => {
         const fetchedStores = await fetchStoresFromSupabase();
         setStores(fetchedStores || []);
         if (fetchedStores && fetchedStores.length > 0) {
-          setSelectedStore(fetchedStores[0]);
+          if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+            setSelectedStore(fetchedStores[0]);
+          }
         }
 
         // 2. Fetch authenticated owner user profile from Supabase
@@ -557,7 +559,7 @@ export const App: React.FC = () => {
         />
 
         {/* Map Location Click Hint Pill */}
-        <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-orange-200 text-xs font-bold text-orange-900 flex items-center gap-1.5 animate-bounce">
+        <div className="hidden md:flex absolute top-4 right-4 z-20 bg-white/90 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-orange-200 text-xs font-bold text-orange-900 items-center gap-1.5 animate-bounce">
           <MapPin className="w-4 h-4 text-orange-600" />
           <span>💡 상단 [물물교환 품목 등록]에서 도로명 주소로 위치를 조율하세요</span>
         </div>
