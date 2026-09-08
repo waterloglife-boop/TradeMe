@@ -100,7 +100,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
       script = document.createElement('script');
       script.id = scriptId;
       script.type = 'text/javascript';
-      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_CLIENT_ID}&submodules=geocoding`;
+      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_CLIENT_ID}&submodules=geocoder`;
       script.async = true;
       document.head.appendChild(script);
     }
@@ -241,58 +241,30 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
       setTimeout(() => setSearchSuccessMessage(null), 5000);
     };
 
-    // 1차: 개발 환경 → Vite 프록시로 Naver Geocoding REST API 호출 (CORS 완전 우회)
-    //       운영 환경 → Naver Maps JavaScript SDK geocode 사용
-    if (import.meta.env.DEV) {
+    // 1차: Naver Maps JavaScript SDK geocoder 모듈 호출 (인증된 Client ID로 정확한 한국 주소 좌표 반환)
+    const naverAvailable = !!(window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode);
+    console.log('[Geocoding] Naver SDK 사용가능 여부:', naverAvailable);
+    if (naverAvailable) {
       try {
-        console.log('[Geocoding] Vite 프록시 → Naver REST API 시도:', searchAddr);
-        const res = await fetch(`/api/naver-geocode?query=${encodeURIComponent(searchAddr)}`);
-        if (res.ok) {
-          const data = await res.json();
-          console.log('[Geocoding] Naver REST API 응답:', data);
-          if (data?.addresses?.length > 0) {
-            const item = data.addresses[0];
-            const lat = parseFloat(item.y);
-            const lng = parseFloat(item.x);
-            console.log('[Geocoding] Naver 좌표:', lat, lng);
-            if (!isNaN(lat) && !isNaN(lng)) {
-              applyLocation(lat, lng, '네이버 지도');
-              return;
-            }
-          }
-          console.warn('[Geocoding] Naver REST API — 검색 결과 없음');
-        } else {
-          console.warn('[Geocoding] Naver REST API 프록시 오류:', res.status, res.statusText);
-        }
-      } catch (err) {
-        console.warn('[Geocoding] Naver REST API 프록시 실패:', err);
-      }
-    } else {
-      // 운영 환경: Naver Maps JS SDK (vercel.app 등 등록된 도메인에서는 정상 작동)
-      const naverAvailable = !!(window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode);
-      console.log('[Geocoding] Naver SDK 사용가능:', naverAvailable);
-      if (naverAvailable) {
-        try {
-          await new Promise<void>((resolve) => {
-            window.naver.maps.Service.geocode({ query: searchAddr }, (status: any, response: any) => {
-              console.log('[Geocoding] Naver SDK 응답:', status, response);
-              if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
-                const item = response.v2.addresses[0];
-                const lat = parseFloat(item.y);
-                const lng = parseFloat(item.x);
-                if (!isNaN(lat) && !isNaN(lng)) {
-                  applyLocation(lat, lng, '네이버 지도');
-                  resolve();
-                  return;
-                }
+        const found = await new Promise<boolean>((resolve) => {
+          window.naver.maps.Service.geocode({ query: searchAddr }, (status: any, response: any) => {
+            console.log('[Geocoding] Naver SDK 응답:', status, response);
+            if (status === window.naver.maps.Service.Status.OK && response?.v2?.addresses?.length > 0) {
+              const item = response.v2.addresses[0];
+              const lat = parseFloat(item.y);
+              const lng = parseFloat(item.x);
+              if (!isNaN(lat) && !isNaN(lng)) {
+                applyLocation(lat, lng, '네이버 지도');
+                resolve(true);
+                return;
               }
-              resolve();
-            });
+            }
+            resolve(false);
           });
-          return;
-        } catch (err) {
-          console.warn('[Geocoding] Naver SDK 오류:', err);
-        }
+        });
+        if (found) return;
+      } catch (err) {
+        console.warn('[Geocoding] Naver SDK 오류:', err);
       }
     }
 

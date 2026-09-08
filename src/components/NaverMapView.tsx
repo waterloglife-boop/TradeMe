@@ -57,7 +57,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
       script = document.createElement('script');
       script.id = scriptId;
       script.type = 'text/javascript';
-      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoding`;
+      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`;
       script.async = true;
 
       script.onload = () => {
@@ -164,18 +164,21 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
       };
 
       // Render My Store Marker
-      const myMarker = new window.naver.maps.Marker({
-        position: new window.naver.maps.LatLng(myStore.lat, myStore.lng),
-        map,
-        title: myStore.storeName,
-        icon: { content: createMarkerHtml(myStore, true), anchor: new window.naver.maps.Point(20, 45) },
-      });
-      window.naver.maps.Event.addListener(myMarker, 'click', () => onSelectStore(myStore));
-      markersRef.current[myStore.id] = myMarker;
+      if (myStore && typeof myStore.lat === 'number' && typeof myStore.lng === 'number' && !isNaN(myStore.lat) && !isNaN(myStore.lng)) {
+        const myMarker = new window.naver.maps.Marker({
+          position: new window.naver.maps.LatLng(myStore.lat, myStore.lng),
+          map,
+          title: myStore.storeName || '내 매장',
+          icon: { content: createMarkerHtml(myStore, true), anchor: new window.naver.maps.Point(20, 45) },
+        });
+        window.naver.maps.Event.addListener(myMarker, 'click', () => onSelectStore(myStore));
+        markersRef.current[myStore.id || 'my-store'] = myMarker;
+      }
 
       // Render Other Stores Markers
       stores.forEach((store) => {
-        if (store.id === myStore.id) return;
+        if (!store || typeof store.lat !== 'number' || typeof store.lng !== 'number' || isNaN(store.lat) || isNaN(store.lng)) return;
+        if (myStore?.id && store.id === myStore.id) return;
         const marker = new window.naver.maps.Marker({
           position: new window.naver.maps.LatLng(store.lat, store.lng),
           map,
