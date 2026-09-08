@@ -72,15 +72,14 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen) {
-      loadPosts(true);
-      const unsubscribe = subscribeToCommunity(() => {
-        loadPosts(false);
-      });
-      return () => {
-        unsubscribe();
-      };
-    }
+    if (!isOpen) return;
+    loadPosts(true);
+    const unsubscribe = subscribeToCommunity(() => {
+      loadPosts(false);
+    });
+    return () => {
+      unsubscribe();
+    };
   }, [isOpen, activeCategory]);
 
   if (!isOpen) return null;

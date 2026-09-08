@@ -24,7 +24,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
   const [title, setTitle] = useState('');
   const [estimatedPrice, setEstimatedPrice] = useState<number>(10000);
   const [description, setDescription] = useState('');
-  const [itemType, setItemType] = useState<ItemType>('MEAL');
+  const [itemType, setItemType] = useState<ItemType>('FOOD');
   const [imageUrl, setImageUrl] = useState('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -47,7 +47,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
     setTitle('');
     setEstimatedPrice(10000);
     setDescription('');
-    setItemType('MEAL');
+    setItemType('FOOD');
     setImageUrl('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80');
     setEditingItemId(null);
     setIsAddingOrEditing(false);
@@ -58,7 +58,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
     setTitle(item.title);
     setEstimatedPrice(item.estimatedPrice);
     setDescription(item.description);
-    setItemType(item.itemType || 'MEAL');
+    setItemType(item.type || 'FOOD');
     setImageUrl(item.imageUrl);
     setEditingItemId(item.id);
     setIsAddingOrEditing(true);
@@ -111,10 +111,11 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
       // Add new item
       const newItem: ExchangeItem = {
         id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        storeId: myStore.id || '',
         title: title.trim(),
         estimatedPrice,
         description: description.trim(),
-        itemType,
+        type: itemType,
         imageUrl,
         isAvailable: true,
       };
@@ -147,7 +148,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
             estimated_price: it.estimatedPrice,
             description: it.description,
             image_url: it.imageUrl,
-            item_type: it.itemType || 'MEAL',
+            item_type: it.type || 'FOOD',
             is_available: it.isAvailable ?? true,
           }));
           await supabase.from('items').insert(itemRows);

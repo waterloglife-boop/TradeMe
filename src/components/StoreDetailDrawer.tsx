@@ -1,5 +1,6 @@
-import React from 'react';
-import { Store, ExchangeItem } from '../types/trade';
+import React, { useState, useEffect } from 'react';
+import { Store, ExchangeItem, MenuTestCampaign } from '../types/trade';
+import { fetchMenuTestCampaigns } from '../lib/supabase';
 import {
   X,
   Phone,
@@ -11,7 +12,8 @@ import {
   ArrowRightLeft,
   MessageSquare,
   ShieldCheck,
-  Tag
+  Tag,
+  Sparkles
 } from 'lucide-react';
 
 interface StoreDetailDrawerProps {
@@ -33,6 +35,18 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
   onOpenMenuTestDashboard,
   isMyStore,
 }) => {
+  const [campaigns, setCampaigns] = useState<MenuTestCampaign[]>([]);
+
+  useEffect(() => {
+    if (store?.id && store.isMenuTesting) {
+      fetchMenuTestCampaigns(store.id).then((data) => {
+        setCampaigns(data || []);
+      });
+    } else {
+      setCampaigns([]);
+    }
+  }, [store?.id, store?.isMenuTesting]);
+
   if (!store) return null;
 
   const getFeedbackBadge = (type?: string) => {
@@ -135,57 +149,113 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
       {/* Scrollable Content */}
       <div className="p-4 overflow-y-auto flex-1 space-y-4">
         
-        {/* 🧪 Highlighted Menu Test Campaign Card */}
+        {/* 🧪 Highlighted Menu Test Campaign Card(s) - Up to 2 concurrent campaigns */}
         {store.isMenuTesting && (
-          <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-950 text-white rounded-2xl p-4 shadow-lg border border-purple-400/30 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 text-[10px] font-extrabold bg-purple-500 text-white rounded-full flex items-center gap-1 shadow-sm">
-                <span>🧪</span> 신메뉴 1호 시식단 / 서포터즈 모집
-              </span>
-              <span className="text-[11px] font-bold text-purple-200">
-                정원 {store.menuTestQuota || 5}명 중 {store.menuTestApplicantCount || 0}명 지원
-              </span>
-            </div>
+          <div className="space-y-3">
+            {campaigns.filter((c) => c.status === 'RECRUITING').length > 0 ? (
+              campaigns
+                .filter((c) => c.status === 'RECRUITING')
+                .map((camp, idx) => (
+                  <div
+                    key={camp.id}
+                    className="bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-950 text-white rounded-2xl p-4 shadow-lg border border-purple-400/30 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 text-[10px] font-extrabold bg-purple-500 text-white rounded-full flex items-center gap-1 shadow-sm">
+                        <span>🧪</span> {idx === 0 ? '1호' : '2호'} 시식단 / 서포터즈 모집
+                      </span>
+                      <span className="text-[11px] font-bold text-purple-200">
+                        정원 {camp.quota}명
+                      </span>
+                    </div>
 
-            <div>
-              <h3 className="font-extrabold text-base text-white tracking-tight leading-snug">
-                {store.menuTestTitle || '가을 신메뉴 1호 시식단'}
-              </h3>
-              {store.menuTestDescription && (
-                <p className="text-xs text-purple-200 mt-1 leading-relaxed">
-                  {store.menuTestDescription}
-                </p>
-              )}
-            </div>
+                    <div>
+                      <h3 className="font-extrabold text-base text-white tracking-tight leading-snug">
+                        {camp.title}
+                      </h3>
+                      {camp.description && (
+                        <p className="text-xs text-purple-200 mt-1 leading-relaxed">
+                          {camp.description}
+                        </p>
+                      )}
+                    </div>
 
-            <div className="bg-white/10 backdrop-blur rounded-xl p-2.5 text-xs space-y-1.5 border border-white/10">
-              <div className="flex items-center justify-between">
-                <span className="text-purple-300">🎁 제공 혜택</span>
-                <span className="font-bold text-white text-right">{store.menuTestReward || '신메뉴 2인 무료 시식'}</span>
-              </div>
-              <div className="flex items-center justify-between pt-1 border-t border-white/10">
-                <span className="text-purple-300">📝 피드백 조건</span>
-                <span className="font-bold text-purple-200">{getFeedbackBadge(store.menuTestFeedbackType)}</span>
-              </div>
-            </div>
+                    <div className="bg-white/10 backdrop-blur rounded-xl p-2.5 text-xs space-y-1.5 border border-white/10">
+                      <div className="flex items-center justify-between">
+                        <span className="text-purple-300">🎁 제공 혜택</span>
+                        <span className="font-bold text-white text-right">{camp.reward}</span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                        <span className="text-purple-300">📝 피드백 조건</span>
+                        <span className="font-bold text-purple-200">{getFeedbackBadge(camp.feedbackType)}</span>
+                      </div>
+                    </div>
 
-            {!isMyStore ? (
-              <button
-                onClick={() => onOpenMenuTestApply && onOpenMenuTestApply(store)}
-                className="w-full py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-gray-950 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-              >
-                <span>🧪</span>
-                <span>신메뉴 1호 체험단 신청하기</span>
-              </button>
+                    {!isMyStore ? (
+                      <button
+                        onClick={() => onOpenMenuTestApply && onOpenMenuTestApply(store, camp)}
+                        className="w-full py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-gray-950 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                      >
+                        <span>🧪</span>
+                        <span>{camp.title} 신청하기</span>
+                      </button>
+                    ) : null}
+                  </div>
+                ))
             ) : (
+              <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-950 text-white rounded-2xl p-4 shadow-lg border border-purple-400/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 text-[10px] font-extrabold bg-purple-500 text-white rounded-full flex items-center gap-1 shadow-sm">
+                    <span>🧪</span> 신메뉴 시식단 / 서포터즈 모집
+                  </span>
+                  <span className="text-[11px] font-bold text-purple-200">
+                    정원 {store.menuTestQuota || 5}명
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="font-extrabold text-base text-white tracking-tight leading-snug">
+                    {store.menuTestTitle || '가을 신메뉴 1호 시식단'}
+                  </h3>
+                  {store.menuTestDescription && (
+                    <p className="text-xs text-purple-200 mt-1 leading-relaxed">
+                      {store.menuTestDescription}
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-white/10 backdrop-blur rounded-xl p-2.5 text-xs space-y-1.5 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-purple-300">🎁 제공 혜택</span>
+                    <span className="font-bold text-white text-right">{store.menuTestReward || '신메뉴 2인 무료 시식'}</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                    <span className="text-purple-300">📝 피드백 조건</span>
+                    <span className="font-bold text-purple-200">{getFeedbackBadge(store.menuTestFeedbackType)}</span>
+                  </div>
+                </div>
+
+                {!isMyStore && (
+                  <button
+                    onClick={() => onOpenMenuTestApply && onOpenMenuTestApply(store)}
+                    className="w-full py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-gray-950 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                  >
+                    <span>🧪</span>
+                    <span>시식단 신청하기</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {isMyStore && (
               <div className="space-y-2">
-                <div className="text-center text-[11px] text-purple-300 bg-white/5 py-1.5 rounded-lg border border-purple-400/20">
+                <div className="text-center text-[11px] text-purple-700 bg-purple-50 py-1.5 rounded-lg border border-purple-200 font-bold">
                   👑 내가 모집 중인 신메뉴 테스트 캠페인입니다
                 </div>
                 {onOpenMenuTestDashboard && (
                   <button
                     onClick={onOpenMenuTestDashboard}
-                    className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
                   >
                     <span>📋</span>
                     <span>접수된 체험단 신청서 관리 대시보드</span>

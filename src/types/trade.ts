@@ -1,6 +1,7 @@
 export type ItemType = 'FOOD' | 'SERVICE' | 'ITEM';
 
 export type StoreCategory = 
+  | 'FOOD'
   | 'KOREAN' 
   | 'JAPANESE' 
   | 'WESTERN' 

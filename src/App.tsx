@@ -26,6 +26,7 @@ import {
   fetchUserProfileFromSupabase,
   fetchUserStoreFromSupabase
 } from './lib/supabase';
+import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign } from './types/trade';
 import { MapPin } from 'lucide-react';
 
 const INITIAL_MY_STORE_STATE: Store = {
@@ -90,6 +91,8 @@ export const App: React.FC = () => {
   const [isMenuTestDashboardOpen, setIsMenuTestDashboardOpen] = useState(false);
   const [isRegisterMenuTestModalOpen, setIsRegisterMenuTestModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<MenuTestCampaign | null>(null);
+  const [menuTestRefreshTrigger, setMenuTestRefreshTrigger] = useState(0);
+  const [registerActiveCampaignCount, setRegisterActiveCampaignCount] = useState(0);
 
   // Chat state
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
@@ -635,10 +638,12 @@ export const App: React.FC = () => {
         onClose={() => setIsMenuTestDashboardOpen(false)}
         myStore={myStore}
         onAcceptAndOpenChat={handleAcceptMenuTestAndOpenChat}
-        onOpenRegisterMenuTest={(campaignToEdit) => {
+        onOpenRegisterMenuTest={(campaignToEdit, activeCount) => {
           setEditingCampaign(campaignToEdit || null);
+          setRegisterActiveCampaignCount(activeCount || 0);
           setIsRegisterMenuTestModalOpen(true);
         }}
+        refreshTrigger={menuTestRefreshTrigger}
       />
 
       {/* 🧪 Register Menu Test Recruitment Modal (신메뉴 모집 단독 폼) */}
@@ -650,6 +655,7 @@ export const App: React.FC = () => {
         }}
         myStore={myStore}
         editingCampaign={editingCampaign}
+        activeCampaignCount={registerActiveCampaignCount}
         onSaveCampaign={(savedCampaign) => {
           setMyStore((prev) => ({
             ...prev,
@@ -660,6 +666,10 @@ export const App: React.FC = () => {
             menuTestFeedbackType: savedCampaign.feedbackType,
             menuTestImageUrl: savedCampaign.imageUrl,
           }));
+          setMenuTestRefreshTrigger((prev) => prev + 1);
+          fetchStoresFromSupabase().then((data) => {
+            if (data && data.length > 0) setStores(data);
+          });
         }}
       />
 

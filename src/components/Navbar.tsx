@@ -18,6 +18,9 @@ interface NavbarProps {
   hasRegisteredStore?: boolean;
   pendingAlertCount?: number;
   onOpenCommunityModal?: () => void;
+  onOpenRegisterModal?: () => void;
+  onOpenTradeDashboard?: () => void;
+  onOpenMenuTestDashboard?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({

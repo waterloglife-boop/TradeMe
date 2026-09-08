@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Send, ShieldCheck, CheckCircle2, AlertCircle, ExternalLink, HelpCircle } from 'lucide-react';
-import { Store, MenuTestFeedbackType } from '../types/trade';
+import { Store, MenuTestFeedbackType, MenuTestCampaign } from '../types/trade';
 import { applyMenuTestCampaign } from '../lib/supabase';
 
 interface MenuTestApplyModalProps {
@@ -91,7 +91,7 @@ export const MenuTestApplyModal: React.FC<MenuTestApplyModalProps> = ({
             </div>
             <div>
               <h2 className="font-extrabold text-base tracking-tight">
-                신메뉴 1호 시식단 / 리뷰 체험단 신청
+                {targetCampaign?.title ? `${targetCampaign.title} 신청` : '신메뉴 시식단 / 리뷰 체험단 신청'}
               </h2>
               <p className="text-[11px] text-purple-100">
                 {targetStore.storeName} ({targetStore.ownerName} 사장님)

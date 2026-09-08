@@ -6,7 +6,8 @@ import {
   updateMenuTestApplicationStatus,
   fetchMenuTestCampaigns,
   saveMenuTestCampaignToSupabase,
-  deleteMenuTestCampaignFromSupabase
+  deleteMenuTestCampaignFromSupabase,
+  supabase
 } from '../lib/supabase';
 
 interface MenuTestDashboardModalProps {
@@ -14,7 +15,8 @@ interface MenuTestDashboardModalProps {
   onClose: () => void;
   myStore: Store;
   onAcceptAndOpenChat: (applicant: MenuTestApplication) => void;
-  onOpenRegisterMenuTest?: (campaignToEdit?: MenuTestCampaign | null) => void;
+  onOpenRegisterMenuTest?: (campaignToEdit?: MenuTestCampaign | null, activeCount?: number) => void;
+  refreshTrigger?: number;
 }
 
 export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
@@ -23,6 +25,7 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
   myStore,
   onAcceptAndOpenChat,
   onOpenRegisterMenuTest,
+  refreshTrigger = 0,
 }) => {
   const [campaigns, setCampaigns] = useState<MenuTestCampaign[]>([]);
   const [applications, setApplications] = useState<MenuTestApplication[]>([]);
@@ -49,6 +52,7 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
         status: myStore.isMenuTesting ? 'RECRUITING' : 'CLOSED',
         createdAt: new Date().toISOString(),
       };
+      await saveMenuTestCampaignToSupabase(initial);
       fetchedCampaigns = [initial];
     }
     setCampaigns(fetchedCampaigns);
@@ -63,7 +67,7 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
     if (isOpen) {
       loadData();
     }
-  }, [isOpen, myStore.id]);
+  }, [isOpen, myStore.id, refreshTrigger]);
 
   if (!isOpen) return null;
 
@@ -79,13 +83,22 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
 
     const updated = { ...campaign, status: newStatus as any };
     await saveMenuTestCampaignToSupabase(updated);
-    setCampaigns((prev) => prev.map((c) => (c.id === campaign.id ? updated : c)));
+    const updatedList = campaigns.map((c) => (c.id === campaign.id ? updated : c));
+    setCampaigns(updatedList);
+
+    // Sync stores.is_menu_testing in DB
+    const hasActive = updatedList.some((c) => c.status === 'RECRUITING');
+    await supabase.from('stores').update({ is_menu_testing: hasActive }).eq('id', myStore.id);
   };
 
   const handleDeleteCampaign = async (campaignId: string) => {
     if (confirm('이 신메뉴 모집글을 삭제하시겠습니까?')) {
       await deleteMenuTestCampaignFromSupabase(campaignId, myStore.id);
-      setCampaigns((prev) => prev.filter((c) => c.id !== campaignId));
+      const updatedList = campaigns.filter((c) => c.id !== campaignId);
+      setCampaigns(updatedList);
+
+      const hasActive = updatedList.some((c) => c.status === 'RECRUITING');
+      await supabase.from('stores').update({ is_menu_testing: hasActive }).eq('id', myStore.id);
     }
   };
 
@@ -160,7 +173,7 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
                   if (activeCount >= 2) {
                     alert('💡 현재 최대치인 2개의 신메뉴를 동시 모집 중입니다. 새 모집글을 등록하시려면 기존 글 중 하나를 마감해 주세요.');
                   } else {
-                    onOpenRegisterMenuTest(null);
+                    onOpenRegisterMenuTest(null, activeCount);
                   }
                 }}
                 className="flex items-center gap-1 px-3.5 py-1.5 bg-white hover:bg-purple-50 text-purple-800 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 whitespace-nowrap"
@@ -251,7 +264,7 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
                       {onOpenRegisterMenuTest && (
                         <button
                           type="button"
-                          onClick={() => onOpenRegisterMenuTest(camp)}
+                          onClick={() => onOpenRegisterMenuTest(camp, activeCount)}
                           className="p-1 text-purple-700 hover:bg-purple-50 rounded-lg"
                           title="수정"
                         >

@@ -1211,6 +1211,30 @@ export async function fetchMenuTestCampaigns(storeId: string): Promise<MenuTestC
     }
 
     if (!data || data.length === 0) {
+      // Check if store has legacy menu testing data in stores table
+      const { data: storeData } = await supabase
+        .from('stores')
+        .select('id, store_name, is_menu_testing, menu_test_title, menu_test_reward, menu_test_quota, menu_test_feedback_type, menu_test_image_url, menu_test_description, store_image_url')
+        .eq('id', storeId)
+        .maybeSingle();
+
+      if (storeData && (storeData.is_menu_testing || storeData.menu_test_title)) {
+        const initialCampaign: MenuTestCampaign = {
+          id: `campaign-1-${storeId}`,
+          storeId: storeId,
+          title: storeData.menu_test_title || '신메뉴 1호 시식단',
+          reward: storeData.menu_test_reward || '신메뉴 2인 무료 시식 (음료 포함)',
+          quota: storeData.menu_test_quota || 5,
+          feedbackType: storeData.menu_test_feedback_type || 'BOTH',
+          imageUrl: storeData.menu_test_image_url || storeData.store_image_url || '',
+          description: storeData.menu_test_description || '',
+          status: storeData.is_menu_testing ? 'RECRUITING' : 'CLOSED',
+          createdAt: new Date().toISOString(),
+        };
+        // Persist to DB so it is not lost when adding campaign 2
+        await saveMenuTestCampaignToSupabase(initialCampaign);
+        return [initialCampaign];
+      }
       return [];
     }
 

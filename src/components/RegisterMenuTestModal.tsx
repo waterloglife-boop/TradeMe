@@ -136,7 +136,7 @@ export const RegisterMenuTestModal: React.FC<RegisterMenuTestModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Modal Header */}
@@ -177,24 +177,24 @@ export const RegisterMenuTestModal: React.FC<RegisterMenuTestModalProps> = ({
 
           {/* Recruitment ON/OFF Toggle Banner */}
           <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
-            isMenuTesting ? 'bg-purple-50 border-purple-200 text-purple-900' : 'bg-gray-100 border-gray-300 text-gray-700'
+            status === 'RECRUITING' ? 'bg-purple-50 border-purple-200 text-purple-900' : 'bg-gray-100 border-gray-300 text-gray-700'
           }`}>
             <div>
               <span className="block text-xs font-extrabold">
-                {isMenuTesting ? '📢 시식단 모집 상태: 활성화 (모집중)' : '⏸️ 시식단 모집 상태: 일시정지 (모집마감)'}
+                {status === 'RECRUITING' ? '📢 시식단 모집 상태: 활성화 (모집중)' : '⏸️ 시식단 모집 상태: 일시정지 (모집마감)'}
               </span>
               <p className="text-[11px] opacity-80 mt-0.5">
-                {isMenuTesting ? '지도 마커에 🧪 신메뉴 뱃지가 표출되며 누구나 신청 가능합니다.' : '지도에서 🧪 신메뉴 뱃지가 숨겨집니다.'}
+                {status === 'RECRUITING' ? '지도 마커에 🧪 신메뉴 뱃지가 표출되며 누구나 신청 가능합니다.' : '지도에서 🧪 신메뉴 뱃지가 숨겨집니다.'}
               </p>
             </div>
             <button
               type="button"
-              onClick={() => setIsMenuTesting(!isMenuTesting)}
+              onClick={() => setStatus(status === 'RECRUITING' ? 'CLOSED' : 'RECRUITING')}
               className={`p-1.5 rounded-xl font-extrabold text-xs flex items-center gap-1 shadow-sm transition-all ${
-                isMenuTesting ? 'bg-purple-600 text-white hover:bg-purple-700' : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                status === 'RECRUITING' ? 'bg-purple-600 text-white hover:bg-purple-700' : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
               }`}
             >
-              {isMenuTesting ? '모집 ON' : '모집 OFF'}
+              {status === 'RECRUITING' ? '모집 ON' : '모집 OFF'}
             </button>
           </div>
 
