@@ -168,3 +168,26 @@ export interface CommunityComment {
   content: string;
   createdAt: string;
 }
+
+// 🎟️ [상생 교환권 보관함] 발행된 교환권 / 상품권 모델 (Phase 3)
+export type VoucherStatus = 'AVAILABLE' | 'USED' | 'EXPIRED';
+
+export interface IssuedVoucher {
+  id: string;
+  tradeId?: string; // 연결된 물물교환 제안 ID
+  senderStoreId: string; // 발행한 매장 ID
+  senderStoreName: string; // 발행 매장명 (예: 소담 한정식)
+  senderOwnerName: string; // 발행 사장님 성함
+  senderStoreImageUrl?: string;
+  receiverStoreId: string; // 교환권을 받은 매장 ID (내 매장)
+  receiverStoreName: string; // 교환권을 받은 매장명
+  type: 'AMOUNT' | 'MENU'; // 금액권 vs 지정 메뉴 교환권
+  title: string; // 쿠폰 타이틀 (예: '소담 한정식 20,000원 상생 이용권' 또는 '보리굴비 정식 2인 교환권')
+  description?: string; // 상세 안내
+  amount: number; // 가치/금액 (예: 20000)
+  fulfillmentTypes: FulfillmentType[]; // ['PICKUP', 'ON_SITE', ...]
+  issuedAt: string; // 발행 일시 (ISO)
+  expiresAt: string; // 만료 일시 (발행일 + 30일, ISO)
+  status: VoucherStatus; // AVAILABLE | USED | EXPIRED
+  usedAt?: string; // 사용 일시 (ISO)
+}

@@ -54,6 +54,8 @@ interface AuthModalProps {
   onOpenRegisterModal?: () => void;
   onOpenTradeDashboard?: () => void;
   onOpenMenuTestDashboard?: () => void;
+  onOpenCouponWallet?: () => void;
+  voucherCount?: number;
   pendingTradeCount?: number;
   pendingMenuTestCount?: number;
   noticeMessage?: string | null;
@@ -87,6 +89,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onOpenRegisterModal,
   onOpenTradeDashboard,
   onOpenMenuTestDashboard,
+  onOpenCouponWallet,
+  voucherCount = 0,
   pendingTradeCount = 0,
   pendingMenuTestCount = 0,
   noticeMessage = null,
@@ -554,6 +558,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
               </div>
+
+              {/* 🎟️ 내 교환권 보관함 (받은 쿠폰 N/3장) */}
+              {onOpenCouponWallet && (
+                <div
+                  onClick={() => {
+                    onClose();
+                    onOpenCouponWallet();
+                  }}
+                  className="bg-white hover:bg-amber-50/50 p-4 rounded-2xl border border-gray-200 hover:border-amber-300 shadow-sm hover:shadow transition-all cursor-pointer flex items-center justify-between group active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center text-xl flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+                      🎟️
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-extrabold text-sm text-gray-900 group-hover:text-orange-600 transition-colors">
+                          내 교환권 보관함 (받은 쿠폰)
+                        </h4>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                          voucherCount >= 3 ? 'bg-red-100 text-red-700 font-black' : 'bg-amber-100 text-amber-900'
+                        }`}>
+                          보유 {voucherCount} / 3장
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        이웃 사장님들에게 받은 상생 금액권 및 메뉴 교환권 사용 (슬라이드 결제)
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                </div>
+              )}
 
               {/* 2. 1:1 물물교환 제안함 */}
               <div

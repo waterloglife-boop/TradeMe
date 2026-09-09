@@ -13,6 +13,7 @@ import { RegisterMenuTestModal } from './components/RegisterMenuTestModal';
 import { ManageExchangeItemsModal } from './components/ManageExchangeItemsModal';
 import { TradeDashboardModal } from './components/TradeDashboardModal';
 import { CommunityModal } from './components/CommunityModal';
+import { CouponWalletModal } from './components/CouponWalletModal';
 import {
   fetchStoresFromSupabase,
   subscribeToTradeChat,
@@ -26,6 +27,7 @@ import {
   fetchUserProfileFromSupabase,
   fetchUserStoreFromSupabase,
   signOutUser,
+  fetchStoredVouchers,
   supabase,
 } from './lib/supabase';
 import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign } from './types/trade';
@@ -78,6 +80,24 @@ export const App: React.FC = () => {
 
   // ☕ 사장님 사랑방 커뮤니티 State
   const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
+
+  // 🎟️ 내 교환권 보관함 State (Phase 3)
+  const [isCouponWalletOpen, setIsCouponWalletOpen] = useState(false);
+  const [voucherWalletCount, setVoucherWalletCount] = useState<number>(() => {
+    try {
+      const vs = fetchStoredVouchers();
+      return vs.filter((v) => v.status === 'AVAILABLE').length;
+    } catch (e) {
+      return 0;
+    }
+  });
+
+  const refreshVoucherWalletCount = () => {
+    try {
+      const vs = fetchStoredVouchers(myStore.id, myStore.storeName);
+      setVoucherWalletCount(vs.filter((v) => v.status === 'AVAILABLE').length);
+    } catch (e) {}
+  };
 
   // Location Picker State (비로그인 첫 방문 기준: 대한민국 표준 중심 서울시청/광화문)
   const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>(() => {
@@ -766,6 +786,11 @@ export const App: React.FC = () => {
         hasRegisteredStore={hasRegisteredStore}
         pendingAlertCount={pendingTradeCount + pendingMenuTestCount}
         onOpenCommunityModal={() => setIsCommunityModalOpen(true)}
+        onOpenCouponWallet={() => {
+          refreshVoucherWalletCount();
+          setIsCouponWalletOpen(true);
+        }}
+        voucherCount={voucherWalletCount}
       />
 
       {/* Main Map View */}
@@ -871,6 +896,11 @@ export const App: React.FC = () => {
         onUpdateProfile={handleUpdateProfile}
         onLogout={handleLogout}
         onOpenManageItems={() => setIsManageItemsModalOpen(true)}
+        onOpenCouponWallet={() => {
+          refreshVoucherWalletCount();
+          setIsCouponWalletOpen(true);
+        }}
+        voucherCount={voucherWalletCount}
         onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
         onOpenTradeDashboard={() => setIsTradeDashboardOpen(true)}
         onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
@@ -884,6 +914,19 @@ export const App: React.FC = () => {
         onClose={() => setIsManageItemsModalOpen(false)}
         myStore={myStore}
         onSaveItems={handleSaveExchangeItems}
+      />
+
+      {/* 🎟️ 내 교환권 보관함 모달 (Phase 3) */}
+      <CouponWalletModal
+        isOpen={isCouponWalletOpen}
+        onClose={() => {
+          refreshVoucherWalletCount();
+          setIsCouponWalletOpen(false);
+        }}
+        myStore={myStore}
+        onExploreStores={() => {
+          setIsCouponWalletOpen(false);
+        }}
       />
 
       {/* Register Store & Exchange Items Modal (Legacy/Direct) */}

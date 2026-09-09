@@ -21,6 +21,8 @@ interface NavbarProps {
   onOpenRegisterModal?: () => void;
   onOpenTradeDashboard?: () => void;
   onOpenMenuTestDashboard?: () => void;
+  onOpenCouponWallet?: () => void;
+  voucherCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -40,6 +42,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   hasRegisteredStore = false,
   pendingAlertCount = 0,
   onOpenCommunityModal,
+  onOpenCouponWallet,
+  voucherCount = 0,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
@@ -79,6 +83,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-xs sm:text-sm">☕</span>
                 <span className="hidden sm:inline">사장님 사랑방</span>
                 <span className="sm:hidden">사랑방</span>
+              </button>
+            )}
+
+            {/* 🎟️ 내 교환권 보관함 버튼 */}
+            {onOpenCouponWallet && (
+              <button
+                onClick={onOpenCouponWallet}
+                className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-700 hover:to-orange-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap"
+              >
+                <span className="text-xs sm:text-sm">🎟️</span>
+                <span className="hidden sm:inline">교환권 보관함</span>
+                <span className="sm:hidden">보관함</span>
+                <span className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                  voucherCount >= 3 ? 'bg-red-500 text-white animate-pulse' : 'bg-white/25 text-white'
+                }`}>
+                  {voucherCount}/3
+                </span>
               </button>
             )}
 
