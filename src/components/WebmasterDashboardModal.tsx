@@ -26,7 +26,8 @@ import {
   fetchAdBannerStats,
   updateCoupangLinks,
   exportStoresToCsv,
-  fetchStoredVouchers
+  fetchStoredVouchers,
+  fetchCommunityPosts
 } from '../lib/supabase';
 
 interface WebmasterDashboardModalProps {
@@ -85,38 +86,26 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
       const inqs = fetchCustomerInquiries();
       setInquiries(inqs);
 
-      // Load local community posts
-      try {
-        const raw = localStorage.getItem('trademe_community_posts');
-        if (raw) setPosts(JSON.parse(raw));
-        else {
-          setPosts([
-            {
-              id: 'post-1',
-              authorName: '홍길동 사장님',
-              storeName: '송정 수제돈까스',
-              isAnonymous: false,
-              category: 'DAILY_TALK',
-              title: '오늘 저녁 재고 생등심 3kg 남았는데 마감 교환하실 분 계신가요?',
-              content: '오늘 유난히 비가 와서 저녁 테이블 회전이 느렸네요. 신선한 생등심 돈까스용 고기 3kg 있습니다. 채소나 과일과 교환 희망합니다.',
-              likesCount: 5,
-              commentsCount: 3,
-              createdAt: '2시간 전',
-            },
-            {
-              id: 'post-2',
-              authorName: '이소담 사장님',
-              storeName: '소담 한정식',
-              isAnonymous: false,
-              category: 'TIPS_QNA',
-              title: '이번 달 식자재 도매상 바꿨는데 원가 절감 팁 공유합니다.',
-              content: '대용량 쌀과 식용유를 온라인 쿠팡 로켓 대용량으로 바꿨더니 배송비도 없고 박스당 4,000원씩 절약되네요. 추천드립니다.',
-              likesCount: 12,
-              commentsCount: 6,
-              createdAt: '어제',
-            },
-          ]);
+      // Load real community posts and purge legacy dummy posts
+      fetchCommunityPosts().then((realPosts) => {
+        const cleaned = (realPosts || []).filter((p) => !p.id.startsWith('post-') && !p.id.startsWith('post_welcome_'));
+        setPosts(cleaned);
+      }).catch(() => {
+        try {
+          const raw = localStorage.getItem('trademe_community_posts_cache');
+          if (raw) {
+            const parsed: CommunityPost[] = JSON.parse(raw);
+            const cleaned = parsed.filter((p) => !p.id.startsWith('post-') && !p.id.startsWith('post_welcome_'));
+            setPosts(cleaned);
+          } else {
+            setPosts([]);
+          }
+        } catch {
+          setPosts([]);
         }
+      });
+      try {
+        localStorage.removeItem('trademe_community_posts');
       } catch (e) {}
 
       // Load all vouchers across storage

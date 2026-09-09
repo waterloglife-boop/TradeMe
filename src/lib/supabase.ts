@@ -424,6 +424,68 @@ export async function signUpUser(
   }
 }
 
+// 🛡️ [공식 웹마스터 테스트 가맹점]
+// 1인 사용자 환경에서 마라위크 매장과의 1:1 대화 및 교환권 거래를 원활하게 상호 테스트할 수 있도록 지원하는 공식 가맹점
+export const WEBMASTER_TEST_STORE: Store = {
+  id: 'store-webmaster-test-bakery',
+  userId: 'user-webmaster-test',
+  ownerName: '웹마스터 김동욱',
+  storeName: '트레이드미 테스트 베이커리',
+  category: 'CAFE',
+  categoryName: '카페/디저트',
+  address: '경상남도 양산시 물금읍 야리2길 15',
+  lat: 35.3185,
+  lng: 129.0065,
+  phone: '010-9876-5432',
+  isVerified: true,
+  breakTimeActive: true,
+  breakTimeHours: '10:00 - 22:00',
+  storeImageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80',
+  rating: 5.0,
+  reviewCount: 14,
+  isMenuTesting: false,
+  voucherActive: true,
+  voucherAmount: 10000,
+  voucherMaxIssue: 5,
+  voucherFulfillmentTypes: ['PICKUP', 'DELIVERY', 'ON_SITE'],
+  exchangeItems: [
+    {
+      id: 'item-test-bakery-1',
+      storeId: 'store-webmaster-test-bakery',
+      type: 'FOOD',
+      title: '🥐 [대표] 수제 크루아상 & 아메리카노 2인 세트',
+      description: '갓 구운 프랑스 고메버터 크루아상과 스페셜티 아메리카노 2잔 세트입니다. 매장 방문 식사 또는 포장 픽업 가능합니다.',
+      estimatedPrice: 12000,
+      imageUrl: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=600&q=80',
+      isAvailable: true,
+      fulfillmentTypes: ['PICKUP', 'DELIVERY', 'ON_SITE'],
+    },
+    {
+      id: 'item-test-bakery-voucher',
+      storeId: 'store-webmaster-test-bakery',
+      type: 'VOUCHER',
+      title: '🎟️ [상생 교환권] 10,000원 모바일 금액 교환권',
+      description: '트레이드미 상생 교환권입니다. 매장 방문 시 전 메뉴에서 10,000원 상당으로 자유롭게 차감 결제하실 수 있습니다.',
+      estimatedPrice: 10000,
+      imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80',
+      isAvailable: true,
+      fulfillmentTypes: ['PICKUP', 'ON_SITE'],
+      isVoucher: true,
+    },
+    {
+      id: 'item-test-bakery-2',
+      storeId: 'store-webmaster-test-bakery',
+      type: 'FOOD',
+      title: '🍰 [인기] 딸기 생크림 조각케이크 & 디저트 세트',
+      description: '100% 동물성 생크림과 신선한 생딸기를 듬뿍 올린 프리미엄 조각케이크입니다.',
+      estimatedPrice: 15000,
+      imageUrl: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=600&q=80',
+      isAvailable: true,
+      fulfillmentTypes: ['PICKUP', 'ON_SITE'],
+    },
+  ],
+};
+
 export async function signInUser(email: string, pass: string): Promise<{
   success: boolean;
   user?: any;
@@ -434,14 +496,49 @@ export async function signInUser(email: string, pass: string): Promise<{
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = pass.trim();
 
+  // 1. 웹마스터 테스트 전용 계정 즉시 인증 (admin@trademe.kr, master@trademe.kr, test@trademe.kr)
+  if (['admin@trademe.kr', 'master@trademe.kr', 'test@trademe.kr', 'owner@trademe.kr', 'demo@trademe.kr'].includes(cleanEmail)) {
+    if (cleanPass !== '1901123' && cleanPass !== 'test1234!') {
+      return {
+        success: false,
+        error: '웹마스터 테스트 계정 비밀번호가 일치하지 않습니다. (마스터 암호: 1901123)',
+        message: '웹마스터 테스트 계정 비밀번호가 일치하지 않습니다. (마스터 암호: 1901123)',
+      };
+    }
+
+    const testUser = {
+      id: 'user-webmaster-test',
+      email: cleanEmail,
+      user_metadata: {
+        owner_name: WEBMASTER_TEST_STORE.ownerName,
+        store_name: WEBMASTER_TEST_STORE.storeName,
+        business_number: '123-45-67890',
+        phone: WEBMASTER_TEST_STORE.phone,
+        address: WEBMASTER_TEST_STORE.address,
+      },
+    };
+
+    try {
+      localStorage.setItem('trademe_profile', JSON.stringify(testUser.user_metadata));
+      localStorage.setItem('trademe_my_store', JSON.stringify(WEBMASTER_TEST_STORE));
+    } catch (e) {}
+
+    return {
+      success: true,
+      user: testUser as any,
+      store: WEBMASTER_TEST_STORE,
+      message: '웹마스터 테스트 사장님 계정으로 로그인되었습니다! 마라위크 매장과의 1:1 대화 및 교환권을 테스트하실 수 있습니다.',
+    };
+  }
+
   try {
-    // 1. Supabase Auth signInWithPassword
+    // 2. Supabase Auth signInWithPassword
     const { data, error } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password: cleanPass,
     });
 
-    // 1-1. 정상 로그인 성공
+    // 2-1. 정상 로그인 성공
     if (!error && data?.user) {
       let userStore: Store | null = null;
       try {
@@ -490,14 +587,11 @@ export async function signInUser(email: string, pass: string): Promise<{
       };
     }
 
-    // 2. Supabase Auth 오류 시나리오 처리
+    // 3. Supabase Auth 오류 시나리오 처리
     if (error) {
       console.warn('[Supabase Auth Warning] signInWithPassword error:', error.message);
 
       // 시나리오 A: Supabase 이메일 미인증 상태 ('Email not confirmed')
-      // Supabase 프로젝트 설정 상 이메일 인증이 활성화되어 있으면, 입력한 비밀번호가 100% 맞더라도
-      // Email not confirmed 에러가 반환됩니다. (비밀번호가 틀렸다면 Invalid login credentials 반환)
-      // 따라서 이 경우 비밀번호 검증이 완료된 것으로 판단하여 등록된 프로필/매장 정보를 즉시 연동해 로그인 처리합니다.
       if (error.message?.includes('Email not confirmed') || error.message?.includes('not confirmed')) {
         console.log('[Auth] Email not confirmed by Supabase, fetching profile from public.profiles...');
         
@@ -583,50 +677,6 @@ export async function signInUser(email: string, pass: string): Promise<{
             message: '로그인되었습니다! (이메일 인증 대기 계정이 정상 연동되었습니다)',
           };
         }
-      }
-
-      // 시나리오 B: 데모/테스트용 계정 (owner@trademe.kr, admin@trademe.kr, demo@trademe.kr)
-      if (['owner@trademe.kr', 'admin@trademe.kr', 'demo@trademe.kr'].includes(cleanEmail)) {
-        const demoStore: Store = {
-          id: 'store-demo-bakery-yangsan',
-          userId: 'demo-user-id',
-          ownerName: '홍길동 사장님',
-          storeName: '송정 수제돈까스',
-          category: 'FOOD',
-          categoryName: '외식업',
-          address: '부산광역시 해운대구 송정해변로 12',
-          lat: 35.1785,
-          lng: 129.1995,
-          phone: '010-1234-5678',
-          isVerified: true,
-          breakTimeActive: false,
-          breakTimeHours: '10:00 - 21:00',
-          storeImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
-          rating: 4.9,
-          reviewCount: 28,
-          isMenuTesting: false,
-          exchangeItems: [],
-        };
-        const demoUser = {
-          id: 'demo-user-id',
-          email: cleanEmail,
-          user_metadata: {
-            owner_name: '홍길동 사장님',
-            store_name: '송정 수제돈까스',
-          },
-        };
-
-        try {
-          localStorage.setItem('trademe_profile', JSON.stringify(demoUser.user_metadata));
-          localStorage.setItem('trademe_my_store', JSON.stringify(demoStore));
-        } catch (e) {}
-
-        return {
-          success: true,
-          user: demoUser as any,
-          store: demoStore,
-          message: '데모 사장님 계정으로 로그인되었습니다.',
-        };
       }
 
       // 시나리오 C: 가입된 사장님 프로필 확인 및 비밀번호/휴대폰 번호 비상 로그인 지원
@@ -1082,11 +1132,11 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
         details: storesError.details,
         hint: storesError.hint,
       });
-      return [];
+      return [WEBMASTER_TEST_STORE];
     }
 
     if (!storesData || storesData.length === 0) {
-      return [];
+      return [WEBMASTER_TEST_STORE];
     }
 
     // Fetch items for all stores
@@ -1158,10 +1208,16 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
       };
     });
 
+    // 🛡️ 공식 웹마스터 테스트 매장 항상 연동 (마라위크 매장과의 1:1 맞교환 및 대화 테스트 지원)
+    const hasTest = dbStores.some((s) => s.id === WEBMASTER_TEST_STORE.id || s.storeName === WEBMASTER_TEST_STORE.storeName);
+    if (!hasTest) {
+      dbStores.push(WEBMASTER_TEST_STORE);
+    }
+
     return dbStores;
   } catch (err) {
     console.error('[Supabase Error] fetchStoresFromSupabase exception:', err);
-    return [];
+    return [WEBMASTER_TEST_STORE];
   }
 }
 
@@ -2476,26 +2532,18 @@ const INQUIRIES_STORAGE_KEY = 'trademe_customer_inquiries';
 export function fetchCustomerInquiries(): CustomerInquiry[] {
   try {
     const raw = localStorage.getItem(INQUIRIES_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed: CustomerInquiry[] = JSON.parse(raw);
+      // 기존 가짜 더미 샘플 문의 완전 제거
+      const cleaned = parsed.filter((inq) => !inq.id.startsWith('inq-sample-'));
+      if (cleaned.length !== parsed.length) {
+        localStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify(cleaned));
+      }
+      return cleaned;
+    }
   } catch (e) {}
 
-  // 초기 데모 문의 데이터 1건 (첫 화면 확인용)
-  const initial: CustomerInquiry[] = [
-    {
-      id: 'inq-sample-1',
-      type: 'PARTNERSHIP',
-      senderName: '대한식자재유통 박상무',
-      senderContact: '010-9876-5432 / daehan@food.kr',
-      title: '소상공인 쌀/식용유 대량 공동구매 제휴 제안',
-      content: 'TradeMe 입점 사장님들께 업소용 쌀 20kg 및 식용유 18L를 도매가 이하로 공급하고, 상단 배너를 통해 독점 프로모션을 집행하고 싶습니다.',
-      status: 'PENDING',
-      createdAt: new Date(Date.now() - 3600 * 1000 * 5).toISOString(),
-    },
-  ];
-  try {
-    localStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify(initial));
-  } catch (e) {}
-  return initial;
+  return [];
 }
 
 export function createCustomerInquiry(data: {
@@ -2546,11 +2594,11 @@ const DEFAULT_BANNER_STATS: AdBannerStat[] = [
     icon: '🏆',
     name: '상단 메인 기획전 배너 (식자재/도매)',
     targetCategory: '업소용 식용유 18L / 쌀 20kg / 식료품',
-    impressions: 284,
-    clicks: 6,
-    ctr: 2.11,
-    estimatedRevenue: 2280,
-    lastClickedAt: '12분 전',
+    impressions: 0,
+    clicks: 0,
+    ctr: 0,
+    estimatedRevenue: 0,
+    lastClickedAt: '-',
     coupangUrl: 'https://link.coupang.com/a/b01_food_wholesale',
   },
   {
@@ -2559,11 +2607,11 @@ const DEFAULT_BANNER_STATS: AdBannerStat[] = [
     icon: '🛍️',
     name: '사장님 사랑방 피드 배너 (포장/배달용기)',
     targetCategory: '원형 탕용기 / 실링용기 / 포장 봉투',
-    impressions: 172,
-    clicks: 4,
-    ctr: 2.32,
-    estimatedRevenue: 1520,
-    lastClickedAt: '45분 전',
+    impressions: 0,
+    clicks: 0,
+    ctr: 0,
+    estimatedRevenue: 0,
+    lastClickedAt: '-',
     coupangUrl: 'https://link.coupang.com/a/b02_packaging_box',
   },
   {
@@ -2572,11 +2620,11 @@ const DEFAULT_BANNER_STATS: AdBannerStat[] = [
     icon: '🧼',
     name: '매장 상세 / 서랍 배너 (주방위생/세제)',
     targetCategory: '업소용 주방세제 4L / 니트릴장갑 100매',
-    impressions: 156,
-    clicks: 2,
-    ctr: 1.28,
-    estimatedRevenue: 760,
-    lastClickedAt: '2시간 전',
+    impressions: 0,
+    clicks: 0,
+    ctr: 0,
+    estimatedRevenue: 0,
+    lastClickedAt: '-',
     coupangUrl: 'https://link.coupang.com/a/b03_kitchen_hygiene',
   },
   {
@@ -2585,11 +2633,11 @@ const DEFAULT_BANNER_STATS: AdBannerStat[] = [
     icon: '🖨️',
     name: '하단 푸터 & 보관함 배너 (POS 감열지)',
     targetCategory: '신용카드 단말기 롤 영수증 용지 10롤',
-    impressions: 98,
-    clicks: 3,
-    ctr: 3.06,
-    estimatedRevenue: 1140,
-    lastClickedAt: '4시간 전',
+    impressions: 0,
+    clicks: 0,
+    ctr: 0,
+    estimatedRevenue: 0,
+    lastClickedAt: '-',
     coupangUrl: 'https://link.coupang.com/a/b04_pos_receipt_paper',
   },
 ];
@@ -2597,7 +2645,14 @@ const DEFAULT_BANNER_STATS: AdBannerStat[] = [
 export function fetchAdBannerStats(): AdBannerStat[] {
   try {
     const raw = localStorage.getItem(AD_STATS_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed: AdBannerStat[] = JSON.parse(raw);
+      // 이전 가짜 더미 통계 데이터(284 노출수 또는 2,280원) 자동 초기화
+      const isLegacyDummy = parsed.some((b) => b.impressions === 284 || b.estimatedRevenue === 2280);
+      if (!isLegacyDummy) {
+        return parsed;
+      }
+    }
   } catch (e) {}
 
   try {
