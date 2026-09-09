@@ -10,6 +10,7 @@ interface ChatDrawerProps {
   messages: ChatMessage[];
   onSendMessage: (text: string) => void;
   onAcceptTrade?: () => void;
+  onOpenCouponWallet?: () => void;
 }
 
 export const ChatDrawer: React.FC<ChatDrawerProps> = ({
@@ -20,6 +21,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   messages,
   onSendMessage,
   onAcceptTrade,
+  onOpenCouponWallet,
 }) => {
   const [inputText, setInputText] = useState('');
 
@@ -93,6 +95,24 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
         </span>
       </div>
 
+      {/* Quick Access to Coupon Wallet */}
+      {onOpenCouponWallet && (
+        <div className="px-4 py-2 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200/80 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 text-amber-950 font-bold text-[11px]">
+            <span>🎟️</span>
+            <span>1:1 상생 교환권 보관함</span>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenCouponWallet}
+            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[10px] rounded-lg shadow-xs transition-all active:scale-95 flex items-center gap-1"
+          >
+            <span>보관함 열기</span>
+            <span>&rarr;</span>
+          </button>
+        </div>
+      )}
+
       {/* Messages Stream */}
       <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50">
         <div className="text-center my-2">
@@ -137,11 +157,38 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                       <div className="font-extrabold flex items-center gap-1 mb-1">
                         <ArrowRightLeft className="w-3.5 h-3.5" /> 1:1 물물교환 제안서
                       </div>
-                      <p className="text-[11px] opacity-90">{msg.message}</p>
+                      <p className="text-[11px] opacity-90 whitespace-pre-line">{msg.message}</p>
                     </div>
                   )}
 
-                  {msg.systemAction !== 'PROPOSAL' && <p className="whitespace-pre-line">{msg.message}</p>}
+                  {/* If Accept System Action with Voucher Auto-issuance */}
+                  {msg.systemAction === 'ACCEPT' && (
+                    <div className="space-y-2">
+                      <div className="p-2.5 bg-gradient-to-br from-emerald-600 to-teal-700 rounded-xl text-white shadow-sm border border-emerald-300/40">
+                        <div className="font-black text-xs flex items-center gap-1.5 mb-1 text-emerald-100">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                          <span>1:1 물물교환 체결 완료 & 상호 교환권 발급</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed opacity-95 whitespace-pre-line">
+                          {msg.message}
+                        </p>
+                        {onOpenCouponWallet && (
+                          <button
+                            type="button"
+                            onClick={onOpenCouponWallet}
+                            className="mt-2.5 w-full py-1.5 bg-white text-emerald-800 hover:bg-emerald-50 font-black text-xs rounded-lg shadow-sm flex items-center justify-center gap-1 transition-all active:scale-95"
+                          >
+                            <span>🎟️</span>
+                            <span>내 교환권 보관함에서 확인하기</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {msg.systemAction !== 'PROPOSAL' && msg.systemAction !== 'ACCEPT' && (
+                    <p className="whitespace-pre-line">{msg.message}</p>
+                  )}
                   <span className={`block text-[9px] mt-1 text-right ${msg.isMe ? 'text-orange-100' : 'text-gray-400'}`}>
                     {msg.timestamp}
                   </span>

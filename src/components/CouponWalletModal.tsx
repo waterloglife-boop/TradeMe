@@ -8,6 +8,7 @@ interface CouponWalletModalProps {
   onClose: () => void;
   myStore: Store;
   onExploreStores?: () => void;
+  onWalletUpdate?: () => void;
 }
 
 export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
@@ -15,6 +16,7 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
   onClose,
   myStore,
   onExploreStores,
+  onWalletUpdate,
 }) => {
   const [vouchers, setVouchers] = useState<IssuedVoucher[]>([]);
   const [activeTab, setActiveTab] = useState<'AVAILABLE' | 'HISTORY'>('AVAILABLE');
@@ -46,6 +48,7 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
       const updated = fetchStoredVouchers(myStore.id, myStore.storeName);
       setVouchers(updated);
       showToast(`🎉 "${res.voucher?.title}" 사용이 완료되었습니다!`);
+      onWalletUpdate?.();
     } else {
       showToast(res.error || '사용 처리에 실패했습니다.');
     }
@@ -57,6 +60,7 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
       const updated = fetchStoredVouchers(myStore.id, myStore.storeName);
       setVouchers(updated);
       showToast(`↩️ "${res.voucher?.title}"이(가) 다시 사용 가능으로 복원되었습니다.`);
+      onWalletUpdate?.();
     } else {
       showToast(res.error || '복원에 실패했습니다.');
     }

@@ -67,6 +67,8 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     (window as any).__testSetSelectedStore = (s: Store | null) => setSelectedStore(s);
+    (window as any).__testOpenTradeDashboard = () => setIsTradeDashboardOpen(true);
+    (window as any).__testOpenCouponWallet = () => setIsCouponWalletOpen(true);
   }, []);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -439,7 +441,9 @@ export const App: React.FC = () => {
     diffPrice: number,
     pickupTime: string,
     isPoke: boolean = false,
-    memoMessage: string = ''
+    memoMessage: string = '',
+    tradeType: 'VOUCHER' | 'DIRECT' = 'VOUCHER',
+    tradeFulfillment: string = '🎟️ 상생 교환권(모바일 쿠폰) 즉시 맞발행'
   ) => {
     if (!selectedStore) return;
 
@@ -473,13 +477,15 @@ export const App: React.FC = () => {
         targetItemTitle: targetMenu.title,
         targetItemImageUrl: targetMenu.imageUrl,
         targetItemPrice: targetMenu.estimatedPrice,
+        tradeType,
+        tradeFulfillment,
       }
     );
 
     // If it's a REALTIME exchange proposal (!isPoke), open chat and send proposal bubble
     // If it's a POKE (isPoke === true), send asynchronously without intrusive chat popup
     if (!isPoke) {
-      const proposalMsgText = `[1:1 물물교환 제안]\n내 메뉴: ${myMenu.title} (${myMenu.estimatedPrice.toLocaleString()}원)\n요청 메뉴: ${targetMenu.title} (${targetMenu.estimatedPrice.toLocaleString()}원)\n정산: ${diffText}\n희망 시각: ${pickupTime}${memoMessage ? `\n메모: ${memoMessage}` : ''}`;
+      const proposalMsgText = `[1:1 물물교환 제안]\n제공 품목: ${myMenu.title} (${myMenu.estimatedPrice.toLocaleString()}원)\n희망 품목: ${targetMenu.title} (${targetMenu.estimatedPrice.toLocaleString()}원)\n이용 방식: ${tradeFulfillment}\n정산: ${diffText}\n희망 시각: ${pickupTime}${memoMessage ? `\n메모: ${memoMessage}` : ''}`;
 
       const newMsg: ChatMessage = {
         id: `msg-${Date.now()}`,
@@ -507,11 +513,13 @@ export const App: React.FC = () => {
   };
 
   const handleAcceptTradeProposalAndOpenChat = (proposal: TradeProposal) => {
+    refreshVoucherWalletCount();
+
     const counterpartStoreId = proposal.myStoreId === myStore.id ? proposal.targetStoreId : proposal.myStoreId;
     const counterpartStore = stores.find((s) => s.id === counterpartStoreId) || {
       id: counterpartStoreId,
-      ownerName: proposal.myOwnerName || '이웃 사장님',
-      storeName: proposal.myStoreName || '이웃 매장',
+      ownerName: (proposal.myStoreId === myStore.id ? proposal.targetOwnerName : proposal.myOwnerName) || '이웃 사장님',
+      storeName: (proposal.myStoreId === myStore.id ? proposal.targetStoreName : proposal.myStoreName) || '이웃 매장',
       category: 'FOOD',
       categoryName: '외식업',
       address: '인근 이웃 매장',
@@ -530,7 +538,11 @@ export const App: React.FC = () => {
     setChatTargetStore(counterpartStore);
     setIsChatDrawerOpen(true);
 
-    const acceptText = `🤝 [${myStore.storeName}] 사장님께서 제안하신 1:1 물물교환을 수락하셨습니다! 교환 픽업 시간과 상세 내용을 확인해 주세요.`;
+    const myItemTitle = proposal.myStoreId === myStore.id ? proposal.myItemTitle : proposal.targetItemTitle;
+    const counterpartItemTitle = proposal.myStoreId === myStore.id ? proposal.targetItemTitle : proposal.myItemTitle;
+
+    const acceptText = `🤝 [${myStore.storeName}] 사장님께서 제안하신 1:1 물물교환을 수락하셨습니다!\n🎟️ 양측 매장의 상생 교환권이 보관함으로 상호 자동 발급되었습니다.\n• [${myStore.storeName}] 제공: ${myItemTitle || '상생 교환 품목'}\n• [${counterpartStore.storeName}] 제공: ${counterpartItemTitle || '상생 교환 품목'}\n📅 유효기간: 오늘부터 30일간 (내 교환권 보관함에서 슬라이드하여 사용 가능)`;
+
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       senderId: myStore.id,
@@ -924,6 +936,7 @@ export const App: React.FC = () => {
           setIsCouponWalletOpen(false);
         }}
         myStore={myStore}
+        onWalletUpdate={refreshVoucherWalletCount}
         onExploreStores={() => {
           setIsCouponWalletOpen(false);
         }}
@@ -1027,6 +1040,7 @@ export const App: React.FC = () => {
         myStore={myStore}
         messages={chatTargetStore ? messagesMap[chatTargetStore.id] || [] : []}
         onSendMessage={handleSendChatMessage}
+        onOpenCouponWallet={() => setIsCouponWalletOpen(true)}
       />
 
       {/* ☕ 사장님 사랑방 커뮤니티 모달 */}

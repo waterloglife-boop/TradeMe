@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowRightLeft, CheckCircle2, XCircle, Clock, MessageSquare, AlertCircle, RefreshCw, Sparkles, Inbox, Send } from 'lucide-react';
 import { TradeProposal, Store } from '../types/trade';
-import { fetchTradeProposalsFromSupabase, updateTradeProposalStatus } from '../lib/supabase';
+import { fetchTradeProposalsFromSupabase, updateTradeProposalStatus, fetchStoredVouchers, issueBilateralVouchersForTrade } from '../lib/supabase';
 
 interface TradeDashboardModalProps {
   isOpen: boolean;
@@ -47,6 +47,24 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
 
   const handleStatusChange = async (proposal: TradeProposal, newStatus: 'ACCEPTED' | 'REJECTED') => {
     setActionLoadingId(proposal.id);
+
+    if (newStatus === 'ACCEPTED') {
+      const activeVouchers = fetchStoredVouchers(myStore.id).filter((v) => v.status === 'AVAILABLE');
+      if (activeVouchers.length >= 3) {
+        alert('⚠️ 현재 사장님의 교환권 보관함이 가득 찼습니다 (최대 3장).\n새 교환권을 수령하시려면 기존 교환권을 먼저 사용 완료해 주세요.');
+        setActionLoadingId(null);
+        return;
+      }
+
+      // Bilateral simultaneous auto-issuance into both wallets
+      const issueRes = issueBilateralVouchersForTrade(proposal, myStore.id);
+      if (!issueRes.success) {
+        alert(issueRes.error || '교환권 발급 중 오류가 발생했습니다.');
+        setActionLoadingId(null);
+        return;
+      }
+    }
+
     await updateTradeProposalStatus(proposal.id, newStatus);
 
     setProposals((prev) =>
@@ -55,6 +73,9 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
     setActionLoadingId(null);
 
     if (newStatus === 'ACCEPTED') {
+      alert(
+        `🎉 1:1 물물교환 제안을 수락했습니다!\n🎟️ 양측 매장의 상생 교환권이 보관함으로 상호 즉시 자동 발급되었습니다! (30일 유효)\n대화방 및 [내 교환권 보관함]에서 쿠폰을 바로 확인하실 수 있습니다.`
+      );
       onAcceptAndOpenChat(proposal);
       onClose();
     }
@@ -191,6 +212,21 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
                         </span>
                       )}
 
+                      {/* Voucher Trade Badge */}
+                      {(proposal.tradeType === 'VOUCHER' ||
+                        proposal.tradeFulfillment?.includes('교환권') ||
+                        proposal.myItemTitle?.includes('교환권') ||
+                        proposal.myItemTitle?.includes('이용권') ||
+                        proposal.myItemTitle?.includes('상품권') ||
+                        proposal.targetItemTitle?.includes('교환권') ||
+                        proposal.targetItemTitle?.includes('이용권') ||
+                        proposal.targetItemTitle?.includes('상품권')) && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-sm">
+                          <span>🎟️</span>
+                          <span>상생 교환권 맞발행</span>
+                        </span>
+                      )}
+
                       <span className="text-xs font-extrabold text-gray-900">
                         {otherStoreName} ({otherOwnerName})
                       </span>
@@ -248,9 +284,16 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
 
                   {/* Price Difference & Time Details */}
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="text-gray-600 font-medium">희망 픽업: <strong>{proposal.proposedTime}</strong></span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1 text-gray-600 font-medium">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        <span>희망 픽업: <strong>{proposal.proposedTime}</strong></span>
+                      </div>
+                      {proposal.tradeFulfillment && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200">
+                          {proposal.tradeFulfillment}
+                        </span>
+                      )}
                     </div>
 
                     <div className={`px-2.5 py-1 rounded-lg text-xs font-extrabold ${

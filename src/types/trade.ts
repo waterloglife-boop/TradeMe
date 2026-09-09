@@ -124,6 +124,8 @@ export interface TradeProposal {
   priceDifference: number; // 0, 양수(내가 더 냄), 음수(상대가 더 냄)
   proposedTime: string;
   isPoke?: boolean; // 👉 비동기 찔러보기 여부 (상대 매장이 교환 OFF 상태일 때)
+  tradeType?: 'VOUCHER' | 'DIRECT'; // 🎟️ 교환권 맞발행 vs 직접 현장 교환
+  tradeFulfillment?: string; // 희망 이용/수령 방식
   message?: string;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED';
   createdAt: string;

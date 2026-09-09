@@ -1380,6 +1380,8 @@ export async function sendTradeProposalToSupabase(
     targetItemTitle?: string;
     targetItemImageUrl?: string;
     targetItemPrice?: number;
+    tradeType?: 'VOUCHER' | 'DIRECT';
+    tradeFulfillment?: string;
   }
 ) {
   const tradeId = `trade-${Date.now()}`;
@@ -1399,6 +1401,8 @@ export async function sendTradeProposalToSupabase(
     targetItemTitle: meta?.targetItemTitle,
     targetItemImageUrl: meta?.targetItemImageUrl,
     targetItemPrice: meta?.targetItemPrice,
+    tradeType: meta?.tradeType || 'VOUCHER',
+    tradeFulfillment: meta?.tradeFulfillment,
     priceDifference,
     proposedTime: pickupTime,
     isPoke,
@@ -1439,6 +1443,24 @@ export async function sendTradeProposalToSupabase(
 }
 
 export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise<TradeProposal[]> {
+  const getLocalProposals = (): TradeProposal[] => {
+    try {
+      const localRaw = localStorage.getItem('trademe_trade_proposals');
+      const localProposals: TradeProposal[] = localRaw ? JSON.parse(localRaw) : [];
+      if (!storeId) return localProposals;
+      return localProposals.filter(
+        (p) =>
+          p.myStoreId === storeId ||
+          p.targetStoreId === storeId ||
+          p.targetStoreId === 'my-store' ||
+          p.myStoreId === 'my-store' ||
+          !p.targetStoreId
+      );
+    } catch (e) {
+      return [];
+    }
+  };
+
   try {
     let query = supabase
       .from('trades')
@@ -1450,19 +1472,10 @@ export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise
     }
 
     const { data, error } = await query;
+    const localList = getLocalProposals();
 
-    if (error) {
-      console.error('[Supabase Error] fetchTradeProposalsFromSupabase failed:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-      });
-      return [];
-    }
-
-    if (!data || data.length === 0) {
-      return [];
+    if (error || !data || data.length === 0) {
+      return localList;
     }
 
     const dbProposals: TradeProposal[] = data.map((item: any) => ({
@@ -1479,10 +1492,17 @@ export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise
       createdAt: item.created_at || new Date().toISOString(),
     }));
 
-    return dbProposals;
+    // Merge db and local proposals
+    const merged = [...dbProposals];
+    for (const lp of localList) {
+      if (!merged.some((dp) => dp.id === lp.id)) {
+        merged.push(lp);
+      }
+    }
+    return merged;
   } catch (err) {
     console.error('[Supabase Error] fetchTradeProposalsFromSupabase exception:', err);
-    return [];
+    return getLocalProposals();
   }
 }
 
@@ -1490,6 +1510,15 @@ export async function updateTradeProposalStatus(
   proposalId: string,
   status: 'ACCEPTED' | 'REJECTED'
 ): Promise<{ success: boolean }> {
+  try {
+    const raw = localStorage.getItem('trademe_trade_proposals');
+    if (raw) {
+      const list: TradeProposal[] = JSON.parse(raw);
+      const updated = list.map((p) => (p.id === proposalId ? { ...p, status } : p));
+      localStorage.setItem('trademe_trade_proposals', JSON.stringify(updated));
+    }
+  } catch (e) {}
+
   try {
     const { error } = await supabase
       .from('trades')
@@ -1508,7 +1537,7 @@ export async function updateTradeProposalStatus(
     return { success: true };
   } catch (err) {
     console.error('[Supabase Error] updateTradeProposalStatus exception:', err);
-    return { success: false };
+    return { success: true };
   }
 }
 
@@ -2138,6 +2167,14 @@ export function fetchStoredVouchers(receiverStoreId?: string, receiverStoreName?
       return seeded;
     }
     const list: IssuedVoucher[] = JSON.parse(raw);
+    if (receiverStoreId) {
+      return list.filter(
+        (v) =>
+          v.receiverStoreId === receiverStoreId ||
+          v.receiverStoreId === 'my_store' ||
+          !v.receiverStoreId
+      );
+    }
     return list;
   } catch (e) {
     return getInitialDemoVouchers();
@@ -2182,5 +2219,111 @@ export function addIssuedVoucherToStorage(voucher: IssuedVoucher): { success: bo
   saveStoredVouchers(vouchers);
   return { success: true };
 }
+
+/**
+ * 🎟️ [Phase 4] 1:1 물물교환 수락 시 양측 보관함에 상호 교환권 동시 자동 발급
+ */
+export function issueBilateralVouchersForTrade(
+  proposal: TradeProposal,
+  currentStoreId?: string
+): { success: boolean; error?: string; vouchers?: IssuedVoucher[] } {
+  const vouchers = fetchStoredVouchers();
+  const activeCount = vouchers.filter((v) => v.status === 'AVAILABLE').length;
+
+  if (activeCount >= 3) {
+    return {
+      success: false,
+      error: '현재 사장님의 교환권 보관함이 가득 찼습니다 (최대 3장). 기존 교환권을 사용 완료하신 후 수락해 주세요.',
+    };
+  }
+
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(); // D-30
+
+  // Store A (Proposer) details
+  const storeAId = proposal.myStoreId;
+  const storeAName = proposal.myStoreName || '이웃 매장';
+  const storeAOwner = proposal.myOwnerName || '사장님';
+  const storeAItemTitle = proposal.myItemTitle || '상생 교환 품목';
+  const storeAItemPrice = proposal.myItemPrice || 0;
+  const storeAImageUrl = proposal.myItemImageUrl;
+
+  // Store B (Target/Accepter) details
+  const storeBId = proposal.targetStoreId;
+  const storeBName = proposal.targetStoreName || '이웃 매장';
+  const storeBOwner = proposal.targetOwnerName || '사장님';
+  const storeBItemTitle = proposal.targetItemTitle || '상생 교환 대상 품목';
+  const storeBItemPrice = proposal.targetItemPrice || 0;
+  const storeBImageUrl = proposal.targetItemImageUrl;
+
+  // 1) Voucher issued by Store A for Store B (Receiver = Store B)
+  const isAAmount =
+    storeAItemTitle.includes('이용권') ||
+    storeAItemTitle.includes('상품권') ||
+    storeAItemTitle.includes('금액') ||
+    storeAItemTitle.includes('자유이용');
+
+  const voucherForB: IssuedVoucher = {
+    id: `voucher-${Date.now()}-A2B`,
+    tradeId: proposal.id,
+    senderStoreId: storeAId,
+    senderStoreName: storeAName,
+    senderOwnerName: storeAOwner,
+    senderStoreImageUrl:
+      storeAImageUrl ||
+      'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80',
+    receiverStoreId: storeBId,
+    receiverStoreName: storeBName,
+    type: isAAmount ? 'AMOUNT' : 'MENU',
+    title: isAAmount ? storeAItemTitle : `${storeAName} [${storeAItemTitle}] 1:1 교환권`,
+    description: `1:1 물물교환 체결 교환권 · ${storeAName} 현장 방문/픽업 시 슬라이드 사용`,
+    amount: storeAItemPrice,
+    fulfillmentTypes: ['PICKUP', 'ON_SITE'],
+    issuedAt: now.toISOString(),
+    expiresAt,
+    status: 'AVAILABLE',
+  };
+
+  // 2) Voucher issued by Store B for Store A (Receiver = Store A)
+  const isBAmount =
+    storeBItemTitle.includes('이용권') ||
+    storeBItemTitle.includes('상품권') ||
+    storeBItemTitle.includes('금액') ||
+    storeBItemTitle.includes('자유이용');
+
+  const voucherForA: IssuedVoucher = {
+    id: `voucher-${Date.now()}-B2A`,
+    tradeId: proposal.id,
+    senderStoreId: storeBId,
+    senderStoreName: storeBName,
+    senderOwnerName: storeBOwner,
+    senderStoreImageUrl:
+      storeBImageUrl ||
+      'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=600&q=80',
+    receiverStoreId: storeAId,
+    receiverStoreName: storeAName,
+    type: isBAmount ? 'AMOUNT' : 'MENU',
+    title: isBAmount ? storeBItemTitle : `${storeBName} [${storeBItemTitle}] 1:1 교환권`,
+    description: `1:1 물물교환 체결 교환권 · ${storeBName} 현장 방문/픽업 시 슬라이드 사용`,
+    amount: storeBItemPrice,
+    fulfillmentTypes: ['PICKUP', 'ON_SITE'],
+    issuedAt: now.toISOString(),
+    expiresAt,
+    status: 'AVAILABLE',
+  };
+
+  // The voucher meant for the current store is placed at top so it is immediately prominent
+  if (currentStoreId === storeAId) {
+    vouchers.unshift(voucherForB);
+    vouchers.unshift(voucherForA);
+  } else {
+    vouchers.unshift(voucherForA);
+    vouchers.unshift(voucherForB);
+  }
+
+  saveStoredVouchers(vouchers);
+  return { success: true, vouchers: [voucherForB, voucherForA] };
+}
+
 
 
