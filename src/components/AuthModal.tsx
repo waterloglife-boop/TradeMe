@@ -208,9 +208,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       const result = await geocodeKoreanAddress(trimmed);
       if (result) {
+        // 이미 유효한 기존 좌표가 있는데 지오코더가 기본값(서울시청)으로 반환된 경우 덮어쓰지 않고 보존
+        if (result.source === 'default' && lat && lng && !(lat === 37.5665 && lng === 126.978)) {
+          return result;
+        }
         setLat(result.lat);
         setLng(result.lng);
-        if (!silent) {
+        if (!silent && result.source !== 'default') {
           setToastMessage(`📍 지도 좌표가 자동으로 연동되었습니다! (${result.lat.toFixed(4)}, ${result.lng.toFixed(4)})`);
           setTimeout(() => setToastMessage(null), 3000);
         }

@@ -333,10 +333,12 @@ export async function geocodeKoreanAddress(rawAddress: string): Promise<GeocodeR
   if (!rawAddress || !rawAddress.trim()) return null;
 
   const original = rawAddress.trim();
+  // 도로명/지번 뒤에 붙은 숫자 분리 (예: '북정서길25' -> '북정서길 25', '테헤란로152' -> '테헤란로 152')
+  const spacedAddr = original.replace(/([로길동읍면가])(\d+)/g, '$1 $2');
   // 호수, 층수, 괄호 등 세부 정보 제거 (네이버/외부 지오코더는 층/호수가 포함되면 매칭 실패)
-  const cleanAddr = original
+  const cleanAddr = spacedAddr
     .replace(/\s*\d+호|\s*\d+층|\s*지하\s*\d+층|\s*\(.*?\)/g, '')
-    .trim() || original;
+    .trim() || spacedAddr;
 
   // 1. 네이버 지도 SDK 지오코더 시도
   try {
@@ -403,6 +405,7 @@ export async function geocodeKoreanAddress(rawAddress: string): Promise<GeocodeR
   // 2. OpenStreetMap Nominatim 폴백 (네트워크 호출)
   const nominatimQueries = [
     cleanAddr,
+    spacedAddr,
     cleanAddr.replace(/\s+\d+(-\d+)?$/, '').trim(),
     original,
   ].filter((q, i, arr) => q && arr.indexOf(q) === i);
