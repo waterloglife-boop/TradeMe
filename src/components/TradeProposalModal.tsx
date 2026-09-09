@@ -129,6 +129,13 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
                     <p className="text-blue-700 font-extrabold text-sm mt-1">
                       {selectedMyItem.estimatedPrice.toLocaleString()} 원
                     </p>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {(selectedMyItem.fulfillmentTypes && selectedMyItem.fulfillmentTypes.length > 0 ? selectedMyItem.fulfillmentTypes : ['PICKUP', 'ON_SITE']).map((type) => (
+                        <span key={type} className="px-1.5 py-0.5 text-[9px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 rounded">
+                          {type === 'PICKUP' ? '🛍️ 픽업' : type === 'DELIVERY' ? '🛵 배달' : '🏢 방문'}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -145,6 +152,13 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
                   <p className="text-orange-600 font-extrabold text-sm mt-1">
                     {targetItem.estimatedPrice.toLocaleString()} 원
                   </p>
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {(targetItem.fulfillmentTypes && targetItem.fulfillmentTypes.length > 0 ? targetItem.fulfillmentTypes : ['PICKUP', 'ON_SITE']).map((type) => (
+                      <span key={type} className="px-1.5 py-0.5 text-[9px] font-extrabold bg-orange-50 text-orange-700 border border-orange-200 rounded">
+                        {type === 'PICKUP' ? '🛍️ 픽업' : type === 'DELIVERY' ? '🛵 배달' : '🏢 방문'}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

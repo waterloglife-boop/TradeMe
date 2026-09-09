@@ -19,6 +19,8 @@ export type StoreCategory =
   | 'FITNESS' 
   | 'OTHER';
 
+export type FulfillmentType = 'PICKUP' | 'DELIVERY' | 'ON_SITE';
+
 export interface ExchangeItem {
   id: string;
   storeId: string;
@@ -28,6 +30,7 @@ export interface ExchangeItem {
   estimatedPrice: number; // 원 단위 (예: 15000)
   imageUrl: string;
   isAvailable: boolean;
+  fulfillmentTypes?: FulfillmentType[]; // ['PICKUP', 'DELIVERY', 'ON_SITE']
 }
 
 export type MenuTestFeedbackType = 'BLOG_SNS' | 'SECRET_REPORT' | 'BOTH';

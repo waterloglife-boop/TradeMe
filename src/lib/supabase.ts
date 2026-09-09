@@ -1,11 +1,40 @@
 import { createClient } from '@supabase/supabase-js';
-import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign, CommunityPost, CommunityComment, CommunityCategory } from '../types/trade';
+import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign, CommunityPost, CommunityComment, CommunityCategory, FulfillmentType } from '../types/trade';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-trade-me.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-anon-key-12345';
 
 // Initialize Supabase Client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+/**
+ * 🏷️ 제공 및 이용 방식 (Fulfillment Types) 인코딩 & 디코딩 유틸
+ */
+export function parseFulfillmentTypes(rawDesc?: string, explicitTypes?: any): FulfillmentType[] {
+  if (Array.isArray(explicitTypes) && explicitTypes.length > 0) {
+    return explicitTypes;
+  }
+  if (rawDesc) {
+    const match = rawDesc.match(/<!--fm:([A-Z_,]+)-->/);
+    if (match && match[1]) {
+      const types = match[1].split(',') as FulfillmentType[];
+      const valid = types.filter((t) => ['PICKUP', 'DELIVERY', 'ON_SITE'].includes(t));
+      if (valid.length > 0) return valid;
+    }
+    const legacyTypes: FulfillmentType[] = [];
+    if (rawDesc.includes('방문') || rawDesc.includes('홀')) legacyTypes.push('ON_SITE');
+    if (rawDesc.includes('포장') || rawDesc.includes('픽업')) legacyTypes.push('PICKUP');
+    if (rawDesc.includes('배달') || rawDesc.includes('배송')) legacyTypes.push('DELIVERY');
+    if (legacyTypes.length > 0) return legacyTypes;
+  }
+  return ['PICKUP', 'ON_SITE'];
+}
+
+export function serializeFulfillmentDescription(desc: string, types?: FulfillmentType[]): string {
+  const cleanDesc = (desc || '').replace(/<!--fm:[A-Z_,]+-->/g, '').trim();
+  if (!types || types.length === 0) return cleanDesc;
+  return `<!--fm:${types.join(',')}-->${cleanDesc}`;
+}
 
 const NTS_SERVICE_KEY = '8Vbb5%2BdWRNC4Axr8zc6rPuhLMQEm4Bxp6jTu9lyktrYc4a8KqanQRtb7KkgfnQ7fzsuQEJ%2Bl34wZAAqUIoRuMg%3D%3D';
 
@@ -403,10 +432,11 @@ export async function signInUser(email: string, pass: string): Promise<{
                 storeId: i.store_id || sData.id,
                 type: i.item_type || 'FOOD',
                 title: i.title,
-                description: i.description || '',
+                description: (i.description || '').replace(/<!--fm:[A-Z_,]+-->/g, '').trim(),
                 estimatedPrice: i.estimated_price || 10000,
                 imageUrl: i.image_url || '',
                 isAvailable: i.is_available ?? true,
+                fulfillmentTypes: parseFulfillmentTypes(i.description, i.fulfillment_types),
               }));
             }
           }
@@ -886,10 +916,11 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
       storeId: i.store_id || storeData.id,
       type: i.item_type || 'FOOD',
       title: i.title,
-      description: i.description || '',
+      description: (i.description || '').replace(/<!--fm:[A-Z_,]+-->/g, '').trim(),
       estimatedPrice: i.estimated_price || 10000,
       imageUrl: i.image_url || '',
       isAvailable: i.is_available ?? true,
+      fulfillmentTypes: parseFulfillmentTypes(i.description, i.fulfillment_types),
     }));
 
     return {
@@ -972,10 +1003,11 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
         storeId: sid,
         type: i.item_type || 'FOOD',
         title: i.title,
-        description: i.description || '',
+        description: (i.description || '').replace(/<!--fm:[A-Z_,]+-->/g, '').trim(),
         estimatedPrice: i.estimated_price || 10000,
         imageUrl: i.image_url || '',
         isAvailable: i.is_available ?? true,
+        fulfillmentTypes: parseFulfillmentTypes(i.description, i.fulfillment_types),
       });
     });
 
@@ -1143,7 +1175,7 @@ export async function insertStoreAndItems(
       store_id: finalStoreId,
       item_type: item.type || 'FOOD',
       title: item.title,
-      description: item.description,
+      description: serializeFulfillmentDescription(item.description, item.fulfillmentTypes),
       estimated_price: item.estimatedPrice,
       image_url: item.imageUrl,
       is_available: true,
@@ -1171,10 +1203,11 @@ export async function insertStoreAndItems(
         storeId: i.store_id,
         type: i.item_type as any,
         title: i.title,
-        description: i.description,
+        description: (i.description || '').replace(/<!--fm:[A-Z_,]+-->/g, '').trim(),
         estimatedPrice: i.estimated_price,
         imageUrl: i.image_url,
         isAvailable: true,
+        fulfillmentTypes: parseFulfillmentTypes(i.description),
       })),
     };
 

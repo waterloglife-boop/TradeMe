@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, Edit3, Image as ImageIcon, Camera, Check, AlertCircle, Utensils, Tag, Clock } from 'lucide-react';
-import { Store, ExchangeItem, ItemType } from '../types/trade';
-import { uploadStoreImageToSupabase, supabase } from '../lib/supabase';
+import { Store, ExchangeItem, ItemType, FulfillmentType } from '../types/trade';
+import { uploadStoreImageToSupabase, supabase, serializeFulfillmentDescription } from '../lib/supabase';
 
 interface ManageExchangeItemsModalProps {
   isOpen: boolean;
@@ -26,6 +26,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
   const [description, setDescription] = useState('');
   const [itemType, setItemType] = useState<ItemType>('FOOD');
   const [imageUrl, setImageUrl] = useState('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80');
+  const [fulfillmentTypes, setFulfillmentTypes] = useState<FulfillmentType[]>(['PICKUP', 'ON_SITE']);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -49,6 +50,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
     setDescription('');
     setItemType('FOOD');
     setImageUrl('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80');
+    setFulfillmentTypes(['PICKUP', 'ON_SITE']);
     setEditingItemId(null);
     setIsAddingOrEditing(false);
     setErrorMessage(null);
@@ -60,6 +62,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
     setDescription(item.description);
     setItemType(item.type || 'FOOD');
     setImageUrl(item.imageUrl);
+    setFulfillmentTypes(item.fulfillmentTypes && item.fulfillmentTypes.length > 0 ? item.fulfillmentTypes : ['PICKUP', 'ON_SITE']);
     setEditingItemId(item.id);
     setIsAddingOrEditing(true);
   };
@@ -91,6 +94,11 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
       return;
     }
 
+    if (fulfillmentTypes.length === 0) {
+      setErrorMessage('제공 및 이용 방식을 최소 1개 이상 선택해 주세요.');
+      return;
+    }
+
     if (editingItemId) {
       // Edit existing item
       setItems((prev) =>
@@ -103,6 +111,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
                 description: description.trim(),
                 itemType,
                 imageUrl,
+                fulfillmentTypes,
               }
             : item
         )
@@ -118,6 +127,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
         type: itemType,
         imageUrl,
         isAvailable: true,
+        fulfillmentTypes,
       };
       setItems((prev) => [...prev, newItem]);
     }
@@ -146,7 +156,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
             store_id: myStore.id,
             title: it.title,
             estimated_price: it.estimatedPrice,
-            description: it.description,
+            description: serializeFulfillmentDescription(it.description, it.fulfillmentTypes),
             image_url: it.imageUrl,
             item_type: it.type || 'FOOD',
             is_available: it.isAvailable ?? true,
@@ -290,6 +300,72 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
                 />
               </div>
 
+              {/* 제공 및 이용 방식 (다중 선택) */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <span>제공 및 이용 방식</span>
+                    <span className="text-orange-500 font-extrabold">*</span>
+                  </span>
+                  <span className="text-[11px] font-normal text-gray-400">중복 선택 가능</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFulfillmentTypes((prev) =>
+                        prev.includes('PICKUP') ? prev.filter((t) => t !== 'PICKUP') : [...prev, 'PICKUP']
+                      );
+                    }}
+                    className={`py-2 px-1.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-0.5 ${
+                      fulfillmentTypes.includes('PICKUP')
+                        ? 'border-orange-500 bg-orange-50 text-orange-950 ring-2 ring-orange-200 shadow-xs'
+                        : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="text-sm">🛍️</span>
+                    <span className="font-black text-[11px]">직접 픽업</span>
+                    <span className="text-[9px] text-gray-400">포장 / 제품수령</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFulfillmentTypes((prev) =>
+                        prev.includes('DELIVERY') ? prev.filter((t) => t !== 'DELIVERY') : [...prev, 'DELIVERY']
+                      );
+                    }}
+                    className={`py-2 px-1.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-0.5 ${
+                      fulfillmentTypes.includes('DELIVERY')
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-200 shadow-xs'
+                        : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="text-sm">🛵</span>
+                    <span className="font-black text-[11px]">배달 / 배송</span>
+                    <span className="text-[9px] text-gray-400">매장 / 직접배달</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFulfillmentTypes((prev) =>
+                        prev.includes('ON_SITE') ? prev.filter((t) => t !== 'ON_SITE') : [...prev, 'ON_SITE']
+                      );
+                    }}
+                    className={`py-2 px-1.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-0.5 ${
+                      fulfillmentTypes.includes('ON_SITE')
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-950 ring-2 ring-indigo-200 shadow-xs'
+                        : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="text-sm">🏢</span>
+                    <span className="font-black text-[11px]">현장 방문 이용</span>
+                    <span className="text-[9px] text-gray-400">홀식사 / 시술 / 시설</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
@@ -353,6 +429,33 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
                           {item.description}
                         </p>
                       )}
+                      {/* Fulfillment Badges */}
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {(item.fulfillmentTypes && item.fulfillmentTypes.length > 0 ? item.fulfillmentTypes : ['PICKUP', 'ON_SITE']).map((type) => {
+                          if (type === 'PICKUP') {
+                            return (
+                              <span key={type} className="px-1.5 py-0.5 text-[9px] font-extrabold bg-orange-50 text-orange-700 border border-orange-200 rounded-md">
+                                🛍️ 직접픽업
+                              </span>
+                            );
+                          }
+                          if (type === 'DELIVERY') {
+                            return (
+                              <span key={type} className="px-1.5 py-0.5 text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">
+                                🛵 배달/배송
+                              </span>
+                            );
+                          }
+                          if (type === 'ON_SITE') {
+                            return (
+                              <span key={type} className="px-1.5 py-0.5 text-[9px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md">
+                                🏢 현장방문
+                              </span>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
                     </div>
                   </div>
 

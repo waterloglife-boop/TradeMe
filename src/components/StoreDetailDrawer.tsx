@@ -312,6 +312,37 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                   <p className="text-xs text-gray-600 line-clamp-2 mt-1">
                     {item.description}
                   </p>
+
+                  {/* Fulfillment Badges (제공 및 이용 방식) */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    {(item.fulfillmentTypes && item.fulfillmentTypes.length > 0 ? item.fulfillmentTypes : ['PICKUP', 'ON_SITE']).map((type) => {
+                      if (type === 'PICKUP') {
+                        return (
+                          <span key={type} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-orange-50 text-orange-700 border border-orange-200 rounded-md">
+                            <span>🛍️</span>
+                            <span>직접 픽업</span>
+                          </span>
+                        );
+                      }
+                      if (type === 'DELIVERY') {
+                        return (
+                          <span key={type} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">
+                            <span>🛵</span>
+                            <span>배달/배송</span>
+                          </span>
+                        );
+                      }
+                      if (type === 'ON_SITE') {
+                        return (
+                          <span key={type} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md">
+                            <span>🏢</span>
+                            <span>현장 방문 이용</span>
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
                 </div>
               </div>
 
