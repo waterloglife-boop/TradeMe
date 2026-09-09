@@ -390,6 +390,27 @@ export async function signInUser(email: string, pass: string): Promise<{
             .limit(1)
             .maybeSingle();
 
+          // Fetch items for this store
+          let userItems: ExchangeItem[] = [];
+          if (sData?.id) {
+            const { data: itemsData } = await supabase
+              .from('items')
+              .select('*')
+              .eq('store_id', sData.id);
+            if (itemsData && itemsData.length > 0) {
+              userItems = itemsData.map((i: any) => ({
+                id: i.id,
+                storeId: i.store_id || sData.id,
+                type: i.item_type || 'FOOD',
+                title: i.title,
+                description: i.description || '',
+                estimatedPrice: i.estimated_price || 10000,
+                imageUrl: i.image_url || '',
+                isAvailable: i.is_available ?? true,
+              }));
+            }
+          }
+
           const fallbackStore: Store = {
             id: sData?.id || `store-${profile.id}`,
             userId: profile.id,
@@ -398,17 +419,17 @@ export async function signInUser(email: string, pass: string): Promise<{
             category: (sData?.category as any) || 'FOOD',
             categoryName: sData?.category_name || '외식업',
             address: sData?.address || profile.address || '',
-            lat: sData?.lat || 37.5665,
-            lng: sData?.lng || 126.9780,
+            lat: sData?.lat || 35.3594,
+            lng: sData?.lng || 129.0418,
             phone: profile.phone || sData?.phone || '',
             isVerified: true,
             breakTimeActive: sData?.is_exchange_active ?? sData?.break_time_active ?? true,
-            breakTimeHours: sData?.operating_hours || '10:00 - 22:00',
+            breakTimeHours: sData?.operating_hours || sData?.break_time_hours || '10:00 - 22:00',
             storeImageUrl: sData?.store_image_url || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
             rating: sData?.rating ?? 5.0,
             reviewCount: sData?.review_count ?? 0,
             isMenuTesting: sData?.is_menu_testing ?? false,
-            exchangeItems: [],
+            exchangeItems: userItems,
           };
 
           const fallbackUser = {
@@ -424,7 +445,7 @@ export async function signInUser(email: string, pass: string): Promise<{
           };
 
           try {
-            localStorage.setItem('trademe_profile', JSON.stringify(profile));
+            localStorage.setItem('trademe_profile', JSON.stringify({ ...profile, id: profile.id }));
             localStorage.setItem('trademe_my_store', JSON.stringify(fallbackStore));
           } catch (e) {}
 
@@ -793,33 +814,45 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
       }
     }
 
+    let storeId: string | undefined;
     if (!userId) {
       try {
         const p = localStorage.getItem('trademe_profile');
         if (p) {
           const po = JSON.parse(p);
-          if (po.id) userId = po.id;
+          if (po.id || po.userId || po.user_id) userId = po.id || po.userId || po.user_id;
         }
-        if (!userId) {
-          const s = localStorage.getItem('trademe_my_store');
-          if (s) {
-            const so = JSON.parse(s);
-            if (so.userId) userId = so.userId;
-          }
+        const s = localStorage.getItem('trademe_my_store');
+        if (s) {
+          const so = JSON.parse(s);
+          if (!userId && (so.userId || so.user_id)) userId = so.userId || so.user_id;
+          if (so.id) storeId = so.id;
         }
       } catch (e) {}
     }
 
-    if (!userId) {
-      return null;
+    let storeData: any = null;
+    if (userId) {
+      const { data, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('user_id', userId)
+        .order('id', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!error && data) storeData = data;
+    }
+    if (!storeData && storeId) {
+      const { data, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('id', storeId)
+        .limit(1)
+        .maybeSingle();
+      if (!error && data) storeData = data;
     }
 
-    const { data: storeData, error } = await supabase
-      .from('stores')
-      .select('*')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
+    if (!storeData) return null;
 
     if (error) {
       console.error('[Supabase Error] fetchUserStoreFromSupabase failed:', {

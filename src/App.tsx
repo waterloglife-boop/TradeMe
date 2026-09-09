@@ -201,6 +201,9 @@ export const App: React.FC = () => {
                   if (freshUserStore.lat && freshUserStore.lng) {
                     setPickedLocation({ lat: freshUserStore.lat, lng: freshUserStore.lng });
                   }
+                  setStores((prevStores) =>
+                    prevStores.map((s) => (s.id === freshUserStore.id ? freshUserStore : s))
+                  );
                 } else {
                   setMyStore(storeObj);
                   if (storeObj.lat && storeObj.lng) {
@@ -323,34 +326,43 @@ export const App: React.FC = () => {
     setIsLoggedIn(true);
     setUserOwnerName(ownerName);
 
-    if (registeredStore) {
-      setMyStore(registeredStore);
-      if (registeredStore.lat && registeredStore.lng) {
-        setPickedLocation({ lat: registeredStore.lat, lng: registeredStore.lng });
+    let finalStore = registeredStore;
+    // registeredStore가 넘어왔더라도 exchangeItems가 비어있다면 Supabase에서 최신 품목들을 가져와 합체
+    if (!finalStore || !finalStore.exchangeItems || finalStore.exchangeItems.length === 0) {
+      const freshUserStore = await fetchUserStoreFromSupabase();
+      if (freshUserStore) {
+        finalStore = freshUserStore;
+      }
+    }
+
+    if (finalStore) {
+      setMyStore(finalStore);
+      if (finalStore.lat && finalStore.lng) {
+        setPickedLocation({ lat: finalStore.lat, lng: finalStore.lng });
       }
       setStores((prevStores) => {
-        const exists = prevStores.some((s) => s.id === registeredStore.id);
+        const exists = prevStores.some((s) => s.id === finalStore!.id);
         if (exists) {
-          return prevStores.map((s) => (s.id === registeredStore.id ? registeredStore : s));
+          return prevStores.map((s) => (s.id === finalStore!.id ? finalStore! : s));
         }
-        return [registeredStore, ...prevStores];
+        return [finalStore!, ...prevStores];
       });
       try {
-        localStorage.setItem('trademe_my_store', JSON.stringify(registeredStore));
-        localStorage.setItem('trademe_profile', JSON.stringify({ owner_name: ownerName, store_name: storeName }));
+        localStorage.setItem('trademe_my_store', JSON.stringify(finalStore));
+        localStorage.setItem(
+          'trademe_profile',
+          JSON.stringify({
+            id: finalStore.userId,
+            user_id: finalStore.userId,
+            owner_name: ownerName,
+            store_name: storeName,
+          })
+        );
       } catch (e) {}
       return;
     }
 
-    const userStore = await fetchUserStoreFromSupabase();
-    if (userStore) {
-      setMyStore(userStore);
-      if (userStore.lat && userStore.lng) {
-        setPickedLocation({ lat: userStore.lat, lng: userStore.lng });
-      }
-    } else {
-      setMyStore((prev) => ({ ...prev, ownerName, storeName }));
-    }
+    setMyStore((prev) => ({ ...prev, ownerName, storeName }));
   };
 
   const handleToggleBreakTime = () => {
@@ -769,7 +781,7 @@ export const App: React.FC = () => {
 
         {/* Selected Store Detail & Exchange Items Drawer */}
         <StoreDetailDrawer
-          store={selectedStore}
+          store={selectedStore?.id === myStore.id ? myStore : selectedStore}
           onClose={() => setSelectedStore(null)}
           onOpenProposal={handleOpenProposal}
           onOpenChat={handleOpenChat}
