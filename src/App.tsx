@@ -143,6 +143,25 @@ export const App: React.FC = () => {
             }));
           }
         } else {
+          // Check localStorage backup session (e.g. for unconfirmed email accounts or active sessions)
+          try {
+            const savedProfile = localStorage.getItem('trademe_profile');
+            const savedStore = localStorage.getItem('trademe_my_store');
+            if (savedProfile && savedStore) {
+              const profileObj = JSON.parse(savedProfile);
+              const storeObj = JSON.parse(savedStore);
+              if (profileObj?.owner_name || profileObj?.ownerName || storeObj?.ownerName) {
+                setIsLoggedIn(true);
+                setUserOwnerName(profileObj.owner_name || profileObj.ownerName || storeObj.ownerName || '사장님');
+                setMyStore(storeObj);
+                if (storeObj.lat && storeObj.lng) {
+                  setPickedLocation({ lat: storeObj.lat, lng: storeObj.lng });
+                }
+                return;
+              }
+            }
+          } catch (e) {}
+
           setIsLoggedIn(false);
           setUserOwnerName('');
           setMyStore(INITIAL_EMPTY_STORE_STATE);

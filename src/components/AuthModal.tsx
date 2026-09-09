@@ -321,11 +321,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await signInUser(email, password);
       if (res.success) {
         onLoginSuccess(
-          res.user?.user_metadata?.owner_name || '홍길동 사장님',
-          res.user?.user_metadata?.store_name || storeName || '송정 수제돈까스'
+          res.user?.user_metadata?.owner_name || '사장님',
+          res.user?.user_metadata?.store_name || storeName || '내 매장',
+          (res as any).store
         );
-        onClose();
+        setToastMessage(res.message ? (res.message.startsWith('✅') ? res.message : `✅ ${res.message}`) : '✅ 로그인되었습니다.');
+        setTimeout(() => {
+          onClose();
+        }, 400);
+      } else {
+        setToastMessage(res.message ? (res.message.startsWith('⚠️') ? res.message : `⚠️ ${res.message}`) : '⚠️ 로그인에 실패했습니다. 이메일과 비밀번호를 확인해 주세요.');
       }
+      setLoading(false);
+      return;
     } else if (mode === 'SIGNUP') {
       const lowerEmail = email.toLowerCase().trim();
       if (['owner@trademe.kr', 'admin@trademe.kr'].includes(lowerEmail)) {
@@ -1044,6 +1052,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
                   />
                 </div>
+                {mode === 'LOGIN' && (
+                  <p className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
+                    <span>💡 비밀번호 분실 시 가입한 휴대폰번호(또는 뒷 4자리)로도 로그인 가능합니다</span>
+                  </p>
+                )}
               </div>
 
               {mode === 'SIGNUP' && (
@@ -1300,6 +1313,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>{loading ? '처리 중...' : mode === 'LOGIN' ? '로그인 하기' : '사장님 무료 가입 및 시작'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
+
+              {mode === 'LOGIN' && (
+                <div className="pt-2 border-t border-gray-100 flex flex-col items-center gap-1.5 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('owner@trademe.kr');
+                      setPassword('123456');
+                      setToastMessage(null);
+                    }}
+                    className="text-[11px] text-gray-400 hover:text-orange-600 underline transition-colors"
+                  >
+                    🧪 테스트용 데모 계정 자동 입력 (owner@trademe.kr)
+                  </button>
+                </div>
+              )}
 
             </form>
           </div>
