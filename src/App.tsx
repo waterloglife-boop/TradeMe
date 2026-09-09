@@ -29,7 +29,7 @@ import {
   supabase,
 } from './lib/supabase';
 import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign } from './types/trade';
-import { MapPin } from 'lucide-react';
+import { MapPin, X, ArrowRight, Sparkles } from 'lucide-react';
 
 const INITIAL_EMPTY_STORE_STATE: Store = {
   id: '',
@@ -68,16 +68,20 @@ export const App: React.FC = () => {
   // ☕ 사장님 사랑방 커뮤니티 State
   const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
 
-  // Location Picker State
+  // Location Picker State (비로그인 첫 방문 기준: 대한민국 표준 중심 서울시청/광화문)
   const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>({
-    lat: 35.3594007321187,
-    lng: 129.041885145232,
+    lat: 37.5665,
+    lng: 126.9780,
   });
 
   // Auth State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userOwnerName, setUserOwnerName] = useState('');
+
+  // 🌟 비로그인 상생 웰컴 플로팅 카드 & 사유 안내 알림 State
+  const [showWelcomeCard, setShowWelcomeCard] = useState(true);
+  const [authModalNotice, setAuthModalNotice] = useState<string | null>(null);
 
   // Modals & Drawers state
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -105,14 +109,9 @@ export const App: React.FC = () => {
   useEffect(() => {
     async function loadInitialData() {
       try {
-        // 1. Fetch all registered stores directly from Supabase
+        // 1. Fetch all registered stores directly from Supabase (첫 화면에서는 어떤 매장도 자동 선택하지 않고 깨끗한 지도로 노출)
         const fetchedStores = await fetchStoresFromSupabase();
         setStores(fetchedStores || []);
-        if (fetchedStores && fetchedStores.length > 0) {
-          if (typeof window !== 'undefined' && window.innerWidth >= 768) {
-            setSelectedStore(fetchedStores[0]);
-          }
-        }
 
         // 2. Check current active Supabase Auth session
         const { data: sessionData } = await supabase.auth.getSession();
@@ -324,6 +323,7 @@ export const App: React.FC = () => {
 
   const handleOpenProposal = (targetItem: ExchangeItem) => {
     if (!isLoggedIn) {
+      setAuthModalNotice('💡 1:1 물물교환 제안은 사장님 로그인이 필요한 서비스입니다. 지금 로그인하거나 3초 만에 회원가입해 보세요!');
       setIsAuthModalOpen(true);
       return;
     }
@@ -449,6 +449,7 @@ export const App: React.FC = () => {
 
   const handleOpenChat = (store: Store) => {
     if (!isLoggedIn) {
+      setAuthModalNotice(`💡 [${store.storeName}] 사장님과의 1:1 대화는 로그인이 필요한 서비스입니다. 지금 로그인하거나 3초 만에 회원가입해 보세요!`);
       setIsAuthModalOpen(true);
       return;
     }
@@ -689,6 +690,7 @@ export const App: React.FC = () => {
           onOpenChat={handleOpenChat}
           onOpenMenuTestApply={(store, campaign) => {
             if (!isLoggedIn) {
+              setAuthModalNotice(`💡 [${store.storeName}] 신메뉴 시식단 신청은 로그인이 필요한 서비스입니다. 지금 로그인하거나 3초 만에 회원가입해 보세요!`);
               setIsAuthModalOpen(true);
               return;
             }
@@ -699,16 +701,69 @@ export const App: React.FC = () => {
           onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
           isMyStore={selectedStore?.id === myStore.id}
         />
+
+        {/* 🌟 비로그인 첫 방문 상생 웰컴 플로팅 카드 */}
+        {!isLoggedIn && showWelcomeCard && (
+          <aside aria-label="Welcome Card" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-lg bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-orange-200/90 p-4 sm:p-5 animate-in fade-in slide-in-from-bottom-5 transition-all">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 text-white flex items-center justify-center text-lg flex-shrink-0 shadow-md">
+                  🤝
+                </div>
+                <h3 className="font-extrabold text-sm sm:text-base text-gray-900 leading-snug tracking-tight">
+                  우리 동네 사장님들의 가치 있는 물물교환, Trade Me!
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWelcomeCard(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
+                title="배너 닫기"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-600 font-medium mt-2 leading-relaxed sm:pl-11">
+              정성껏 준비한 우리 가게 메뉴와 서비스를 이웃 매장과 교류해보세요
+            </p>
+
+            <div className="mt-3.5 flex items-center gap-2 sm:pl-11">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthModalNotice(null);
+                  setIsAuthModalOpen(true);
+                }}
+                className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+              >
+                <span>사장님 3초 가입 / 로그인</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowWelcomeCard(false)}
+                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+              >
+                동네 둘러보기
+              </button>
+            </div>
+          </aside>
+        )}
       </main>
 
       {/* Auth / MyPage Modal (사장님 프로필 & 대시보드 올인원 허브) */}
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setAuthModalNotice(null);
+        }}
         isLoggedIn={isLoggedIn}
         userOwnerName={userOwnerName}
         userStoreName={myStore.storeName}
         myStore={myStore}
+        noticeMessage={authModalNotice}
         onLoginSuccess={handleLoginSuccess}
         onUpdateProfile={handleUpdateProfile}
         onLogout={handleLogout}

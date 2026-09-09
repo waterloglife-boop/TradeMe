@@ -88,9 +88,11 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
 
     try {
       if (!naverMapInstanceRef.current) {
+        const initialLat = pickedLocation?.lat || 37.5665;
+        const initialLng = pickedLocation?.lng || 126.9780;
         const mapOptions = {
-          center: new window.naver.maps.LatLng(35.3594007321187, 129.041885145232), // 기본 중심 좌표
-          zoom: 15,
+          center: new window.naver.maps.LatLng(initialLat, initialLng), // 대한민국 표준 서울 중심 좌표
+          zoom: 14,
           mapTypeControl: true,
           mapTypeControlOptions: {
             style: window.naver.maps.MapTypeControlStyle.BUTTON,

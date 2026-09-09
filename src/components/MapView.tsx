@@ -28,8 +28,8 @@ export const MapView: React.FC<MapViewProps> = ({
 
     if (!mapInstanceRef.current) {
       const map = L.map(mapContainerRef.current, {
-        center: [35.3594007321187, 129.041885145232],
-        zoom: 15,
+        center: [37.5665, 126.9780], // 대한민국 표준 서울 중심 좌표
+        zoom: 14,
         zoomControl: false,
       });
 

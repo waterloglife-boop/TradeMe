@@ -56,6 +56,7 @@ interface AuthModalProps {
   onOpenMenuTestDashboard?: () => void;
   pendingTradeCount?: number;
   pendingMenuTestCount?: number;
+  noticeMessage?: string | null;
 }
 
 // 🇰🇷 국세청 사업자등록번호 10자리 검증 알고리즘 (Modulus-11)
@@ -88,6 +89,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onOpenMenuTestDashboard,
   pendingTradeCount = 0,
   pendingMenuTestCount = 0,
+  noticeMessage = null,
 }) => {
   const [mode, setMode] = useState<'MYPAGE' | 'EDIT_PROFILE' | 'LOGIN' | 'SIGNUP'>('MYPAGE');
 
@@ -994,6 +996,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <form onSubmit={handleAuthSubmit} className="p-4 sm:p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
               
+              {noticeMessage && (
+                <div className="bg-orange-50 border border-orange-300 text-orange-950 p-3.5 rounded-2xl text-xs font-bold flex items-start gap-2.5 animate-in fade-in shadow-sm">
+                  <Sparkles className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">{noticeMessage}</div>
+                </div>
+              )}
+
               {toastMessage && (
                 <div className="bg-amber-50 border border-amber-300 text-amber-900 p-3 rounded-xl text-xs font-bold flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
