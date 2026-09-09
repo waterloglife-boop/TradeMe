@@ -22,9 +22,12 @@ import {
   MapPin,
   Sparkles,
   Inbox,
-  Loader2
+  Loader2,
+  Calendar,
+  ShieldAlert,
+  FileText
 } from 'lucide-react';
-import { signUpUser, signInUser, verifyNtsBusinessStatus, fetchUserProfileFromSupabase, uploadStoreImageToSupabase } from '../lib/supabase';
+import { signUpUser, signInUser, verifyNtsBusinessStatus, verifyNtsBusinessValidate, fetchUserProfileFromSupabase, uploadStoreImageToSupabase } from '../lib/supabase';
 import { Store } from '../types/trade';
 import { geocodeKoreanAddress } from '../utils/location';
 import { Camera, Image as ImageIcon } from 'lucide-react';
@@ -105,6 +108,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [storeName, setStoreName] = useState('');
   const [phone, setPhone] = useState('');
   const [businessNumber, setBusinessNumber] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [category, setCategory] = useState(myStore?.category || 'FOOD');
   const [address, setAddress] = useState('');
   const [breakTimeHours, setBreakTimeHours] = useState('10:00 - 22:00');
@@ -119,7 +125,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [ntsVerifying, setNtsVerifying] = useState(false);
   const [ntsStatusMessage, setNtsStatusMessage] = useState<string | null>(null);
-  const [ntsResult, setNtsResult] = useState<{ isValid: boolean; message: string } | null>(null);
+  const [ntsResult, setNtsResult] = useState<{ isValid: boolean; message: string; isOwnerMatched?: boolean } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [duplicateField, setDuplicateField] = useState<'EMAIL' | 'PHONE' | null>(null);
@@ -136,6 +142,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setStoreName('');
     setPhone('');
     setBusinessNumber('');
+    setStartDate('');
+    setAgreedToTerms(false);
     setCategory('FOOD');
     setAddress('');
     setBreakTimeHours('10:00 - 22:00');
@@ -261,11 +269,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  // 🇰🇷 국세청 실시간 사업자 상태조회 API 핸들러
+  // 🏛️ 국세청 실시간 사업자 진위확인 API 핸들러 (대표자 성명 + 개업일자 + 사업자등록번호 1:1 대조)
   const handleVerifyNtsBusiness = async () => {
     const cleanBno = businessNumber.replace(/[^0-9]/g, '');
+    const cleanPnm = ownerName.trim();
+    const cleanStartDt = startDate.replace(/[^0-9]/g, '');
+
     if (cleanBno.length !== 10) {
       const errMsg = '사업자등록번호 10자리를 (-) 없이 숫자만 정확히 입력해 주세요.';
+      setNtsResult({ isValid: false, message: errMsg });
+      setToastMessage(`⚠️ ${errMsg}`);
+      alert(`⚠️ [국세청 사업자 조회 안내]\n\n${errMsg}`);
+      return;
+    }
+
+    if (!cleanPnm) {
+      const errMsg = '대표자 성함(사장님 성함)을 먼저 입력해 주세요.';
       setNtsResult({ isValid: false, message: errMsg });
       setToastMessage(`⚠️ ${errMsg}`);
       alert(`⚠️ [국세청 사업자 조회 안내]\n\n${errMsg}`);
@@ -276,18 +295,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setToastMessage(null);
     setNtsResult(null);
 
-    const res = await verifyNtsBusinessStatus(cleanBno);
+    const res = await verifyNtsBusinessValidate(cleanBno, cleanPnm, cleanStartDt);
     setNtsVerifying(false);
 
     if (res.isValid) {
       setNtsStatusMessage(res.message);
-      setNtsResult({ isValid: true, message: res.message });
-      alert(`✅ [국세청 인증 성공]\n\n${res.message}\n\n정상 영업 중인 소상공인 사업자로 확인되었습니다.`);
+      setNtsResult({ isValid: true, message: res.message, isOwnerMatched: res.isOwnerMatched });
+      if (res.isOwnerMatched) {
+        alert(`✅ [국세청 대표자 진위확인 성공]\n\n• 대표자 성명: ${cleanPnm}\n• 사업자등록번호: ${cleanBno}\n• 개업연월일: ${cleanStartDt}\n\n국세청 등록 원장과 100% 일치하는 정식 소상공인 대표자로 인증되었습니다.`);
+      } else {
+        alert(`✅ [국세청 사업자 인증 완료]\n\n${res.message}\n\n정상 영업 중인 사업자로 확인되었습니다.`);
+      }
     } else {
       setNtsStatusMessage(null);
-      setNtsResult({ isValid: false, message: res.message });
+      setNtsResult({ isValid: false, message: res.message, isOwnerMatched: false });
       setToastMessage(`⚠️ ${res.message}`);
-      alert(`⚠️ [국세청 조회 결과]\n\n${res.message}\n\n사업자등록번호 10자리를 다시 한 번 확인해 주세요.`);
+      alert(`⚠️ [국세청 조회 결과]\n\n${res.message}\n\n사업자번호, 대표자 성명, 개업연월일을 다시 한 번 확인해 주세요.`);
     }
   };
 
@@ -375,11 +398,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
+      if (!agreedToTerms) {
+        setToastMessage('⚠️ [필수] 서비스 이용약관 및 통신판매중개·면책 사항에 동의해 주세요.');
+        alert('⚠️ [필수 약관 동의 필요]\n\n서비스 이용약관 및 통신판매중개·교환권 면책 사항에 동의하셔야 사장님 가입이 완료됩니다.');
+        setLoading(false);
+        return;
+      }
+
       if (!cleanBno || cleanBno.length !== 10) {
         setToastMessage('⚠️ 소상공인 신뢰 확보를 위해 사업자등록번호 10자리를 (-) 없이 입력해 주세요.');
         setLoading(false);
         return;
       }
+
+      const cleanStartDt = startDate.replace(/[^0-9]/g, '');
 
       let finalLat = lat;
       let finalLng = lng;
@@ -402,7 +434,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         category,
         address,
         finalLat,
-        finalLng
+        finalLng,
+        cleanStartDt
       );
       
       if (!res.success && res.error === 'ALREADY_EXISTS') {
@@ -909,58 +942,92 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-0.5 flex items-center justify-between">
-                  <span>사업자등록번호 (10자리)</span>
-                  <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-                    <ShieldCheck className="w-3 h-3" /> 국세청 인증
+              <div className="bg-amber-50/50 border border-amber-200/80 rounded-2xl p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                    <Building className="w-3.5 h-3.5 text-amber-600" />
+                    <span>사업자등록번호 & 대표자 진위확인</span>
+                  </label>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-100 font-extrabold px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                    <ShieldCheck className="w-3 h-3" /> 국세청 1:1 대조
                   </span>
-                </label>
-                <p className="text-[11px] text-gray-500 font-normal mb-1">💡 (-) 하이픈 제외하고 번호만 입력</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    maxLength={10}
-                    value={businessNumber}
-                    onChange={(e) => {
-                      setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''));
-                      setNtsResult(null);
-                    }}
-                    placeholder="1234567890"
-                    className={`flex-1 px-3 py-2 border rounded-xl text-xs font-mono font-bold outline-none transition-all ${
-                      ntsResult === null
-                        ? 'border-gray-300 focus:ring-2 focus:ring-orange-500'
-                        : ntsResult.isValid
-                        ? 'border-emerald-500 ring-2 ring-emerald-100 bg-emerald-50/20'
-                        : 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/20'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleVerifyNtsBusiness}
-                    disabled={ntsVerifying}
-                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm whitespace-nowrap active:scale-95 transition-all"
-                  >
-                    {ntsVerifying ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>조회 중...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Search className="w-3.5 h-3.5" />
-                        <span>국세청 조회</span>
-                      </>
-                    )}
-                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] text-gray-600 mb-1">
+                      <span>① 사업자등록번호 (10자리)</span>
+                      <span className="text-[10px] text-gray-400">숫자만 입력</span>
+                    </div>
+                    <input
+                      type="text"
+                      maxLength={10}
+                      value={businessNumber}
+                      onChange={(e) => {
+                        setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''));
+                        setNtsResult(null);
+                      }}
+                      placeholder="1234567890"
+                      className={`w-full px-3 py-2 border rounded-xl text-xs font-mono font-bold outline-none transition-all bg-white ${
+                        ntsResult === null
+                          ? 'border-gray-300 focus:ring-2 focus:ring-orange-500'
+                          : ntsResult.isValid
+                          ? 'border-emerald-500 ring-2 ring-emerald-100'
+                          : 'border-rose-400 ring-2 ring-rose-100'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] text-gray-600 mb-1">
+                      <span>② 개업연월일 (8자리)</span>
+                      <span className="text-[10px] text-amber-700 font-bold">대표자 일치 검증용</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          maxLength={8}
+                          placeholder="예: 20210515 (YYYYMMDD)"
+                          value={startDate}
+                          onChange={(e) => {
+                            setStartDate(e.target.value.replace(/[^0-9]/g, ''));
+                            setNtsResult(null);
+                          }}
+                          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs outline-none font-mono font-bold bg-white focus:ring-2 focus:ring-orange-500"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleVerifyNtsBusiness}
+                        disabled={ntsVerifying}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-sm whitespace-nowrap active:scale-95 transition-all"
+                      >
+                        {ntsVerifying ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>대조 중...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-3.5 h-3.5" />
+                            <span>국세청 진위확인</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* 📌 국세청 실시간 인증/오류 안내 박스 */}
                 {ntsResult && (
                   <div
-                    className={`mt-2 p-3 rounded-xl text-xs font-bold flex items-start gap-2 animate-in fade-in border ${
+                    className={`mt-1 p-3 rounded-xl text-xs font-bold flex items-start gap-2 animate-in fade-in border ${
                       ntsResult.isValid
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                        ? ntsResult.isOwnerMatched
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                          : 'bg-amber-50 border-amber-300 text-amber-900'
                         : 'bg-rose-50 border-rose-300 text-rose-900'
                     }`}
                   >
@@ -971,7 +1038,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     )}
                     <div className="leading-snug">
                       <p className="font-extrabold text-[12px]">
-                        {ntsResult.isValid ? '✅ 국세청 인증 완료' : '⚠️ 국세청 인증 불가'}
+                        {ntsResult.isValid
+                          ? ntsResult.isOwnerMatched
+                            ? '✅ 국세청 대표자명 1:1 진위확인 완료'
+                            : '✅ 국세청 계속사업자 확인 완료'
+                          : '⚠️ 국세청 인증 불가'}
                       </p>
                       <p className="text-[11px] font-medium mt-0.5">{ntsResult.message}</p>
                     </div>
@@ -1291,59 +1362,93 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-0.5 flex items-center justify-between">
-                      <span>사업자등록번호 (10자리)</span>
-                      <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-                        <ShieldCheck className="w-3 h-3" /> 실시간 인증가능
+                  <div className="bg-amber-50/50 border border-amber-200/80 rounded-2xl p-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                        <Building className="w-3.5 h-3.5 text-amber-600" />
+                        <span>사업자등록정보 & 국세청 대표자 진위확인</span>
+                      </label>
+                      <span className="text-[10px] text-emerald-700 bg-emerald-100 font-extrabold px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                        <ShieldCheck className="w-3 h-3" /> 1:1 대조인증
                       </span>
-                    </label>
-                    <p className="text-[11px] text-gray-500 font-normal mb-1">💡 (-) 하이픈 제외하고 번호만 입력</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        required
-                        maxLength={10}
-                        placeholder="예: 1234567890"
-                        value={businessNumber}
-                        onChange={(e) => {
-                          setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''));
-                          setNtsResult(null);
-                        }}
-                        className={`flex-1 px-3 py-2 border rounded-xl text-xs outline-none font-mono font-bold transition-all ${
-                          ntsResult === null
-                            ? 'border-gray-300 focus:ring-2 focus:ring-orange-500'
-                            : ntsResult.isValid
-                            ? 'border-emerald-500 ring-2 ring-emerald-100 bg-emerald-50/20'
-                            : 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/20'
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleVerifyNtsBusiness}
-                        disabled={ntsVerifying}
-                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm whitespace-nowrap active:scale-95 transition-all"
-                      >
-                        {ntsVerifying ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>조회 중...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Search className="w-3.5 h-3.5" />
-                            <span>국세청 조회</span>
-                          </>
-                        )}
-                      </button>
                     </div>
 
-                    {/* 📌 모바일 화면에서 바로 보이는 국세청 실시간 인증/오류 안내 박스 */}
+                    <div className="space-y-2">
+                      <div>
+                        <div className="flex items-center justify-between text-[11px] text-gray-600 mb-1">
+                          <span>① 사업자등록번호 (10자리)</span>
+                          <span className="text-[10px] text-gray-400">숫자만 입력</span>
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          maxLength={10}
+                          placeholder="예: 1234567890"
+                          value={businessNumber}
+                          onChange={(e) => {
+                            setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''));
+                            setNtsResult(null);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono font-bold outline-none transition-all bg-white ${
+                            ntsResult === null
+                              ? 'border-gray-300 focus:ring-2 focus:ring-orange-500'
+                              : ntsResult.isValid
+                              ? 'border-emerald-500 ring-2 ring-emerald-100'
+                              : 'border-rose-400 ring-2 ring-rose-100'
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between text-[11px] text-gray-600 mb-1">
+                          <span>② 개업연월일 (8자리)</span>
+                          <span className="text-[10px] text-amber-700 font-bold">국세청 대표자 대조용</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                            <input
+                              type="text"
+                              maxLength={8}
+                              placeholder="예: 20210515 (YYYYMMDD)"
+                              value={startDate}
+                              onChange={(e) => {
+                                setStartDate(e.target.value.replace(/[^0-9]/g, ''));
+                                setNtsResult(null);
+                              }}
+                              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs outline-none font-mono font-bold bg-white focus:ring-2 focus:ring-orange-500"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleVerifyNtsBusiness}
+                            disabled={ntsVerifying}
+                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-sm whitespace-nowrap active:scale-95 transition-all"
+                          >
+                            {ntsVerifying ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <span>대조 중...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Search className="w-3.5 h-3.5" />
+                                <span>진위확인</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 📌 국세청 실시간 인증/오류 안내 박스 */}
                     {ntsResult && (
                       <div
-                        className={`mt-2 p-3 rounded-xl text-xs font-bold flex items-start gap-2 animate-in fade-in border ${
+                        className={`mt-1 p-3 rounded-xl text-xs font-bold flex items-start gap-2 animate-in fade-in border ${
                           ntsResult.isValid
-                            ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                            ? ntsResult.isOwnerMatched
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                              : 'bg-amber-50 border-amber-300 text-amber-900'
                             : 'bg-rose-50 border-rose-300 text-rose-900'
                         }`}
                       >
@@ -1354,12 +1459,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         )}
                         <div className="leading-snug">
                           <p className="font-extrabold text-[12px]">
-                            {ntsResult.isValid ? '✅ 국세청 인증 완료' : '⚠️ 국세청 인증 불가'}
+                            {ntsResult.isValid
+                              ? ntsResult.isOwnerMatched
+                                ? '✅ 국세청 대표자 1:1 진위확인 완료'
+                                : '⚠️ 사업자 상태 유효 (대표자 불일치 주의)'
+                              : '⚠️ 국세청 인증 불가'}
                           </p>
-                          <p className="text-[11px] font-medium mt-0.5">{ntsResult.message}</p>
+                          <p className="text-[11px] font-medium mt-0.5">
+                            {ntsResult.isValid && ntsResult.isOwnerMatched
+                              ? `입력하신 사장님 성함(${ownerName || '대표자'})과 국세청 등록 원장이 100% 일치합니다.`
+                              : ntsResult.message}
+                          </p>
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* 🛡️ 통신판매중개자 법적 지위 및 뱅크런·부도 면책 약관 필수 동의 */}
+                  <div className="pt-2 border-t border-gray-100">
+                    <div className="flex items-start gap-2.5 p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs">
+                      <input
+                        type="checkbox"
+                        id="termsAgree"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="w-4 h-4 mt-0.5 rounded text-orange-600 focus:ring-orange-500 cursor-pointer accent-orange-600 flex-shrink-0"
+                        required
+                      />
+                      <label htmlFor="termsAgree" className="text-gray-700 leading-snug cursor-pointer select-none flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-orange-950">
+                            [필수] 서비스 이용약관 및 통신판매중개·교환권 면책 동의
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowTermsModal(true)}
+                            className="text-[11px] font-bold text-orange-600 hover:text-orange-800 underline whitespace-nowrap ml-1"
+                          >
+                            전문 보기 &gt;
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          본 플랫폼은 통신판매중개자로서 회원 간 교환권의 발행·사용에 관여하지 않으며, 특정 업체의 부도·뱅크런·미이행 시 어떠한 지급보증도 제공하지 않음에 동의합니다.
+                        </p>
+                      </label>
+                    </div>
                   </div>
                 </>
               )}
@@ -1390,6 +1534,105 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               )}
 
             </form>
+          </div>
+        )}
+
+        {/* 📜 이용약관 및 통신판매중개 면책 전문 모달 */}
+        {showTermsModal && (
+          <div className="fixed inset-0 z-[120] bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden border border-gray-100">
+              {/* Header */}
+              <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-amber-50/50">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-amber-600" />
+                  <h3 className="font-bold text-sm text-gray-900">
+                    트레이드미(TradeMe) 이용약관 및 통신판매중개 면책 조항
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowTermsModal(false)}
+                  className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-700 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content Body */}
+              <div className="p-5 overflow-y-auto space-y-4 text-xs text-gray-700 leading-relaxed font-sans">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 font-bold">
+                  📢 [필독] 트레이드미는 전자상거래 등에서의 소비자보호에 관한 법률 제20조 제2항에 따른 &apos;통신판매중개자&apos;로서 회원 간 물물교환 및 교환권 거래의 당사자가 아닙니다.
+                </div>
+
+                <div>
+                  <h4 className="font-extrabold text-gray-900 text-sm mb-1 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[11px] font-black">1</span>
+                    제1조 (통신판매중개자로서의 법적 지위)
+                  </h4>
+                  <p className="text-gray-600 pl-6">
+                    트레이드미(이하 &apos;플랫폼&apos;)는 등록된 자영업자·소상공인 회원(이하 &apos;회원&apos;) 간 보유 물품 및 서비스 이용권(모바일 교환권)의 자율적인 상호 교환을 원활히 할 수 있도록 시스템 플랫폼을 제공하는 <strong>통신판매중개자</strong>입니다. 플랫폼은 개별 거래의 주체나 계약 당사자가 아니며, 거래 물품 및 교환권의 실제 이행 여부에 대해 직접 책임을 지지 않습니다.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-extrabold text-gray-900 text-sm mb-1 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[11px] font-black">2</span>
+                    제2조 (교환권 자율 발행 및 금융 지급보증 배제)
+                  </h4>
+                  <p className="text-gray-600 pl-6">
+                    회원이 플랫폼을 통해 생성·발행하는 모든 교환권은 각 가맹 사업자가 본인의 영업 자산과 신용을 기반으로 <strong>자율적으로 발행</strong>하는 것입니다. 플랫폼은 금융기관, 신용보증기금 또는 결제대행업자가 아니며, 발행된 교환권에 대하여 예금자보호법, 전자금융거래법 등에 따른 <strong>어떠한 지급보증·지급준비금 예치 의무도 부담하지 않습니다.</strong>
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-extrabold text-gray-900 text-sm mb-1 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[11px] font-black">3</span>
+                    제3조 (뱅크런·부도·폐업 및 채무불이행 시 면책)
+                  </h4>
+                  <div className="text-gray-600 pl-6 space-y-1.5">
+                    <p>
+                      ① 특정 회원 매장의 과도한 교환권 발행, 경영 악화, 고의 폐업, 부도, 야반도주, <strong>뱅크런(동시다발적 교환 요구 불능)</strong> 등으로 인하여 교환권의 사용이 거부되거나 채무가 불이행되는 경우, 그에 따른 모든 민·형사상 법적 책임 및 원상회복 의무는 <strong>교환권을 발행한 사업자 당사자</strong>에게 귀속됩니다.
+                    </p>
+                    <p>
+                      ② 플랫폼은 관계 법령에 위배되지 않는 한 회원 간 발생한 부도·불이행 손해에 대하여 <strong>대위변제, 환불, 손해배상 등의 법적 책임을 전면 면책</strong>합니다.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-extrabold text-gray-900 text-sm mb-1 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[11px] font-black">4</span>
+                    제4조 (플랫폼 안전 장치 및 리스크 관리 조치)
+                  </h4>
+                  <div className="text-gray-600 pl-6 space-y-1">
+                    <p>
+                      플랫폼은 선량한 사장님들의 피해 방지와 먹튀·사기 행위 근절을 위하여 다음과 같은 안전망을 운영하며, 회원은 이에 동의합니다:
+                    </p>
+                    <ul className="list-disc pl-4 space-y-0.5 mt-1 text-[11px] text-gray-500">
+                      <li>국세청(NTS) 공식 API를 통한 사업자등록번호·대표자명·개업일자 3-Way 실시간 1:1 진위확인</li>
+                      <li>악의적 교환권 남발을 방지하기 위한 계정당 최대 동시 교환권 발행·보유 5장 상한선 제한</li>
+                      <li>불이행 신고 접수 시 즉각적인 계정 영구 제명 및 국세청 사업자 정보 기반 형사고발 조치 협조</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                <span className="text-[11px] text-gray-500 font-medium">
+                  동의 시 통신판매중개자 면책 조항에 공식 효력이 발생합니다.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAgreedToTerms(true);
+                    setShowTermsModal(false);
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md active:scale-95 transition-all"
+                >
+                  약관 확인 및 동의하기
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

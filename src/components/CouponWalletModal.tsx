@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Ticket, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, ChevronRight, ShieldCheck, ArrowRight, Store as StoreIcon, AlertTriangle } from 'lucide-react';
+import { X, Ticket, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, ChevronRight, ShieldCheck, ArrowRight, Store as StoreIcon, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Store, IssuedVoucher } from '../types/trade';
 import { fetchStoredVouchers, redeemVoucherInStorage, restoreVoucherInStorage } from '../lib/supabase';
 
@@ -296,6 +296,17 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
               )}
             </div>
           )}
+
+          {/* 🛡️ 통신판매중개자 법적 고지 (전자상거래법 제20조 제2항 준수) */}
+          <div className="p-3 bg-gray-100/80 border border-gray-200/80 rounded-2xl text-[11px] text-gray-500 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-gray-700">
+              <ShieldAlert className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
+              <span>통신판매중개자 및 교환권 면책 안내</span>
+            </div>
+            <p className="leading-relaxed">
+              트레이드미는 통신판매중개자로서 교환권의 발행 당사자가 아니며, 본 교환권은 각 가맹점 사장님들의 책임 하에 자율 발행되었습니다. 특정 업체의 폐업, 부도, 채무불이행 시 플랫폼은 지급보증 의무를 부담하지 않습니다.
+            </p>
+          </div>
 
         </div>
 

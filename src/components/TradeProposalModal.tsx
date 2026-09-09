@@ -302,13 +302,17 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
 
           {/* Voucher Issuance Feature Callout */}
           {isVoucherTrade && (
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 rounded-xl p-3 text-xs space-y-1">
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 rounded-xl p-3 text-xs space-y-1.5">
               <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-[11px]">
                 <span>🎟️</span>
                 <span>양방향 상생 교환권 자동 동시 발급 시스템</span>
               </div>
               <p className="text-[11px] text-amber-800 leading-relaxed">
                 상대 사장님이 제안을 수락하는 즉시, <strong>양 매장의 [교환권 보관함]</strong>으로 유효기간 30일의 1:1 맞교환 쿠폰이 0.1초 만에 상호 자동 발급됩니다.
+              </p>
+              <p className="text-[10px] text-gray-500 pt-1 border-t border-amber-200/60 flex items-center gap-1">
+                <span>🛡️</span>
+                <span>플랫폼은 통신판매중개자로서 회원 간 교환권의 자율 발행을 지원하며 별도의 지급보증을 제공하지 않습니다.</span>
               </p>
             </div>
           )}

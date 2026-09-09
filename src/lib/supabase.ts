@@ -45,6 +45,7 @@ export interface NtsVerifyResult {
   bStt: string;
   taxType: string;
   message: string;
+  isOwnerMatched?: boolean;
 }
 
 export function checkValidBusinessNumber(bno: string): boolean {
@@ -58,6 +59,98 @@ export function checkValidBusinessNumber(bno: string): boolean {
   sum += Math.floor((parseInt(clean[8], 10) * 5) / 10);
   const remainder = (10 - (sum % 10)) % 10;
   return remainder === parseInt(clean[9], 10);
+}
+
+/**
+ * 🏛️ 국세청 공식 사업자 진위확인 API (/validate)
+ * 사업자번호(10자리) + 대표자 성명 + 개업연월일(8자리) 1:1 대조 검증
+ */
+export async function verifyNtsBusinessValidate(
+  businessNumber: string,
+  ownerName: string,
+  startDate?: string
+): Promise<NtsVerifyResult> {
+  const cleanBno = businessNumber.replace(/[^0-9]/g, '');
+  const cleanPnm = ownerName.trim();
+  const cleanStartDt = (startDate || '').replace(/[^0-9]/g, '');
+
+  if (cleanBno.length !== 10) {
+    return {
+      success: false,
+      isValid: false,
+      bNo: cleanBno,
+      bStt: '',
+      taxType: '',
+      message: '사업자등록번호 10자리를 (-) 없이 숫자만 정확히 입력해 주세요.',
+    };
+  }
+
+  // 1차 체크섬 검증: 국세청 Modulus-11 공식
+  if (!checkValidBusinessNumber(cleanBno)) {
+    return {
+      success: false,
+      isValid: false,
+      bNo: cleanBno,
+      bStt: '',
+      taxType: '',
+      message: '국세청 사업자등록번호 형식(체크섬)이 올바르지 않은 번호입니다.',
+    };
+  }
+
+  // 2차 국세청 1:1 진위확인 (/validate) - 개업일자 8자리와 대표자명이 제공된 경우
+  if (cleanStartDt.length === 8 && cleanPnm) {
+    try {
+      const url = `https://api.odcloud.kr/api/nts-businessman/v1/validate?serviceKey=${NTS_SERVICE_KEY}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          businesses: [
+            {
+              b_no: cleanBno,
+              start_dt: cleanStartDt,
+              p_nm: cleanPnm,
+            },
+          ],
+        }),
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        const item = json?.data?.[0];
+
+        if (item?.valid === '01') {
+          return {
+            success: true,
+            isValid: true,
+            isOwnerMatched: true,
+            bNo: cleanBno,
+            bStt: '국세청 대표자 진위확인 완료',
+            taxType: '대표자명 및 개업일자 일치',
+            message: `국세청 진위확인 완료: 대표자 성함(${cleanPnm})과 개업연월일이 국세청 등록 정보와 100% 일치합니다.`,
+          };
+        } else if (item?.valid === '02') {
+          return {
+            success: true,
+            isValid: false,
+            isOwnerMatched: false,
+            bNo: cleanBno,
+            bStt: '불일치',
+            taxType: '',
+            message: item?.valid_msg || '국세청 정보와 대표자 성명 또는 개업연월일이 일치하지 않습니다. 사업자등록증을 확인해 주세요.',
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('NTS Validate API call failed, falling back to status check:', err);
+    }
+  }
+
+  // Fallback: 개업일자가 없거나 API 지연 시 상태조회 API (/status)
+  return verifyNtsBusinessStatus(cleanBno);
 }
 
 /**
@@ -221,7 +314,8 @@ export async function signUpUser(
   category?: string,
   address?: string,
   lat?: number,
-  lng?: number
+  lng?: number,
+  startDate?: string
 ) {
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -232,9 +326,12 @@ export async function signUpUser(
           owner_name: ownerName,
           store_name: storeName,
           business_number: businessNumber,
+          start_date: startDate || '',
           phone: phone || '',
           category: category || 'FOOD',
           address: address || '',
+          terms_agreed_at: new Date().toISOString(),
+          is_intermediary_disclaimer_agreed: true,
         },
       },
     });
