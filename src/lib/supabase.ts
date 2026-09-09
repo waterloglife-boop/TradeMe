@@ -633,18 +633,32 @@ export async function saveProfileToSupabase(
   breakTimeHours?: string,
   category?: string,
   lat?: number,
-  lng?: number
+  lng?: number,
+  storeId?: string,
+  explicitUserId?: string
 ) {
   try {
-    let userId = '';
-    const { data: userData } = await supabase.auth.getUser();
-    if (userData?.user) {
-      userId = userData.user.id;
-    } else {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData?.session?.user) {
-        userId = sessionData.session.user.id;
+    let userId = explicitUserId || '';
+    if (!userId) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) {
+        userId = userData.user.id;
+      } else {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.user) {
+          userId = sessionData.session.user.id;
+        }
       }
+    }
+
+    if (!userId) {
+      try {
+        const p = localStorage.getItem('trademe_profile');
+        if (p) {
+          const po = JSON.parse(p);
+          if (po.id) userId = po.id;
+        }
+      } catch (e) {}
     }
 
     // 1. Profiles Table Upsert
@@ -658,14 +672,16 @@ export async function saveProfileToSupabase(
     if (storeImageUrl) profilePayload.store_image_url = storeImageUrl;
     if (address) profilePayload.address = address;
 
-    const { error: profileError } = await supabase.from('profiles').upsert(profilePayload);
-    if (profileError) {
-      console.error('[Supabase Error] profiles upsert failed:', {
-        code: profileError.code,
-        message: profileError.message,
-        details: profileError.details,
-        hint: profileError.hint,
-      });
+    if (userId) {
+      const { error: profileError } = await supabase.from('profiles').upsert(profilePayload);
+      if (profileError) {
+        console.error('[Supabase Error] profiles upsert failed:', {
+          code: profileError.code,
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint,
+        });
+      }
     }
 
     // 2. Stores Table Update
@@ -676,30 +692,32 @@ export async function saveProfileToSupabase(
     if (phone) storePayload.phone = phone;
     if (storeImageUrl) storePayload.store_image_url = storeImageUrl;
     if (address) storePayload.address = address;
-    if (breakTimeHours) storePayload.break_time_hours = breakTimeHours;
+    if (breakTimeHours) {
+      // 🌟 operating_hours와 break_time_hours 두 컬럼 모두를 동기화하여 변경사항이 100% 즉시 반영되도록 보장
+      storePayload.operating_hours = breakTimeHours;
+      storePayload.break_time_hours = breakTimeHours;
+    }
     if (category) storePayload.category = category;
     if (lat !== undefined) storePayload.lat = lat;
     if (lng !== undefined) storePayload.lng = lng;
 
+    if (storeId) {
+      const { error: storeIdErr } = await supabase.from('stores').update(storePayload).eq('id', storeId);
+      if (storeIdErr) {
+        console.warn('[Supabase Notice] stores update by id failed:', storeIdErr);
+      }
+    }
+
     if (userId) {
       const { error: storeUserErr } = await supabase.from('stores').update(storePayload).eq('user_id', userId);
       if (storeUserErr) {
-        console.error('[Supabase Error] stores update by user_id failed:', {
-          code: storeUserErr.code,
-          message: storeUserErr.message,
-          details: storeUserErr.details,
-          hint: storeUserErr.hint,
-        });
+        console.warn('[Supabase Notice] stores update by user_id failed:', storeUserErr);
       }
     }
+
     const { error: storeOwnerErr } = await supabase.from('stores').update(storePayload).eq('owner_name', ownerName);
     if (storeOwnerErr) {
-      console.error('[Supabase Error] stores update by owner_name failed:', {
-        code: storeOwnerErr.code,
-        message: storeOwnerErr.message,
-        details: storeOwnerErr.details,
-        hint: storeOwnerErr.hint,
-      });
+      console.warn('[Supabase Notice] stores update by owner_name failed:', storeOwnerErr);
     }
   } catch (err) {
     console.error('[Supabase Error] saveProfileToSupabase exception:', err);

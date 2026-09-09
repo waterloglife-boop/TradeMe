@@ -163,14 +163,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const savedProfileRaw = localStorage.getItem('trademe_profile');
         if (savedProfileRaw) {
           const parsed = JSON.parse(savedProfileRaw);
-          if (parsed.ownerName) setOwnerName(parsed.ownerName);
-          if (parsed.storeName) setStoreName(parsed.storeName);
+          if (parsed.owner_name || parsed.ownerName) setOwnerName(parsed.owner_name || parsed.ownerName);
+          if (parsed.store_name || parsed.storeName) setStoreName(parsed.store_name || parsed.storeName);
           if (parsed.phone) setPhone(parsed.phone);
-          if (parsed.businessNumber) setBusinessNumber(parsed.businessNumber);
-          if (parsed.storeImageUrl) setStoreImageUrl(parsed.storeImageUrl);
+          if (parsed.business_number || parsed.businessNumber) setBusinessNumber(parsed.business_number || parsed.businessNumber);
+          if (parsed.store_image_url || parsed.storeImageUrl) setStoreImageUrl(parsed.store_image_url || parsed.storeImageUrl);
           if (parsed.address) setAddress(parsed.address);
-          if (parsed.breakTimeHours) setBreakTimeHours(parsed.breakTimeHours);
+          if (parsed.break_time_hours || parsed.breakTimeHours || parsed.operating_hours) {
+            setBreakTimeHours(parsed.break_time_hours || parsed.breakTimeHours || parsed.operating_hours);
+          }
           if (parsed.category) setCategory(parsed.category);
+        }
+        const savedStoreRaw = localStorage.getItem('trademe_my_store');
+        if (savedStoreRaw) {
+          const parsedStore = JSON.parse(savedStoreRaw);
+          if (parsedStore.breakTimeHours) setBreakTimeHours(parsedStore.breakTimeHours);
+          if (parsedStore.address && !address) setAddress(parsedStore.address);
         }
       } catch (e) {}
 
@@ -182,6 +190,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           if (prof.phone) setPhone(prof.phone);
           if (prof.business_number) setBusinessNumber(prof.business_number);
           if (prof.store_image_url) setStoreImageUrl(prof.store_image_url);
+          if (prof.address) setAddress(prof.address);
         }
       });
     } else {
@@ -481,6 +490,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span>프로필 편집</span>
                 </button>
               </div>
+
+              {/* 🌟 영업시간 & 로그아웃 버튼 (사업자번호 바로 밑으로 상단 이동) */}
+              <div className="mt-2.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-gray-300 font-medium">
+                  <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  <span>영업시간: <strong className="text-white font-bold">{myStore?.breakTimeHours || breakTimeHours || '10:00 - 22:00'}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onLogout();
+                    onClose();
+                  }}
+                  className="text-gray-300 hover:text-red-300 font-bold flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/10 hover:bg-red-500/20 border border-white/10 transition-all text-xs active:scale-95"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-red-400" />
+                  <span>로그아웃</span>
+                </button>
+              </div>
             </div>
 
             {/* Middle Section: Clean List View Menu Cards (리스트형 UI) */}
@@ -589,25 +617,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
               </div>
 
-            </div>
-
-            {/* Bottom Footer Section: Subtle Status & Logout */}
-            <div className="p-4 bg-white border-t border-gray-200 flex items-center justify-between flex-shrink-0 text-xs">
-              <div className="flex items-center gap-1.5 text-gray-600">
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
-                <span>영업시간: <strong>{myStore?.breakTimeHours || '10:00 - 22:00'}</strong></span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  onLogout();
-                  onClose();
-                }}
-                className="text-gray-500 hover:text-red-600 font-bold flex items-center gap-1 p-1 rounded-lg transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>로그아웃</span>
-              </button>
             </div>
 
           </div>

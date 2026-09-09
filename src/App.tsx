@@ -602,13 +602,33 @@ export const App: React.FC = () => {
       breakTimeHours,
       category,
       lat,
-      lng
+      lng,
+      myStore.id,
+      myStore.userId
     );
 
     try {
+      const existingProfile = localStorage.getItem('trademe_profile');
+      const profileObj = existingProfile ? JSON.parse(existingProfile) : {};
       localStorage.setItem(
         'trademe_profile',
-        JSON.stringify({ ownerName, storeName, phone, businessNumber, storeImageUrl })
+        JSON.stringify({
+          ...profileObj,
+          id: profileObj.id || myStore.userId,
+          owner_name: ownerName,
+          ownerName,
+          store_name: storeName,
+          storeName,
+          phone: phone || profileObj.phone,
+          business_number: businessNumber || profileObj.business_number || profileObj.businessNumber,
+          businessNumber: businessNumber || profileObj.businessNumber,
+          store_image_url: storeImageUrl || profileObj.store_image_url || profileObj.storeImageUrl,
+          storeImageUrl: storeImageUrl || profileObj.storeImageUrl,
+          address: address || profileObj.address,
+          break_time_hours: breakTimeHours,
+          breakTimeHours,
+          operating_hours: breakTimeHours,
+        })
       );
       localStorage.setItem('trademe_my_store', JSON.stringify(updatedMyStore));
     } catch (e) {}
