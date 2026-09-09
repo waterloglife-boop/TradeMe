@@ -50,8 +50,8 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
 
     if (newStatus === 'ACCEPTED') {
       const activeVouchers = fetchStoredVouchers(myStore.id).filter((v) => v.status === 'AVAILABLE');
-      if (activeVouchers.length >= 3) {
-        alert('⚠️ 현재 사장님의 교환권 보관함이 가득 찼습니다 (최대 3장).\n새 교환권을 수령하시려면 기존 교환권을 먼저 사용 완료해 주세요.');
+      if (activeVouchers.length >= 5) {
+        alert('⚠️ 현재 사장님의 교환권 보관함이 가득 찼습니다 (최대 5장).\n새 교환권을 수령하시려면 기존 교환권을 먼저 사용 완료해 주세요.');
         setActionLoadingId(null);
         return;
       }

@@ -420,7 +420,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
                 <div className="grid grid-cols-3 gap-1.5 text-[10px] text-gray-600 bg-white/80 p-2.5 rounded-xl border border-amber-200">
                   <div className="flex items-center gap-1 font-bold">
                     <span>🛡️</span>
-                    <span>동시한도 3장</span>
+                    <span>동시한도 5장</span>
                   </div>
                   <div className="flex items-center gap-1 font-bold">
                     <span>⏳</span>

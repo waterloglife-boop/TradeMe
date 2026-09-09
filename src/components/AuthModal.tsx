@@ -559,7 +559,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
               </div>
 
-              {/* 🎟️ 내 교환권 보관함 (받은 쿠폰 N/3장) */}
+              {/* 🎟️ 내 교환권 보관함 (받은 쿠폰 N/5장) */}
               {onOpenCouponWallet && (
                 <div
                   onClick={() => {
@@ -578,9 +578,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           내 교환권 보관함 (받은 쿠폰)
                         </h4>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                          voucherCount >= 3 ? 'bg-red-100 text-red-700 font-black' : 'bg-amber-100 text-amber-900'
+                          voucherCount >= 5 ? 'bg-red-100 text-red-700 font-black' : 'bg-amber-100 text-amber-900'
                         }`}>
-                          보유 {voucherCount} / 3장
+                          보유 {voucherCount} / 5장
                         </span>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">

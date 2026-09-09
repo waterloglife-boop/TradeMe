@@ -96,9 +96,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="hidden sm:inline">교환권 보관함</span>
                 <span className="sm:hidden">보관함</span>
                 <span className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  voucherCount >= 3 ? 'bg-red-500 text-white animate-pulse' : 'bg-white/25 text-white'
+                  voucherCount >= 5 ? 'bg-red-500 text-white animate-pulse' : 'bg-white/25 text-white'
                 }`}>
-                  {voucherCount}/3
+                  {voucherCount}/5
                 </span>
               </button>
             )}

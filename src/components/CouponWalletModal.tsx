@@ -89,9 +89,9 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
                   내 교환권 보관함
                 </h3>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                  availableVouchers.length >= 3 ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-orange-800'
+                  availableVouchers.length >= 5 ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-orange-800'
                 }`}>
-                  보유 {availableVouchers.length} / 3장
+                  보유 {availableVouchers.length} / 5장
                 </span>
               </div>
               <p className="text-[11px] text-amber-100">
@@ -160,12 +160,12 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
             <div className="space-y-0.5">
               <div className="flex items-center justify-between">
                 <p className="font-extrabold text-amber-950">
-                  안심 보관 한도 안내 (동시 최대 3장)
+                  안심 보관 한도 안내 (동시 최대 5장)
                 </p>
-                <span className="font-black text-orange-700">{availableVouchers.length}/3장</span>
+                <span className="font-black text-orange-700">{availableVouchers.length}/5장</span>
               </div>
               <p className="text-[11px] text-amber-800 leading-relaxed">
-                교환권 남발 및 사장님의 정산·재고 부담을 원천 차단하기 위해 이웃 사장님들의 교환권은 <strong>최대 3장까지만 동시 보관</strong>됩니다. 사용 완료 시 새로운 교환권을 제안받을 수 있습니다.
+                상대방이 교환권을 바로 사용하지 않더라도 추가 교환이 원활하도록 이웃 사장님들의 교환권은 <strong>최대 5장까지 동시 보관</strong>됩니다. 사용 완료 시 새로운 교환권을 제안받을 수 있습니다.
               </p>
             </div>
           </div>

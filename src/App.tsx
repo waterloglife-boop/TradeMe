@@ -171,6 +171,17 @@ export const App: React.FC = () => {
           }
         } catch (e) {}
 
+        // Clean up any legacy dummy seed vouchers cache
+        try {
+          const cachedVouchers = localStorage.getItem('trademe_vouchers');
+          if (cachedVouchers && (cachedVouchers.includes('voucher-seed-') || cachedVouchers.includes('소담 한정식') || cachedVouchers.includes('헤어살롱 유') || cachedVouchers.includes('달콤 베이커리'))) {
+            const parsed = JSON.parse(cachedVouchers);
+            const filtered = parsed.filter((v: any) => !v.id?.startsWith('voucher-seed-') && !['소담 한정식', '헤어살롱 유', '달콤 베이커리'].includes(v.senderStoreName));
+            localStorage.setItem('trademe_vouchers', JSON.stringify(filtered));
+            setVoucherWalletCount(filtered.filter((v: any) => v.status === 'AVAILABLE').length);
+          }
+        } catch (e) {}
+
         // 1. Fetch all registered stores directly from Supabase (첫 화면에서는 어떤 매장도 자동 선택하지 않고 깨끗한 지도로 노출)
         const fetchedStores = await fetchStoresFromSupabase();
         setStores(fetchedStores || []);

@@ -315,7 +315,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                       </span>
                     </div>
                     <span className="text-[11px] font-extrabold text-amber-100 flex items-center gap-1">
-                      <span>🛡️</span> 한도 3장
+                      <span>🛡️</span> 한도 5장
                     </span>
                   </div>
 

@@ -313,25 +313,25 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
             </div>
           )}
 
-          {/* Wallet Safety Capacity Status (Max 3) */}
+          {/* Wallet Safety Capacity Status (Max 5) */}
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5">
               <Ticket className="w-3.5 h-3.5 text-orange-500" />
               <span className="text-gray-700 font-medium">내 보관함 보유 수량:</span>
-              <strong className="text-gray-900">{walletAvailableCount} / 3장</strong>
+              <strong className="text-gray-900">{walletAvailableCount} / 5장</strong>
             </div>
-            {walletAvailableCount >= 3 ? (
+            {walletAvailableCount >= 5 ? (
               <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-md font-bold text-[10px]">
                 ⚠️ 보관함 가득 참
               </span>
             ) : (
               <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md font-bold text-[10px]">
-                🛡️ 수령 여유 {3 - walletAvailableCount}장
+                🛡️ 수령 여유 {5 - walletAvailableCount}장
               </span>
             )}
           </div>
 
-          {walletAvailableCount >= 3 && (
+          {walletAvailableCount >= 5 && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-xs text-red-700">
               💡 현재 보관함이 가득 차 있어, 기존 교환권을 먼저 사용 완료하셔야 신규 교환권을 수령하실 수 있습니다.
             </div>

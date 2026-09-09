@@ -2093,91 +2093,39 @@ export function subscribeToCommunity(onUpdate: () => void) {
  */
 const VOUCHER_STORAGE_KEY = 'trademe_vouchers';
 
-export function getInitialDemoVouchers(receiverStoreId: string = 'my_store', receiverStoreName: string = '마라위크'): IssuedVoucher[] {
-  const now = new Date();
-  const expireDate1 = new Date(now.getTime() + 27 * 24 * 60 * 60 * 1000); // D-27
-  const expireDate2 = new Date(now.getTime() + 19 * 24 * 60 * 60 * 1000); // D-19
-  const expireDate3 = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // 만료/사용
-
-  return [
-    {
-      id: 'voucher-seed-1',
-      tradeId: 'trade-demo-101',
-      senderStoreId: 'store-neighbor-1',
-      senderStoreName: '소담 한정식',
-      senderOwnerName: '박은지',
-      senderStoreImageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80',
-      receiverStoreId,
-      receiverStoreName,
-      type: 'AMOUNT',
-      title: '소담 한정식 20,000원 상생 이용권',
-      description: '전 메뉴 및 반찬 자유 선택 이용 (초과 금액 현장 추가 결제)',
-      amount: 20000,
-      fulfillmentTypes: ['PICKUP', 'ON_SITE'],
-      issuedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      expiresAt: expireDate1.toISOString(),
-      status: 'AVAILABLE',
-    },
-    {
-      id: 'voucher-seed-2',
-      tradeId: 'trade-demo-102',
-      senderStoreId: 'store-neighbor-2',
-      senderStoreName: '헤어살롱 유',
-      senderOwnerName: '유소영',
-      senderStoreImageUrl: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=600&q=80',
-      receiverStoreId,
-      receiverStoreName,
-      type: 'MENU',
-      title: '두피 스케일링 & 맞춤 컷트 1회 이용권',
-      description: '사전 예약 필수 (유선 또는 1:1 대화), 당일 현장 방문 시 사용',
-      amount: 25000,
-      fulfillmentTypes: ['ON_SITE'],
-      issuedAt: new Date(now.getTime() - 11 * 24 * 60 * 60 * 1000).toISOString(),
-      expiresAt: expireDate2.toISOString(),
-      status: 'AVAILABLE',
-    },
-    {
-      id: 'voucher-seed-3',
-      tradeId: 'trade-demo-103',
-      senderStoreId: 'store-neighbor-3',
-      senderStoreName: '달콤 베이커리',
-      senderOwnerName: '최민서',
-      senderStoreImageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80',
-      receiverStoreId,
-      receiverStoreName,
-      type: 'AMOUNT',
-      title: '달콤 베이커리 10,000원 빵 교환권',
-      description: '갓 구운 빵 및 음료 전 메뉴 자유 선택',
-      amount: 10000,
-      fulfillmentTypes: ['PICKUP'],
-      issuedAt: new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000).toISOString(),
-      expiresAt: expireDate3.toISOString(),
-      status: 'USED',
-      usedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    }
-  ];
+export function getInitialDemoVouchers(_receiverStoreId: string = 'my_store', _receiverStoreName: string = '마라위크'): IssuedVoucher[] {
+  // 가짜 더미 정보 제거: 초기 보관함은 깨끗한 빈 상태로 시작
+  return [];
 }
 
 export function fetchStoredVouchers(receiverStoreId?: string, receiverStoreName?: string): IssuedVoucher[] {
   try {
     const raw = localStorage.getItem(VOUCHER_STORAGE_KEY);
     if (!raw) {
-      const seeded = getInitialDemoVouchers(receiverStoreId || 'my_store', receiverStoreName || '내 매장');
-      localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify(seeded));
-      return seeded;
+      return [];
     }
     const list: IssuedVoucher[] = JSON.parse(raw);
+    // 💡 가짜 더미 정보(seed) 제거: 실제 물물교환 체결로 발행된 교환권만 유지
+    const cleanList = list.filter(
+      (v) =>
+        !v.id.startsWith('voucher-seed-') &&
+        !v.tradeId?.startsWith('trade-demo-') &&
+        !['소담 한정식', '헤어살롱 유', '달콤 베이커리'].includes(v.senderStoreName)
+    );
+    if (cleanList.length !== list.length) {
+      localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify(cleanList));
+    }
     if (receiverStoreId) {
-      return list.filter(
+      return cleanList.filter(
         (v) =>
           v.receiverStoreId === receiverStoreId ||
           v.receiverStoreId === 'my_store' ||
           !v.receiverStoreId
       );
     }
-    return list;
+    return cleanList;
   } catch (e) {
-    return getInitialDemoVouchers();
+    return [];
   }
 }
 
@@ -2216,8 +2164,8 @@ export function restoreVoucherInStorage(voucherId: string): { success: boolean; 
 export function addIssuedVoucherToStorage(voucher: IssuedVoucher): { success: boolean; error?: string } {
   const vouchers = fetchStoredVouchers();
   const activeCount = vouchers.filter(v => v.status === 'AVAILABLE').length;
-  if (activeCount >= 3) {
-    return { success: false, error: '보관함 한도(최대 3장)를 초과하여 새 교환권을 보관할 수 없습니다.' };
+  if (activeCount >= 5) {
+    return { success: false, error: '보관함 한도(최대 5장)를 초과하여 새 교환권을 보관할 수 없습니다.' };
   }
   vouchers.unshift(voucher);
   saveStoredVouchers(vouchers);
@@ -2316,10 +2264,10 @@ export function issueBilateralVouchersForTrade(
   const vouchers = fetchStoredVouchers();
   const activeCount = vouchers.filter((v) => v.status === 'AVAILABLE').length;
 
-  if (activeCount >= 3) {
+  if (activeCount >= 5) {
     return {
       success: false,
-      error: '현재 사장님의 교환권 보관함이 가득 찼습니다 (최대 3장). 기존 교환권을 사용 완료하신 후 수락해 주세요.',
+      error: '현재 사장님의 교환권 보관함이 가득 찼습니다 (최대 5장). 기존 교환권을 사용 완료하신 후 수락해 주세요.',
     };
   }
 
