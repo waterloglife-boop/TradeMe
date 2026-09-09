@@ -60,6 +60,7 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const neighborhood = parseNeighborhoodInfo(myStore.address);
@@ -77,6 +78,18 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
     const fetched = await fetchCommunityPosts(activeCategory === 'ALL' ? undefined : activeCategory);
     setPosts(fetched);
     if (showLoading) setIsLoading(false);
+  };
+
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    await Promise.all([
+      loadPosts(false),
+      new Promise((resolve) => setTimeout(resolve, 600)),
+    ]);
+    setIsRefreshing(false);
+    setToastMessage('🔄 사랑방 글 목록을 최신 상태로 새로고침했습니다.');
+    setTimeout(() => setToastMessage(null), 2000);
   };
 
   useEffect(() => {
@@ -215,7 +228,7 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-orange-100 flex flex-col h-[92vh]">
+      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-orange-100 flex flex-col h-[92vh] relative">
         {/* Top Header */}
         <div className="px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 flex items-center justify-between text-white shadow-md gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -305,14 +318,13 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
           </div>
 
           <button
-            onClick={() => {
-              setIsRefreshing(true);
-              loadPosts(false).then(() => setIsRefreshing(false));
-            }}
-            title="새로고침"
-            className="p-1.5 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 transition flex-shrink-0"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            title="사랑방 새로고침"
+            className="px-2 py-1.5 rounded-lg text-gray-600 hover:text-orange-600 hover:bg-orange-100/60 transition flex items-center gap-1 text-[11px] font-bold flex-shrink-0 active:scale-95 disabled:opacity-50 border border-transparent hover:border-orange-200"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-orange-600' : ''}`} />
+            <span className="hidden sm:inline">새로고침</span>
           </button>
         </div>
 
@@ -674,6 +686,13 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
             })
           )}
         </div>
+
+        {/* Floating Toast Notification */}
+        {toastMessage && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900/90 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-2xl backdrop-blur-sm flex items-center gap-2 border border-white/20 animate-in fade-in slide-in-from-bottom-2">
+            <span>{toastMessage}</span>
+          </div>
+        )}
       </div>
 
       {/* Create Post Modal */}
