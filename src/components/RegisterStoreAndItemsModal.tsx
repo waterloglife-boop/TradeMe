@@ -118,7 +118,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   const [category, setCategory] = useState<StoreCategory>('KOREAN');
   const [categoryName, setCategoryName] = useState('한식');
   const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('01048548777');
+  const [phone, setPhone] = useState('');
   const [operatingHoursActive, setOperatingHoursActive] = useState(true);
   const [operatingHours, setOperatingHours] = useState('10:00 - 22:00 (연중무휴)');
   const [searchSuccessMessage, setSearchSuccessMessage] = useState<string | null>(null);
@@ -144,7 +144,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
         setCategory(targetStore.category || 'KOREAN');
         setCategoryName(targetStore.categoryName || '한식');
         setAddress(targetStore.address || '');
-        setPhone(targetStore.phone || '01048548777');
+        setPhone(targetStore.phone || '');
         setOperatingHours(targetStore.breakTimeHours || '10:00 - 22:00 (연중무휴)');
         if (targetStore.lat && targetStore.lng) {
           setCurrentLat(targetStore.lat);
@@ -222,7 +222,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   const handleSearchAddress = async () => {
     const rawAddr = address.trim();
     if (!rawAddr) {
-      alert('도로명 주소를 입력해 주세요. (예: 경남 양산시 북정서길 25)');
+      alert('도로명 주소를 입력해 주세요. (예: 서울특별시 중구 세종대로 110)');
       return;
     }
 
@@ -549,7 +549,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                         handleSearchAddress();
                       }
                     }}
-                    placeholder="예: 경남 양산시 북정서길 25 104호"
+                    placeholder="예: 서울특별시 중구 세종대로 110"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-medium"
                   />
                   <button

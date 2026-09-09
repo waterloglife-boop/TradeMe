@@ -93,7 +93,7 @@ export function parseNeighborhoodInfo(address?: string): NeighborhoodInfo {
 
   const cleanAddr = address.trim();
 
-  // 1. Check if there is an explicit (dong) in parenthesis, e.g. "경남 양산시 북정서길 25 (북정동)"
+  // 1. Check if there is an explicit (dong) in parenthesis, e.g. "서울특별시 중구 세종대로 110 (태평로1가)"
   const parenthesisMatch = cleanAddr.match(/\(([가-힣0-9]+(?:동|읍|면|가|리))\)/);
   let detectedDong = parenthesisMatch ? parenthesisMatch[1] : '';
 
@@ -105,7 +105,7 @@ export function parseNeighborhoodInfo(address?: string): NeighborhoodInfo {
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
-    // Match City or District (e.g. 양산시, 강남구, 해운대구, 수원시, 서귀포시)
+    // Match City or District (e.g. 강남구, 해운대구, 수원시, 서귀포시)
     if (!cityOrDistrict && /[가-힣]+(?:시|구|군)$/.test(token)) {
       cityOrDistrict = token;
       continue;
@@ -115,12 +115,12 @@ export function parseNeighborhoodInfo(address?: string): NeighborhoodInfo {
       detectedDong = token;
       continue;
     }
-    // Match Road / Street names (e.g. 북정서길, 테헤란로, 전포대로)
+    // Match Road / Street names (e.g. 세종대로, 테헤란로, 전포대로)
     if (!streetOrDong && /[가-힣0-9]+(?:로|길)$/.test(token)) {
       streetOrDong = token;
       continue;
     }
-    // Match bare city/district name at beginning (e.g. "양산 북정서길 25" -> city: "양산")
+    // Match bare city/district name at beginning (e.g. "서울 세종대로 110" -> city: "서울")
     if (!cityOrDistrict && i <= 1 && token.length >= 2 && !/[0-9]/.test(token) && !['도', '시', '구', '군'].includes(token)) {
       if (!['경남', '경북', '전남', '전북', '충남', '충북', '강원', '경기'].includes(token)) {
         cityOrDistrict = token;
@@ -128,7 +128,7 @@ export function parseNeighborhoodInfo(address?: string): NeighborhoodInfo {
     }
   }
 
-  // If no explicit Dong found, try to derive from road name (e.g. '북정서길' -> '북정동', '전포대로' -> '전포동')
+  // If no explicit Dong found, try to derive from road name (e.g. '테헤란로' -> '역삼동', '전포대로' -> '전포동')
   if (!detectedDong && streetOrDong) {
     const roadBaseMatch = streetOrDong.match(/^([가-힣]{2,}?)(?:동길|서길|남길|북길|중앙길|안길|길|로\d*길|대로|로)$/);
     if (roadBaseMatch) {
