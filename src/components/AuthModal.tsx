@@ -92,6 +92,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Form State - Empty by default for new login/signup
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [storeName, setStoreName] = useState('');
   const [phone, setPhone] = useState('');
@@ -121,6 +122,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const resetFormState = () => {
     setEmail('');
     setPassword('');
+    setConfirmPassword('');
     setOwnerName('');
     setStoreName('');
     setPhone('');
@@ -292,6 +294,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setDuplicateField('EMAIL');
         setLoading(false);
         if (emailInputRef.current) emailInputRef.current.focus();
+        return;
+      }
+
+      if (password.length < 6) {
+        setToastMessage('⚠️ 비밀번호는 최소 6자리 이상으로 설정해 주세요.');
+        setLoading(false);
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setToastMessage('⚠️ 비밀번호와 비밀번호 확인이 일치하지 않습니다. 다시 확인해 주세요.');
+        setLoading(false);
         return;
       }
 
@@ -894,6 +908,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               {mode === 'SIGNUP' && (
                 <>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                      <span>비밀번호 확인</span>
+                      {confirmPassword && (
+                        <span className={`text-[10px] font-bold flex items-center gap-0.5 ${
+                          password === confirmPassword ? 'text-emerald-600' : 'text-rose-500'
+                        }`}>
+                          {password === confirmPassword ? '✓ 비밀번호 일치' : '✕ 비밀번호 불일치'}
+                        </span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="password"
+                        required
+                        placeholder="비밀번호를 한 번 더 입력해 주세요"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs outline-none transition-all ${
+                          !confirmPassword
+                            ? 'border-gray-300 focus:ring-2 focus:ring-orange-500'
+                            : password === confirmPassword
+                            ? 'border-emerald-400 ring-1 ring-emerald-400 bg-emerald-50/20'
+                            : 'border-rose-300 ring-1 ring-rose-300 bg-rose-50/20'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">사장님 성함</label>
                     <div className="relative">
