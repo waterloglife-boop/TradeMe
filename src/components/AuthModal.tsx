@@ -539,16 +539,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     🍱
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-extrabold text-sm text-gray-900 group-hover:text-orange-600 transition-colors">
-                        내 물물교환 등록 품목 관리
+                        내 물물교환 품목 및 상생 금액권 관리
                       </h4>
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-100 text-orange-800">
-                        {itemCount}개 등록중
+                        {(myStore?.exchangeItems || []).filter(i => !i.isVoucher && i.type !== 'VOUCHER').length}개 메뉴 · {myStore?.voucherActive ? '금액권 ON' : '금액권 OFF'}
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      등록된 메뉴 가격 수정, 사진 교체 및 신규 메뉴 추가
+                      등록된 메뉴 관리 및 매장 전용 상생 금액 교환권(자유이용 상품권) 설정
                     </p>
                   </div>
                 </div>

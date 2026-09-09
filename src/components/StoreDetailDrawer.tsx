@@ -275,103 +275,220 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
           </div>
         )}
 
-        {/* Registered Exchange Items Section */}
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
-            <Tag className="w-4 h-4 text-orange-500" />
-            등록된 1:1 물물교환 품목 ({store.exchangeItems.length}개)
-          </h3>
-          <span className="text-xs text-gray-500">1:1 물물교환</span>
-        </div>
+        {/* Separate voucher item from regular signature items */}
+        {(() => {
+          const voucherItem = (store.exchangeItems || []).find(
+            (it) => it.isVoucher || it.type === 'VOUCHER' || it.id.startsWith('voucher-')
+          ) || (store.voucherActive ? {
+            id: `voucher-${store.id}`,
+            storeId: store.id,
+            title: `${store.storeName} ${(store.voucherAmount || 20000).toLocaleString()}원 상생 이용권`,
+            estimatedPrice: store.voucherAmount || 20000,
+            description: '전 메뉴 및 서비스 자유 선택 이용 (초과 금액 차액 결제)',
+            type: 'VOUCHER' as const,
+            imageUrl: store.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+            isAvailable: true,
+            fulfillmentTypes: store.voucherFulfillmentTypes || ['PICKUP', 'ON_SITE'],
+            isVoucher: true,
+          } : null);
 
-        {store.exchangeItems.length === 0 ? (
-          <div className="text-center py-8 text-gray-400 text-xs">
-            아직 등록된 교환 품목이 없습니다.
-          </div>
-        ) : (
-          store.exchangeItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm hover:shadow-md transition-all flex flex-col gap-3"
-            >
-              <div className="flex gap-3">
-                <img
-                  src={item.imageUrl}
-                  alt={item.title}
-                  className="w-20 h-20 rounded-lg object-cover flex-shrink-0 bg-gray-100"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between">
-                    <h4 className="font-bold text-gray-900 text-sm truncate">
-                      {item.title}
-                    </h4>
-                    <span className="px-2 py-0.5 text-xs font-extrabold text-orange-600 bg-orange-50 border border-orange-200 rounded-md whitespace-nowrap ml-2">
-                      약 {item.estimatedPrice.toLocaleString()}원
+          const regularItems = (store.exchangeItems || []).filter(
+            (it) => !it.isVoucher && it.type !== 'VOUCHER' && !it.id.startsWith('voucher-')
+          );
+
+          return (
+            <div className="space-y-4">
+              {/* 🎟️ VIP Golden Ticket Voucher Card */}
+              {(store.voucherActive || voucherItem) && voucherItem && (
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 text-white p-4 shadow-xl border-2 border-amber-300/40 space-y-3">
+                  {/* Decorative ambient glow */}
+                  <div className="absolute -top-10 -right-10 w-32 h-32 bg-yellow-300/20 rounded-full blur-2xl pointer-events-none" />
+                  
+                  {/* Ticket Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 text-[10px] font-black bg-black/25 backdrop-blur rounded-full text-amber-200 border border-amber-300/30 flex items-center gap-1">
+                        <span>🎟️</span> VIP 상생 금액 교환권
+                      </span>
+                      <span className="px-2 py-0.5 text-[10px] font-bold bg-white/20 text-white rounded-full">
+                        D-30
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-extrabold text-amber-100 flex items-center gap-1">
+                      <span>🛡️</span> 한도 3장
                     </span>
                   </div>
-                  <p className="text-xs text-gray-600 line-clamp-2 mt-1">
-                    {item.description}
-                  </p>
 
-                  {/* Fulfillment Badges (제공 및 이용 방식) */}
-                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                    {(item.fulfillmentTypes && item.fulfillmentTypes.length > 0 ? item.fulfillmentTypes : ['PICKUP', 'ON_SITE']).map((type) => {
+                  {/* Ticket Body */}
+                  <div className="flex items-end justify-between pt-1">
+                    <div>
+                      <h3 className="font-black text-lg text-white tracking-tight leading-snug">
+                        {store.storeName} 자유이용 상품권
+                      </h3>
+                      <p className="text-xs text-amber-100 mt-0.5">
+                        전 메뉴 / 서비스 자유 선택 (초과 금액 차액 결제)
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-2xl font-black text-yellow-200 drop-shadow-sm">
+                        {voucherItem.estimatedPrice.toLocaleString()}
+                      </span>
+                      <span className="text-xs font-black text-white ml-0.5">원</span>
+                    </div>
+                  </div>
+
+                  {/* Fulfillment badges */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/20">
+                    <span className="text-[10px] text-amber-200 font-bold mr-1">이용 방식:</span>
+                    {(voucherItem.fulfillmentTypes && voucherItem.fulfillmentTypes.length > 0 ? voucherItem.fulfillmentTypes : ['PICKUP', 'ON_SITE']).map((type) => {
                       if (type === 'PICKUP') {
                         return (
-                          <span key={type} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-orange-50 text-orange-700 border border-orange-200 rounded-md">
-                            <span>🛍️</span>
-                            <span>직접 픽업</span>
+                          <span key={type} className="px-2 py-0.5 text-[10px] font-extrabold bg-black/20 text-white rounded-md border border-white/10">
+                            🛍️ 직접 픽업
                           </span>
                         );
                       }
                       if (type === 'DELIVERY') {
                         return (
-                          <span key={type} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">
-                            <span>🛵</span>
-                            <span>배달/배송</span>
+                          <span key={type} className="px-2 py-0.5 text-[10px] font-extrabold bg-black/20 text-white rounded-md border border-white/10">
+                            🛵 배달/배송
                           </span>
                         );
                       }
                       if (type === 'ON_SITE') {
                         return (
-                          <span key={type} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md">
-                            <span>🏢</span>
-                            <span>현장 방문 이용</span>
+                          <span key={type} className="px-2 py-0.5 text-[10px] font-extrabold bg-black/20 text-white rounded-md border border-white/10">
+                            🏢 현장 방문
                           </span>
                         );
                       }
                       return null;
                     })}
                   </div>
+
+                  {/* Voucher Action Button */}
+                  {!isMyStore ? (
+                    <button
+                      onClick={() => onOpenProposal(voucherItem)}
+                      className={`w-full py-2.5 font-extrabold text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] text-gray-950 bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-400 hover:from-yellow-200 hover:to-yellow-300`}
+                    >
+                      <span>🎟️</span>
+                      <span>
+                        {store.breakTimeActive
+                          ? `1:1 금액 교환권 (${voucherItem.estimatedPrice.toLocaleString()}원) 맞교환 제안`
+                          : `나중에 금액권 교환 어때요? (찔러보기)`}
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="text-center text-[11px] text-amber-100 bg-black/20 py-1.5 rounded-lg font-bold border border-white/10">
+                      👑 우리 매장이 발행 중인 상생 금액 교환권입니다
+                    </div>
+                  )}
                 </div>
+              )}
+
+              {/* Registered Signature Exchange Items Section */}
+              <div className="flex items-center justify-between pt-1">
+                <h3 className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
+                  <Utensils className="w-4 h-4 text-orange-500" />
+                  대표 메뉴 및 서비스 품목 ({regularItems.length}개)
+                </h3>
+                <span className="text-xs text-gray-500">1:1 지정 교환</span>
               </div>
 
-              {/* Proposal Action Button (Chameleon Button based on breakTimeActive) */}
-              {!isMyStore && (
-                <button
-                  onClick={() => onOpenProposal(item)}
-                  className={`w-full py-2.5 font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] text-white ${
-                    store.breakTimeActive
-                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/20'
-                      : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-500/20'
-                  }`}
-                >
-                  {store.breakTimeActive ? (
-                    <>
-                      <ArrowRightLeft className="w-3.5 h-3.5" />
-                      <span>🤝 1:1 물물교환 제안하기</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-sm">👉</span>
-                      <span>나중에 교환 어때요? (찔러보기)</span>
-                    </>
-                  )}
-                </button>
+              {regularItems.length === 0 ? (
+                <div className="text-center py-6 text-gray-400 text-xs bg-gray-50 rounded-xl border border-gray-100">
+                  {voucherItem
+                    ? '등록된 개별 지정 메뉴는 없으나, 위의 상생 금액 교환권으로 전 메뉴 교환이 가능합니다.'
+                    : '아직 등록된 교환 품목이 없습니다.'}
+                </div>
+              ) : (
+                regularItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm hover:shadow-md transition-all flex flex-col gap-3"
+                  >
+                    <div className="flex gap-3">
+                      <img
+                        src={item.imageUrl}
+                        alt={item.title}
+                        className="w-20 h-20 rounded-lg object-cover flex-shrink-0 bg-gray-100"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <h4 className="font-bold text-gray-900 text-sm truncate">
+                            {item.title}
+                          </h4>
+                          <span className="px-2 py-0.5 text-xs font-extrabold text-orange-600 bg-orange-50 border border-orange-200 rounded-md whitespace-nowrap ml-2">
+                            약 {item.estimatedPrice.toLocaleString()}원
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 line-clamp-2 mt-1">
+                          {item.description}
+                        </p>
+
+                        {/* Fulfillment Badges (제공 및 이용 방식) */}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          {(item.fulfillmentTypes && item.fulfillmentTypes.length > 0 ? item.fulfillmentTypes : ['PICKUP', 'ON_SITE']).map((type) => {
+                            if (type === 'PICKUP') {
+                              return (
+                                <span key={type} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-orange-50 text-orange-700 border border-orange-200 rounded-md">
+                                  <span>🛍️</span>
+                                  <span>직접 픽업</span>
+                                </span>
+                              );
+                            }
+                            if (type === 'DELIVERY') {
+                              return (
+                                <span key={type} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">
+                                  <span>🛵</span>
+                                  <span>배달/배송</span>
+                                </span>
+                              );
+                            }
+                            if (type === 'ON_SITE') {
+                              return (
+                                <span key={type} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md">
+                                  <span>🏢</span>
+                                  <span>현장 방문 이용</span>
+                                </span>
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Proposal Action Button (Chameleon Button based on breakTimeActive) */}
+                    {!isMyStore && (
+                      <button
+                        onClick={() => onOpenProposal(item)}
+                        className={`w-full py-2.5 font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] text-white ${
+                          store.breakTimeActive
+                            ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/20'
+                            : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-500/20'
+                        }`}
+                      >
+                        {store.breakTimeActive ? (
+                          <>
+                            <ArrowRightLeft className="w-3.5 h-3.5" />
+                            <span>🤝 1:1 물물교환 제안하기</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-sm">👉</span>
+                            <span>나중에 교환 어때요? (찔러보기)</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                ))
               )}
             </div>
-          ))
-        )}
+          );
+        })()}
       </div>
 
       {/* Bottom Footer Action */}

@@ -1,4 +1,4 @@
-export type ItemType = 'FOOD' | 'SERVICE' | 'ITEM';
+export type ItemType = 'FOOD' | 'SERVICE' | 'ITEM' | 'VOUCHER';
 
 export type StoreCategory = 
   | 'FOOD'
@@ -31,6 +31,7 @@ export interface ExchangeItem {
   imageUrl: string;
   isAvailable: boolean;
   fulfillmentTypes?: FulfillmentType[]; // ['PICKUP', 'DELIVERY', 'ON_SITE']
+  isVoucher?: boolean; // 상생 금액 교환권 여부
 }
 
 export type MenuTestFeedbackType = 'BLOG_SNS' | 'SECRET_REPORT' | 'BOTH';
@@ -80,6 +81,12 @@ export interface Store {
   menuTestDescription?: string; // 테스트 취지 및 안내 문구
   menuTestImageUrl?: string; // 신메뉴 사진 URL
   menuTestCampaigns?: MenuTestCampaign[]; // 최대 2개 동시 모집 캠페인 목록
+
+  // 🎟️ [상생 금액 교환권 (상품권) 설정]
+  voucherActive?: boolean; // 매장 금액권 발행 활성화 여부
+  voucherAmount?: number; // 금액 (예: 20000)
+  voucherMaxIssue?: number; // 동시 발행 유통 한도 (기본 3)
+  voucherFulfillmentTypes?: FulfillmentType[]; // 수령/이용 방식
 }
 
 export interface MenuTestApplication {

@@ -7,7 +7,7 @@ interface ManageExchangeItemsModalProps {
   isOpen: boolean;
   onClose: () => void;
   myStore: Store;
-  onSaveItems: (updatedItems: ExchangeItem[]) => void;
+  onSaveItems: (updatedItems: ExchangeItem[], extraStoreProps?: Partial<Store>) => void;
 }
 
 export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> = ({
@@ -16,7 +16,8 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
   myStore,
   onSaveItems,
 }) => {
-  const [items, setItems] = useState<ExchangeItem[]>(myStore.exchangeItems || []);
+  // Regular items list (excluding voucher)
+  const [items, setItems] = useState<ExchangeItem[]>([]);
   const [isAddingOrEditing, setIsAddingOrEditing] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
@@ -31,16 +32,38 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // 🎟️ Win-Win Amount Voucher State
+  const [voucherActive, setVoucherActive] = useState<boolean>(false);
+  const [voucherAmount, setVoucherAmount] = useState<number>(20000);
+  const [voucherFulfillmentTypes, setVoucherFulfillmentTypes] = useState<FulfillmentType[]>(['PICKUP', 'ON_SITE']);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setItems(myStore.exchangeItems || []);
+      const allItems = myStore.exchangeItems || [];
+      const foundVoucher = allItems.find(
+        (it) => it.isVoucher || it.type === 'VOUCHER' || it.id.startsWith('voucher-')
+      );
+
+      // Keep only regular items in state
+      setItems(allItems.filter((it) => !it.isVoucher && it.type !== 'VOUCHER' && !it.id.startsWith('voucher-')));
+
+      const isVActive = myStore.voucherActive !== undefined ? myStore.voucherActive : (!!foundVoucher && (foundVoucher.isAvailable ?? true));
+      setVoucherActive(isVActive);
+      setVoucherAmount(myStore.voucherAmount || foundVoucher?.estimatedPrice || 20000);
+      setVoucherFulfillmentTypes(
+        myStore.voucherFulfillmentTypes && myStore.voucherFulfillmentTypes.length > 0
+          ? myStore.voucherFulfillmentTypes
+          : (foundVoucher?.fulfillmentTypes && foundVoucher.fulfillmentTypes.length > 0
+            ? foundVoucher.fulfillmentTypes
+            : ['PICKUP', 'ON_SITE'])
+      );
       setIsAddingOrEditing(false);
       setEditingItemId(null);
       setErrorMessage(null);
     }
-  }, [isOpen, myStore.exchangeItems]);
+  }, [isOpen, myStore]);
 
   if (!isOpen) return null;
 
@@ -142,23 +165,51 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
   };
 
   const handleSaveAllToDatabase = async () => {
+    if (voucherActive && voucherFulfillmentTypes.length === 0) {
+      setErrorMessage('금액 교환권의 제공 및 이용 방식을 최소 1개 이상 선택해 주세요.');
+      return;
+    }
+
     setSaving(true);
     try {
+      const regularItems = items.filter((it) => !it.isVoucher && it.type !== 'VOUCHER');
+      let finalItems: ExchangeItem[] = [...regularItems];
+
+      if (voucherActive) {
+        const existingVoucher = (myStore.exchangeItems || []).find(
+          (it) => it.isVoucher || it.type === 'VOUCHER' || it.id.startsWith('voucher-')
+        );
+        const voucherId = existingVoucher?.id || `voucher-${myStore.id}`;
+        const voucherItem: ExchangeItem = {
+          id: voucherId,
+          storeId: myStore.id,
+          title: `${myStore.storeName} ${voucherAmount.toLocaleString()}원 상생 이용권`,
+          estimatedPrice: voucherAmount,
+          description: '전 메뉴 및 서비스 자유 선택 이용 (차액 결제 가능)',
+          type: 'VOUCHER',
+          imageUrl: myStore.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+          isAvailable: true,
+          fulfillmentTypes: voucherFulfillmentTypes,
+          isVoucher: true,
+        };
+        finalItems.push(voucherItem);
+      }
+
       // 1. Sync to Supabase items table if store exists
       if (myStore.id) {
         // Delete old items for this store
         await supabase.from('items').delete().eq('store_id', myStore.id);
 
         // Insert fresh items
-        if (items.length > 0) {
-          const itemRows = items.map((it) => ({
+        if (finalItems.length > 0) {
+          const itemRows = finalItems.map((it) => ({
             id: it.id,
             store_id: myStore.id,
             title: it.title,
             estimated_price: it.estimatedPrice,
             description: serializeFulfillmentDescription(it.description, it.fulfillmentTypes),
             image_url: it.imageUrl,
-            item_type: it.type || 'FOOD',
+            item_type: it.type || (it.isVoucher ? 'VOUCHER' : 'FOOD'),
             is_available: it.isAvailable ?? true,
           }));
           await supabase.from('items').insert(itemRows);
@@ -166,12 +217,22 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
       }
 
       // 2. Call parent updater
-      onSaveItems(items);
+      onSaveItems(finalItems, {
+        voucherActive,
+        voucherAmount,
+        voucherFulfillmentTypes,
+        voucherMaxIssue: 3,
+      });
       setSaving(false);
       onClose();
     } catch (err) {
       console.warn('Sync items notice:', err);
-      onSaveItems(items);
+      onSaveItems(items, {
+        voucherActive,
+        voucherAmount,
+        voucherFulfillmentTypes,
+        voucherMaxIssue: 3,
+      });
       setSaving(false);
       onClose();
     }
@@ -189,9 +250,9 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
             </div>
             <div>
               <h3 className="font-extrabold text-base tracking-tight flex items-center gap-2">
-                <span>1:1 물물교환 대표 품목 관리</span>
+                <span>1:1 물물교환 품목 및 금액권 관리</span>
                 <span className="px-2 py-0.5 bg-white text-orange-700 font-extrabold text-[10px] rounded-full">
-                  {items.length}개 등록중
+                  {items.length}개 메뉴 · {voucherActive ? '금액권 ON' : '금액권 OFF'}
                 </span>
               </h3>
               <p className="text-[11px] text-orange-100">
@@ -216,6 +277,210 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
               <span>{errorMessage}</span>
             </div>
           )}
+
+          {/* ========================================================================= */}
+          {/* 🎟️ SECTION 1: 상생 금액 교환권 (자유이용 상품권) 설정                     */}
+          {/* ========================================================================= */}
+          <div className="bg-gradient-to-br from-amber-50/90 via-orange-50/70 to-amber-100/50 rounded-2xl border-2 border-amber-300/80 p-4 shadow-sm space-y-3.5">
+            {/* Toggle Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center text-lg shadow-sm">
+                  🎟️
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-gray-900 flex items-center gap-1.5">
+                    <span>우리 매장 상생 금액 교환권 (상품권)</span>
+                    <span className="px-1.5 py-0.2 text-[9px] font-black bg-amber-200 text-amber-900 rounded">
+                      자유 이용권
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-gray-600">
+                    특정 메뉴 대신 전 메뉴/서비스에서 금액 차감 방식으로 사용
+                  </p>
+                </div>
+              </div>
+
+              {/* Modern Switch Toggle */}
+              <button
+                type="button"
+                onClick={() => setVoucherActive(!voucherActive)}
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${
+                  voucherActive ? 'bg-orange-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
+                    voucherActive ? 'translate-x-8' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {voucherActive ? (
+              <div className="space-y-3 pt-2 border-t border-amber-200/80 animate-in fade-in-50">
+                {/* Amount Preset Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-800 mb-1.5 flex items-center justify-between">
+                    <span>교환권 액면 금액</span>
+                    <span className="text-[10px] text-orange-600 font-bold">1:1 등가 교환 기준</span>
+                  </label>
+                  <div className="grid grid-cols-4 gap-1.5 mb-2">
+                    {[10000, 20000, 30000, 50000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setVoucherAmount(amt)}
+                        className={`py-1.5 px-2 rounded-xl text-xs font-black transition-all ${
+                          voucherAmount === amt
+                            ? 'bg-orange-600 text-white shadow-sm ring-2 ring-orange-300'
+                            : 'bg-white text-gray-700 border border-amber-200 hover:bg-amber-100/50'
+                        }`}
+                      >
+                        {amt.toLocaleString()}원
+                        {amt === 20000 && <span className="block text-[8px] opacity-80">추천</span>}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={5000}
+                      step={1000}
+                      value={voucherAmount}
+                      onChange={(e) => setVoucherAmount(parseInt(e.target.value, 10) || 0)}
+                      placeholder="직접 금액 입력"
+                      className="w-full pl-3 pr-10 py-2 bg-white border border-amber-300 rounded-xl text-xs font-black text-orange-700 focus:ring-2 focus:ring-orange-500 outline-none"
+                    />
+                    <span className="absolute right-3 top-2 text-xs font-bold text-gray-500">원</span>
+                  </div>
+                </div>
+
+                {/* Fulfillment Types for Voucher */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-800 mb-1.5 flex items-center justify-between">
+                    <span>교환권 제공 및 이용 방식</span>
+                    <span className="text-[10px] text-gray-400">중복 선택 가능</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoucherFulfillmentTypes((prev) =>
+                          prev.includes('PICKUP') ? prev.filter((t) => t !== 'PICKUP') : [...prev, 'PICKUP']
+                        );
+                      }}
+                      className={`py-2 px-1 rounded-xl border text-center transition flex flex-col items-center justify-center gap-0.5 ${
+                        voucherFulfillmentTypes.includes('PICKUP')
+                          ? 'border-orange-500 bg-orange-100 text-orange-950 ring-2 ring-orange-300 shadow-xs font-black'
+                          : 'border-amber-200 bg-white text-gray-500 hover:bg-amber-50 font-bold'
+                      }`}
+                    >
+                      <span className="text-sm">🛍️</span>
+                      <span className="text-[11px]">직접 픽업</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoucherFulfillmentTypes((prev) =>
+                          prev.includes('DELIVERY') ? prev.filter((t) => t !== 'DELIVERY') : [...prev, 'DELIVERY']
+                        );
+                      }}
+                      className={`py-2 px-1 rounded-xl border text-center transition flex flex-col items-center justify-center gap-0.5 ${
+                        voucherFulfillmentTypes.includes('DELIVERY')
+                          ? 'border-emerald-500 bg-emerald-100 text-emerald-950 ring-2 ring-emerald-300 shadow-xs font-black'
+                          : 'border-amber-200 bg-white text-gray-500 hover:bg-amber-50 font-bold'
+                      }`}
+                    >
+                      <span className="text-sm">🛵</span>
+                      <span className="text-[11px]">배달 / 배송</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoucherFulfillmentTypes((prev) =>
+                          prev.includes('ON_SITE') ? prev.filter((t) => t !== 'ON_SITE') : [...prev, 'ON_SITE']
+                        );
+                      }}
+                      className={`py-2 px-1 rounded-xl border text-center transition flex flex-col items-center justify-center gap-0.5 ${
+                        voucherFulfillmentTypes.includes('ON_SITE')
+                          ? 'border-indigo-500 bg-indigo-100 text-indigo-950 ring-2 ring-indigo-300 shadow-xs font-black'
+                          : 'border-amber-200 bg-white text-gray-500 hover:bg-amber-50 font-bold'
+                      }`}
+                    >
+                      <span className="text-sm">🏢</span>
+                      <span className="text-[11px]">현장 방문 이용</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Safe limits & Policy badge row */}
+                <div className="grid grid-cols-3 gap-1.5 text-[10px] text-gray-600 bg-white/80 p-2.5 rounded-xl border border-amber-200">
+                  <div className="flex items-center gap-1 font-bold">
+                    <span>🛡️</span>
+                    <span>동시한도 3장</span>
+                  </div>
+                  <div className="flex items-center gap-1 font-bold">
+                    <span>⏳</span>
+                    <span>유효기간 30일</span>
+                  </div>
+                  <div className="flex items-center gap-1 font-bold text-orange-700">
+                    <span>💳</span>
+                    <span>차액 추가결제</span>
+                  </div>
+                </div>
+
+                {/* Live VIP Ticket Mockup Preview */}
+                <div className="pt-1">
+                  <span className="block text-[10px] font-extrabold text-amber-800 uppercase tracking-wider mb-1">
+                    이웃 사장님들에게 보이는 교환권 미리보기
+                  </span>
+                  <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 rounded-2xl p-3.5 text-white shadow-md relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-black/20 px-2 py-0.5 rounded-full text-amber-100">
+                        🎟️ VIP 상생 금액권
+                      </span>
+                      <span className="text-[10px] font-extrabold text-amber-100">
+                        유효기간 D-30
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-baseline justify-between">
+                      <div>
+                        <h5 className="font-black text-sm tracking-tight">{myStore.storeName} 자유이용권</h5>
+                        <p className="text-[10px] text-amber-100 mt-0.5">전 메뉴 / 서비스 자유 선택 (초과 금액 차액 결제)</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xl font-black text-yellow-200">{voucherAmount.toLocaleString()}</span>
+                        <span className="text-xs font-black text-white ml-0.5">원</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-2.5 pt-2 border-t border-white/20">
+                      {voucherFulfillmentTypes.map((type) => (
+                        <span key={type} className="px-1.5 py-0.5 text-[9px] font-extrabold bg-black/20 rounded">
+                          {type === 'PICKUP' ? '🛍️ 직접 픽업' : type === 'DELIVERY' ? '🛵 배달/배송' : '🏢 현장 방문'}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] text-gray-500 bg-white/70 p-2.5 rounded-xl border border-amber-200/60 leading-relaxed">
+                💡 금액 교환권이 비활성화되어 있습니다. 스위치를 켜면 다른 사장님들이 내 매장의 전 메뉴/서비스에 사용 가능한 금액권을 제안받을 수 있습니다.
+              </div>
+            )}
+          </div>
+
+          {/* Section 2 Header */}
+          <div className="flex items-center justify-between pt-1 px-1">
+            <h4 className="font-extrabold text-xs text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Utensils className="w-3.5 h-3.5 text-orange-600" />
+              <span>개별 지정 메뉴 및 품목 ({items.length}개)</span>
+            </h4>
+            <span className="text-[11px] text-gray-400">특정 메뉴 지정 교환용</span>
+          </div>
 
           {/* Form for Adding / Editing */}
           {isAddingOrEditing ? (
@@ -504,7 +769,7 @@ export const ManageExchangeItemsModal: React.FC<ManageExchangeItemsModalProps> =
               className="px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5"
             >
               <Check className="w-4 h-4" />
-              <span>{saving ? '저장 중...' : '품목 설정 최종 저장'}</span>
+              <span>{saving ? '저장 중...' : '품목 및 교환권 최종 저장'}</span>
             </button>
           </div>
         </div>

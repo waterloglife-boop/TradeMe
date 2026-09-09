@@ -911,17 +911,25 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
       });
     }
 
-    const exchangeItems: ExchangeItem[] = (itemsData || []).map((i: any) => ({
-      id: i.id,
-      storeId: i.store_id || storeData.id,
-      type: i.item_type || 'FOOD',
-      title: i.title,
-      description: (i.description || '').replace(/<!--fm:[A-Z_,]+-->/g, '').trim(),
-      estimatedPrice: i.estimated_price || 10000,
-      imageUrl: i.image_url || '',
-      isAvailable: i.is_available ?? true,
-      fulfillmentTypes: parseFulfillmentTypes(i.description, i.fulfillment_types),
-    }));
+    const voucherItem = (itemsData || []).find(
+      (i: any) => i.item_type === 'VOUCHER' || i.id?.startsWith('voucher-') || (i.title && i.title.includes('상생') && i.title.includes('이용권'))
+    );
+
+    const exchangeItems: ExchangeItem[] = (itemsData || []).map((i: any) => {
+      const isVoucher = i.item_type === 'VOUCHER' || i.id?.startsWith('voucher-') || (i.title && i.title.includes('상생') && i.title.includes('이용권'));
+      return {
+        id: i.id,
+        storeId: i.store_id || storeData.id,
+        type: i.item_type || (isVoucher ? 'VOUCHER' : 'FOOD'),
+        title: i.title,
+        description: (i.description || '').replace(/<!--fm:[A-Z_,]+-->/g, '').trim(),
+        estimatedPrice: i.estimated_price || 10000,
+        imageUrl: i.image_url || '',
+        isAvailable: i.is_available ?? true,
+        fulfillmentTypes: parseFulfillmentTypes(i.description, i.fulfillment_types),
+        isVoucher,
+      };
+    });
 
     return {
       id: storeData.id,
@@ -948,6 +956,10 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
       menuTestFeedbackType: storeData.menu_test_feedback_type ?? 'BOTH',
       menuTestDescription: storeData.menu_test_description ?? '',
       menuTestImageUrl: storeData.menu_test_image_url ?? '',
+      voucherActive: voucherItem ? (voucherItem.is_available ?? true) : false,
+      voucherAmount: voucherItem ? voucherItem.estimated_price : 20000,
+      voucherMaxIssue: 3,
+      voucherFulfillmentTypes: voucherItem ? parseFulfillmentTypes(voucherItem.description, voucherItem.fulfillment_types) : ['PICKUP', 'ON_SITE'],
       exchangeItems,
     };
   } catch (err) {
@@ -998,46 +1010,56 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
     (itemsData || []).forEach((i: any) => {
       const sid = i.store_id || i.storeId;
       if (!itemsByStore[sid]) itemsByStore[sid] = [];
+      const isVoucher = i.item_type === 'VOUCHER' || i.id?.startsWith('voucher-') || (i.title && i.title.includes('상생') && i.title.includes('이용권'));
       itemsByStore[sid].push({
         id: i.id,
         storeId: sid,
-        type: i.item_type || 'FOOD',
+        type: i.item_type || (isVoucher ? 'VOUCHER' : 'FOOD'),
         title: i.title,
         description: (i.description || '').replace(/<!--fm:[A-Z_,]+-->/g, '').trim(),
         estimatedPrice: i.estimated_price || 10000,
         imageUrl: i.image_url || '',
         isAvailable: i.is_available ?? true,
         fulfillmentTypes: parseFulfillmentTypes(i.description, i.fulfillment_types),
+        isVoucher,
       });
     });
 
-    const dbStores: Store[] = storesData.map((s: any) => ({
-      id: s.id,
-      userId: s.user_id,
-      ownerName: s.owner_name,
-      storeName: s.store_name,
-      category: s.category || 'FOOD',
-      categoryName: s.category_name || s.category || '외식업',
-      address: s.address || '',
-      lat: s.lat || 35.3594,
-      lng: s.lng || 129.0418,
-      phone: s.phone || '',
-      isVerified: s.is_verified ?? true,
-      breakTimeActive: s.is_exchange_active ?? s.break_time_active ?? false,
-      breakTimeHours: s.operating_hours ?? s.break_time_hours ?? '10:00 - 22:00',
-      storeImageUrl: s.store_image_url || '',
-      rating: s.rating || 5.0,
-      reviewCount: s.review_count || 0,
-      isMenuTesting: s.is_menu_testing ?? false,
-      menuTestTitle: s.menu_test_title ?? '',
-      menuTestReward: s.menu_test_reward ?? '',
-      menuTestQuota: s.menu_test_quota ?? 5,
-      menuTestApplicantCount: s.menu_test_applicant_count ?? 0,
-      menuTestFeedbackType: s.menu_test_feedback_type ?? 'BOTH',
-      menuTestDescription: s.menu_test_description ?? '',
-      menuTestImageUrl: s.menu_test_image_url ?? '',
-      exchangeItems: itemsByStore[s.id] || [],
-    }));
+    const dbStores: Store[] = storesData.map((s: any) => {
+      const storeItems = itemsByStore[s.id] || [];
+      const voucherItem = storeItems.find((i) => i.isVoucher);
+      return {
+        id: s.id,
+        userId: s.user_id,
+        ownerName: s.owner_name,
+        storeName: s.store_name,
+        category: s.category || 'FOOD',
+        categoryName: s.category_name || s.category || '외식업',
+        address: s.address || '',
+        lat: s.lat || 35.3594,
+        lng: s.lng || 129.0418,
+        phone: s.phone || '',
+        isVerified: s.is_verified ?? true,
+        breakTimeActive: s.is_exchange_active ?? s.break_time_active ?? false,
+        breakTimeHours: s.operating_hours ?? s.break_time_hours ?? '10:00 - 22:00',
+        storeImageUrl: s.store_image_url || '',
+        rating: s.rating || 5.0,
+        reviewCount: s.review_count || 0,
+        isMenuTesting: s.is_menu_testing ?? false,
+        menuTestTitle: s.menu_test_title ?? '',
+        menuTestReward: s.menu_test_reward ?? '',
+        menuTestQuota: s.menu_test_quota ?? 5,
+        menuTestApplicantCount: s.menu_test_applicant_count ?? 0,
+        menuTestFeedbackType: s.menu_test_feedback_type ?? 'BOTH',
+        menuTestDescription: s.menu_test_description ?? '',
+        menuTestImageUrl: s.menu_test_image_url ?? '',
+        voucherActive: voucherItem ? (voucherItem.isAvailable ?? true) : false,
+        voucherAmount: voucherItem ? voucherItem.estimatedPrice : 20000,
+        voucherMaxIssue: 3,
+        voucherFulfillmentTypes: voucherItem ? (voucherItem.fulfillmentTypes || ['PICKUP', 'ON_SITE']) : ['PICKUP', 'ON_SITE'],
+        exchangeItems: storeItems,
+      };
+    });
 
     return dbStores;
   } catch (err) {

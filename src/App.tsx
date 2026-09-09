@@ -62,6 +62,11 @@ export const App: React.FC = () => {
   const [stores, setStores] = useState<Store[]>([]);
   
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+
+  useEffect(() => {
+    (window as any).__testSetSelectedStore = (s: Store | null) => setSelectedStore(s);
+  }, []);
+
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [onlyBreakTime, setOnlyBreakTime] = useState<boolean>(false);
   const [onlyMenuTesting, setOnlyMenuTesting] = useState<boolean>(false);
@@ -646,9 +651,10 @@ export const App: React.FC = () => {
     } catch (e) {}
   };
 
-  const handleSaveExchangeItems = (updatedItems: ExchangeItem[]) => {
+  const handleSaveExchangeItems = (updatedItems: ExchangeItem[], extraStoreProps?: Partial<Store>) => {
     const updatedMyStore: Store = {
       ...myStore,
+      ...extraStoreProps,
       exchangeItems: updatedItems,
     };
     setMyStore(updatedMyStore);
