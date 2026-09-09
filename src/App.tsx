@@ -247,9 +247,29 @@ export const App: React.FC = () => {
     return () => unsubscribe();
   }, [chatTargetStore, myStore.id]);
 
-  const handleLoginSuccess = async (ownerName: string, storeName: string) => {
+  const handleLoginSuccess = async (ownerName: string, storeName: string, registeredStore?: Store) => {
     setIsLoggedIn(true);
     setUserOwnerName(ownerName);
+
+    if (registeredStore) {
+      setMyStore(registeredStore);
+      if (registeredStore.lat && registeredStore.lng) {
+        setPickedLocation({ lat: registeredStore.lat, lng: registeredStore.lng });
+      }
+      setStores((prevStores) => {
+        const exists = prevStores.some((s) => s.id === registeredStore.id);
+        if (exists) {
+          return prevStores.map((s) => (s.id === registeredStore.id ? registeredStore : s));
+        }
+        return [registeredStore, ...prevStores];
+      });
+      try {
+        localStorage.setItem('trademe_my_store', JSON.stringify(registeredStore));
+        localStorage.setItem('trademe_profile', JSON.stringify({ owner_name: ownerName, store_name: storeName }));
+      } catch (e) {}
+      return;
+    }
+
     const userStore = await fetchUserStoreFromSupabase();
     if (userStore) {
       setMyStore(userStore);

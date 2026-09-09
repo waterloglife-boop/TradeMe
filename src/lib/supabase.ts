@@ -238,6 +238,29 @@ export async function signUpUser(
 
         // Also create a store record for this user so they immediately have their own store registered
         const storeId = `store-${Date.now()}`;
+        const finalLat = lat ?? 37.5665;
+        const finalLng = lng ?? 126.9780;
+        const createdStore: Store = {
+          id: storeId,
+          userId: data.user.id,
+          ownerName: ownerName,
+          storeName: storeName,
+          category: (category as any) || 'FOOD',
+          categoryName: category === 'FOOD' ? '외식업' : category === 'CAFE' ? '카페/디저트' : '소상공인',
+          address: address || '',
+          lat: finalLat,
+          lng: finalLng,
+          phone: phone || '',
+          isVerified: true,
+          breakTimeActive: false,
+          breakTimeHours: '10:00 - 22:00',
+          storeImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+          rating: 5.0,
+          reviewCount: 0,
+          isMenuTesting: false,
+          exchangeItems: [],
+        };
+
         const { error: storeError } = await supabase.from('stores').insert({
           id: storeId,
           user_id: data.user.id,
@@ -246,8 +269,8 @@ export async function signUpUser(
           category: category || 'FOOD',
           category_name: category === 'FOOD' ? '외식업' : category === 'CAFE' ? '카페/디저트' : '소상공인',
           address: address || '',
-          lat: lat || 35.3594,
-          lng: lng || 129.0418,
+          lat: finalLat,
+          lng: finalLng,
           phone: phone || '',
           is_verified: true,
           is_exchange_active: true,
@@ -259,6 +282,8 @@ export async function signUpUser(
         if (storeError) {
           console.error('[Supabase Error] stores insert on signup failed:', storeError);
         }
+
+        return { success: true, user: data.user, store: createdStore };
       } catch (e) {}
     }
 
