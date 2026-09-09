@@ -89,18 +89,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const [mode, setMode] = useState<'MYPAGE' | 'EDIT_PROFILE' | 'LOGIN' | 'SIGNUP'>('MYPAGE');
 
-  // Form State - Always initialized with persistent values
+  // Form State - Empty by default for new login/signup
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [ownerName, setOwnerName] = useState(userOwnerName || '김동욱');
-  const [storeName, setStoreName] = useState(userStoreName || '마라위크');
-  const [phone, setPhone] = useState('01048548777');
-  const [businessNumber, setBusinessNumber] = useState('4074913710');
+  const [ownerName, setOwnerName] = useState('');
+  const [storeName, setStoreName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [businessNumber, setBusinessNumber] = useState('');
   const [category, setCategory] = useState(myStore?.category || 'FOOD');
-  const [address, setAddress] = useState(myStore?.address || '경남 양산시 북정서길 25 104호');
-  const [breakTimeHours, setBreakTimeHours] = useState(myStore?.breakTimeHours || '10:00 - 22:00');
-  const [lat, setLat] = useState(myStore?.lat || 35.3594007321187);
-  const [lng, setLng] = useState(myStore?.lng || 129.041885145232);
+  const [address, setAddress] = useState('');
+  const [breakTimeHours, setBreakTimeHours] = useState('10:00 - 22:00');
+  const [lat, setLat] = useState<number | undefined>(undefined);
+  const [lng, setLng] = useState<number | undefined>(undefined);
   const [geoSearching, setGeoSearching] = useState(false);
 
   const [storeImageUrl, setStoreImageUrl] = useState(
@@ -121,6 +121,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const resetFormState = () => {
     setEmail('');
     setPassword('');
+    setOwnerName('');
+    setStoreName('');
+    setPhone('');
+    setBusinessNumber('');
+    setCategory('FOOD');
+    setAddress('');
+    setBreakTimeHours('10:00 - 22:00');
+    setLat(undefined);
+    setLng(undefined);
     setToastMessage(null);
     setDuplicateField(null);
     setNtsStatusMessage(null);
@@ -131,14 +140,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (isLoggedIn) {
       setMode('MYPAGE');
-      setOwnerName(userOwnerName || '김동욱');
-      setStoreName(userStoreName || '마라위크');
+      setOwnerName(userOwnerName || '');
+      setStoreName(userStoreName || '');
       if (myStore?.storeImageUrl) setStoreImageUrl(myStore.storeImageUrl);
       if (myStore?.address) setAddress(myStore.address);
       if (myStore?.breakTimeHours) setBreakTimeHours(myStore.breakTimeHours);
       if (myStore?.category) setCategory(myStore.category);
       if (myStore?.lat) setLat(myStore.lat);
       if (myStore?.lng) setLng(myStore.lng);
+      if (myStore?.phone) setPhone(myStore.phone);
 
       // 1. Restore from LocalStorage immediately
       try {
@@ -164,19 +174,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           if (prof.phone) setPhone(prof.phone);
           if (prof.business_number) setBusinessNumber(prof.business_number);
           if (prof.store_image_url) setStoreImageUrl(prof.store_image_url);
-
-          try {
-            localStorage.setItem('trademe_profile', JSON.stringify({
-              ownerName: prof.owner_name || '김동욱',
-              storeName: prof.store_name || '마라위크',
-              phone: prof.phone || '01048548777',
-              businessNumber: prof.business_number || '4074913710',
-              storeImageUrl: prof.store_image_url || storeImageUrl,
-              address: address,
-              breakTimeHours: breakTimeHours,
-              category: category,
-            }));
-          } catch (e) {}
         }
       });
     } else {
@@ -304,7 +301,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      const res = await signUpUser(email, password, ownerName, storeName, cleanBno, cleanPhone);
+      const res = await signUpUser(
+        email,
+        password,
+        ownerName,
+        storeName,
+        cleanBno,
+        cleanPhone,
+        category,
+        address,
+        lat,
+        lng
+      );
       
       if (!res.success && res.error === 'ALREADY_EXISTS') {
         setToastMessage(res.message || '⚠️ 이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.');
@@ -315,7 +323,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
 
       if (res.success) {
-        onLoginSuccess(ownerName || '홍길동 사장님', storeName || '송정 수제돈까스');
+        onLoginSuccess(ownerName || '사장님', storeName || '내 매장');
         onClose();
       }
     }
@@ -783,9 +791,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* 3. LOGGED OUT: LOGIN / SIGNUP TABS (로그인 & 회원가입) */}
         {/* ========================================================================= */}
         {!isLoggedIn && (
-          <div className="flex flex-col flex-1">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="flex border-b border-gray-200 bg-gray-50 flex-shrink-0">
               <button
+                type="button"
                 onClick={() => {
                   setMode('LOGIN');
                   resetFormState();
@@ -799,6 +808,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 로그인
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setMode('SIGNUP');
                   resetFormState();
@@ -812,6 +822,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 사장님 회원가입
               </button>
               <button
+                type="button"
                 onClick={onClose}
                 className="p-3 text-gray-400 hover:text-gray-600"
               >
@@ -819,7 +830,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleAuthSubmit} className="p-6 space-y-4 flex-1 overflow-y-auto">
+            <form onSubmit={handleAuthSubmit} className="p-4 sm:p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
               
               {toastMessage && (
                 <div className="bg-amber-50 border border-amber-300 text-amber-900 p-3 rounded-xl text-xs font-bold flex items-start gap-2">
@@ -852,7 +863,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     ref={emailInputRef}
                     type="email"
                     required
-                    placeholder="owner@trademe.kr"
+                    placeholder="예: owner@trademe.kr"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -873,7 +884,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <input
                     type="password"
                     required
-                    placeholder="••••••••"
+                    placeholder="비밀번호를 입력해 주세요 (6자리 이상)"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none"
@@ -890,7 +901,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <input
                         type="text"
                         required
-                        placeholder="홍길동 사장님"
+                        placeholder="예: 홍길동 사장님"
                         value={ownerName}
                         onChange={(e) => setOwnerName(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
@@ -957,7 +968,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <input
                         ref={phoneInputRef}
                         type="text"
-                        placeholder="01012345678"
+                        placeholder="예: 01012345678"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
                         className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
@@ -978,7 +989,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         type="text"
                         required
                         maxLength={10}
-                        placeholder="1234567890"
+                        placeholder="예: 1234567890"
                         value={businessNumber}
                         onChange={(e) => setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''))}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono font-bold"

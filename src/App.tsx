@@ -24,22 +24,24 @@ import {
   saveProfileToSupabase,
   updateStoreStatusInSupabase,
   fetchUserProfileFromSupabase,
-  fetchUserStoreFromSupabase
+  fetchUserStoreFromSupabase,
+  signOutUser,
+  supabase,
 } from './lib/supabase';
 import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign } from './types/trade';
 import { MapPin } from 'lucide-react';
 
-const INITIAL_MY_STORE_STATE: Store = {
+const INITIAL_EMPTY_STORE_STATE: Store = {
   id: '',
-  ownerName: '김동욱',
-  storeName: '마라위크',
+  ownerName: '',
+  storeName: '',
   category: 'FOOD',
   categoryName: '외식업',
-  address: '경남 양산시 북정서길 25 104호',
+  address: '',
   lat: 35.3594007321187,
   lng: 129.041885145232,
-  phone: '01048548777',
-  isVerified: true,
+  phone: '',
+  isVerified: false,
   breakTimeActive: false,
   breakTimeHours: '10:00 - 22:00',
   storeImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
@@ -50,7 +52,7 @@ const INITIAL_MY_STORE_STATE: Store = {
 };
 
 export const App: React.FC = () => {
-  const [myStore, setMyStore] = useState<Store>(INITIAL_MY_STORE_STATE);
+  const [myStore, setMyStore] = useState<Store>(INITIAL_EMPTY_STORE_STATE);
   const [stores, setStores] = useState<Store[]>([]);
   
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
@@ -74,8 +76,8 @@ export const App: React.FC = () => {
 
   // Auth State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [userOwnerName, setUserOwnerName] = useState('김동욱');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userOwnerName, setUserOwnerName] = useState('');
 
   // Modals & Drawers state
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -99,7 +101,7 @@ export const App: React.FC = () => {
   const [chatTargetStore, setChatTargetStore] = useState<Store | null>(null);
   const [messagesMap, setMessagesMap] = useState<{ [storeId: string]: ChatMessage[] }>({});
 
-  // Pure Supabase Data Loading on Initial Mount
+  // Pure Supabase Data Loading on Initial Mount & Realtime Auth State Sync
   useEffect(() => {
     async function loadInitialData() {
       try {
@@ -112,13 +114,58 @@ export const App: React.FC = () => {
           }
         }
 
-        // 2. Fetch authenticated owner user profile from Supabase
+        // 2. Check current active Supabase Auth session
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+
+        if (session && session.user) {
+          setIsLoggedIn(true);
+          const metaOwner = session.user.user_metadata?.owner_name;
+          const metaStore = session.user.user_metadata?.store_name;
+          if (metaOwner) setUserOwnerName(metaOwner);
+
+          const userProfile = await fetchUserProfileFromSupabase();
+          if (userProfile?.owner_name) {
+            setUserOwnerName(userProfile.owner_name);
+          }
+
+          const userStore = await fetchUserStoreFromSupabase();
+          if (userStore) {
+            setMyStore(userStore);
+            if (userStore.lat && userStore.lng) {
+              setPickedLocation({ lat: userStore.lat, lng: userStore.lng });
+            }
+          } else if (metaStore) {
+            setMyStore((prev) => ({
+              ...prev,
+              ownerName: metaOwner || prev.ownerName,
+              storeName: metaStore || prev.storeName,
+            }));
+          }
+        } else {
+          setIsLoggedIn(false);
+          setUserOwnerName('');
+          setMyStore(INITIAL_EMPTY_STORE_STATE);
+        }
+      } catch (err) {
+        console.error('[App Error] Initial data loading exception:', err);
+      }
+    }
+
+    loadInitialData();
+
+    // 3. Listen to Supabase auth state changes (login, logout, token refresh)
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+        setIsLoggedIn(true);
+        const metaOwner = session.user.user_metadata?.owner_name;
+        if (metaOwner) setUserOwnerName(metaOwner);
+
         const userProfile = await fetchUserProfileFromSupabase();
-        if (userProfile && userProfile.owner_name) {
+        if (userProfile?.owner_name) {
           setUserOwnerName(userProfile.owner_name);
         }
 
-        // 3. Fetch authenticated owner store from Supabase
         const userStore = await fetchUserStoreFromSupabase();
         if (userStore) {
           setMyStore(userStore);
@@ -126,11 +173,20 @@ export const App: React.FC = () => {
             setPickedLocation({ lat: userStore.lat, lng: userStore.lng });
           }
         }
-      } catch (err) {
-        console.error('[App Error] Initial data loading exception:', err);
+      } else if (event === 'SIGNED_OUT') {
+        setIsLoggedIn(false);
+        setUserOwnerName('');
+        setMyStore(INITIAL_EMPTY_STORE_STATE);
+        try {
+          localStorage.removeItem('trademe_profile');
+          localStorage.removeItem('trademe_my_store');
+        } catch (e) {}
       }
-    }
-    loadInitialData();
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
   }, []);
 
   // Refresh Pending Alert Counts (Trades + Menu Test Applications)
@@ -191,10 +247,18 @@ export const App: React.FC = () => {
     return () => unsubscribe();
   }, [chatTargetStore, myStore.id]);
 
-  const handleLoginSuccess = (ownerName: string, storeName: string) => {
+  const handleLoginSuccess = async (ownerName: string, storeName: string) => {
     setIsLoggedIn(true);
     setUserOwnerName(ownerName);
-    setMyStore((prev) => ({ ...prev, ownerName, storeName }));
+    const userStore = await fetchUserStoreFromSupabase();
+    if (userStore) {
+      setMyStore(userStore);
+      if (userStore.lat && userStore.lng) {
+        setPickedLocation({ lat: userStore.lat, lng: userStore.lng });
+      }
+    } else {
+      setMyStore((prev) => ({ ...prev, ownerName, storeName }));
+    }
   };
 
   const handleToggleBreakTime = () => {
@@ -220,6 +284,10 @@ export const App: React.FC = () => {
   };
 
   const handleOpenProposal = (targetItem: ExchangeItem) => {
+    if (!isLoggedIn) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     setTargetProposalItem(targetItem);
     setIsProposalModalOpen(true);
   };
@@ -341,6 +409,10 @@ export const App: React.FC = () => {
   };
 
   const handleOpenChat = (store: Store) => {
+    if (!isLoggedIn) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     setChatTargetStore(store);
     setIsChatDrawerOpen(true);
   };
@@ -465,9 +537,15 @@ export const App: React.FC = () => {
     } catch (e) {}
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOutUser();
     setIsLoggedIn(false);
-    setUserOwnerName('로그인 필요');
+    setUserOwnerName('');
+    setMyStore(INITIAL_EMPTY_STORE_STATE);
+    try {
+      localStorage.removeItem('trademe_profile');
+      localStorage.removeItem('trademe_my_store');
+    } catch (e) {}
   };
 
   const handleAcceptMenuTestAndOpenChat = (applicant: MenuTestApplication) => {
@@ -571,6 +649,10 @@ export const App: React.FC = () => {
           onOpenProposal={handleOpenProposal}
           onOpenChat={handleOpenChat}
           onOpenMenuTestApply={(store, campaign) => {
+            if (!isLoggedIn) {
+              setIsAuthModalOpen(true);
+              return;
+            }
             setTargetMenuTestStore(store);
             setTargetMenuTestCampaign(campaign || null);
             setIsMenuTestModalOpen(true);

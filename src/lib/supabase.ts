@@ -163,7 +163,11 @@ export async function signUpUser(
   ownerName: string,
   storeName: string,
   businessNumber: string,
-  phone?: string
+  phone?: string,
+  category?: string,
+  address?: string,
+  lat?: number,
+  lng?: number
 ) {
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -175,6 +179,8 @@ export async function signUpUser(
           store_name: storeName,
           business_number: businessNumber,
           phone: phone || '',
+          category: category || 'FOOD',
+          address: address || '',
         },
       },
     });
@@ -203,6 +209,30 @@ export async function signUpUser(
         });
         if (profileError) {
           console.error('[Supabase Error] profiles upsert on signup failed:', profileError);
+        }
+
+        // Also create a store record for this user so they immediately have their own store registered
+        const storeId = `store-${Date.now()}`;
+        const { error: storeError } = await supabase.from('stores').insert({
+          id: storeId,
+          user_id: data.user.id,
+          owner_name: ownerName,
+          store_name: storeName,
+          category: category || 'FOOD',
+          category_name: category === 'FOOD' ? '외식업' : category === 'CAFE' ? '카페/디저트' : '소상공인',
+          address: address || '',
+          lat: lat || 35.3594,
+          lng: lng || 129.0418,
+          phone: phone || '',
+          is_verified: true,
+          is_exchange_active: true,
+          operating_hours: '10:00 - 22:00',
+          store_image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+          rating: 5.0,
+          review_count: 0,
+        });
+        if (storeError) {
+          console.error('[Supabase Error] stores insert on signup failed:', storeError);
         }
       } catch (e) {}
     }
@@ -236,6 +266,20 @@ export async function signInUser(email: string, pass: string) {
   } catch (err: any) {
     console.error('[Supabase Auth Error] signInUser exception:', err);
     return { success: false, error: err?.message, message: '로그인 중 오류가 발생했습니다.' };
+  }
+}
+
+export async function signOutUser() {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('[Supabase Auth Error] signOut failed:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.error('[Supabase Auth Error] signOut exception:', err);
+    return { success: false, error: err?.message };
   }
 }
 
@@ -376,26 +420,6 @@ export async function fetchUserProfileFromSupabase() {
       if (!error && data) return data;
     }
 
-    // 🛡️ Fallback: search profile from DB
-    const { data: profiles, error: pErr } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (pErr) {
-      console.error('[Supabase Error] fetchUserProfile fallback failed:', {
-        code: pErr.code,
-        message: pErr.message,
-        details: pErr.details,
-        hint: pErr.hint,
-      });
-      return null;
-    }
-
-    if (profiles && profiles.length > 0) {
-      return profiles[0];
-    }
     return null;
   } catch (err) {
     console.error('[Supabase Error] fetchUserProfileFromSupabase exception:', err);
@@ -416,14 +440,16 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
       }
     }
 
-    let query = supabase.from('stores').select('*');
-    if (userId) {
-      query = query.eq('user_id', userId);
-    } else {
-      query = query.order('created_at', { ascending: false });
+    if (!userId) {
+      return null;
     }
 
-    const { data: storeData, error } = await query.limit(1).maybeSingle();
+    const { data: storeData, error } = await supabase
+      .from('stores')
+      .select('*')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
 
     if (error) {
       console.error('[Supabase Error] fetchUserStoreFromSupabase failed:', {
