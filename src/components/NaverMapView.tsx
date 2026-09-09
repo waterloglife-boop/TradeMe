@@ -225,7 +225,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   // Loading Screen
   if (!scriptLoaded && !authFailed) {
     return (
-      <div className="relative w-full h-[calc(100vh-64px)] bg-gray-100 flex flex-col items-center justify-center p-6 text-center">
+      <div className="relative w-full h-[calc(100vh-100px)] min-h-[580px] bg-gray-100 flex flex-col items-center justify-center p-6 text-center">
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
           <h3 className="font-extrabold text-gray-900 text-sm">
@@ -250,7 +250,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   }
 
   return (
-    <div className="relative w-full h-[calc(100vh-64px)] overflow-hidden">
+    <div className="relative w-full h-[calc(100vh-100px)] min-h-[580px] overflow-hidden">
       <div ref={mapContainerRef} className="w-full h-full z-0" />
     </div>
   );

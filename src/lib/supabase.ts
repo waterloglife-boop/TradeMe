@@ -2461,5 +2461,247 @@ export function issueBilateralVouchersForTrade(
   return { success: true, vouchers: [voucherForB, voucherForA] };
 }
 
+// =========================================================================
+// 👑 웹마스터(Webmaster/Admin) 보안 인증 및 커맨드 센터 로직
+// =========================================================================
+export const MASTER_ADMIN_PASSWORD = '1901123';
+
+export function verifyMasterPassword(pwd: string): boolean {
+  return pwd.trim() === MASTER_ADMIN_PASSWORD;
+}
+
+// 🎧 [원클릭 고객 문의 및 제휴·광고 접수함]
+const INQUIRIES_STORAGE_KEY = 'trademe_customer_inquiries';
+
+export function fetchCustomerInquiries(): CustomerInquiry[] {
+  try {
+    const raw = localStorage.getItem(INQUIRIES_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+
+  // 초기 데모 문의 데이터 1건 (첫 화면 확인용)
+  const initial: CustomerInquiry[] = [
+    {
+      id: 'inq-sample-1',
+      type: 'PARTNERSHIP',
+      senderName: '대한식자재유통 박상무',
+      senderContact: '010-9876-5432 / daehan@food.kr',
+      title: '소상공인 쌀/식용유 대량 공동구매 제휴 제안',
+      content: 'TradeMe 입점 사장님들께 업소용 쌀 20kg 및 식용유 18L를 도매가 이하로 공급하고, 상단 배너를 통해 독점 프로모션을 집행하고 싶습니다.',
+      status: 'PENDING',
+      createdAt: new Date(Date.now() - 3600 * 1000 * 5).toISOString(),
+    },
+  ];
+  try {
+    localStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify(initial));
+  } catch (e) {}
+  return initial;
+}
+
+export function createCustomerInquiry(data: {
+  type: InquiryType;
+  senderName: string;
+  senderContact: string;
+  title: string;
+  content: string;
+}): CustomerInquiry {
+  const list = fetchCustomerInquiries();
+  const newInq: CustomerInquiry = {
+    id: `inq-${Date.now()}`,
+    type: data.type,
+    senderName: data.senderName,
+    senderContact: data.senderContact,
+    title: data.title,
+    content: data.content,
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+  };
+  list.unshift(newInq);
+  try {
+    localStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify(list));
+  } catch (e) {}
+  return newInq;
+}
+
+export function toggleInquiryStatus(id: string): CustomerInquiry[] {
+  const list = fetchCustomerInquiries();
+  const updated = list.map((inq) =>
+    inq.id === id
+      ? { ...inq, status: (inq.status === 'PENDING' ? 'RESOLVED' : 'PENDING') as 'PENDING' | 'RESOLVED' }
+      : inq
+  );
+  try {
+    localStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {}
+  return updated;
+}
+
+// 📈 [쿠팡 파트너스 4대 핵심 배너 통계 & 링크 관리]
+const AD_STATS_STORAGE_KEY = 'trademe_ad_banner_stats';
+
+const DEFAULT_BANNER_STATS: AdBannerStat[] = [
+  {
+    id: 'banner-top-main',
+    key: 'TOP_MAIN',
+    icon: '🏆',
+    name: '상단 메인 기획전 배너 (식자재/도매)',
+    targetCategory: '업소용 식용유 18L / 쌀 20kg / 식료품',
+    impressions: 284,
+    clicks: 6,
+    ctr: 2.11,
+    estimatedRevenue: 2280,
+    lastClickedAt: '12분 전',
+    coupangUrl: 'https://link.coupang.com/a/b01_food_wholesale',
+  },
+  {
+    id: 'banner-community',
+    key: 'COMMUNITY_FEED',
+    icon: '🛍️',
+    name: '사장님 사랑방 피드 배너 (포장/배달용기)',
+    targetCategory: '원형 탕용기 / 실링용기 / 포장 봉투',
+    impressions: 172,
+    clicks: 4,
+    ctr: 2.32,
+    estimatedRevenue: 1520,
+    lastClickedAt: '45분 전',
+    coupangUrl: 'https://link.coupang.com/a/b02_packaging_box',
+  },
+  {
+    id: 'banner-drawer',
+    key: 'STORE_DRAWER',
+    icon: '🧼',
+    name: '매장 상세 / 서랍 배너 (주방위생/세제)',
+    targetCategory: '업소용 주방세제 4L / 니트릴장갑 100매',
+    impressions: 156,
+    clicks: 2,
+    ctr: 1.28,
+    estimatedRevenue: 760,
+    lastClickedAt: '2시간 전',
+    coupangUrl: 'https://link.coupang.com/a/b03_kitchen_hygiene',
+  },
+  {
+    id: 'banner-wallet',
+    key: 'WALLET_FOOTER',
+    icon: '🖨️',
+    name: '하단 푸터 & 보관함 배너 (POS 감열지)',
+    targetCategory: '신용카드 단말기 롤 영수증 용지 10롤',
+    impressions: 98,
+    clicks: 3,
+    ctr: 3.06,
+    estimatedRevenue: 1140,
+    lastClickedAt: '4시간 전',
+    coupangUrl: 'https://link.coupang.com/a/b04_pos_receipt_paper',
+  },
+];
+
+export function fetchAdBannerStats(): AdBannerStat[] {
+  try {
+    const raw = localStorage.getItem(AD_STATS_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+
+  try {
+    localStorage.setItem(AD_STATS_STORAGE_KEY, JSON.stringify(DEFAULT_BANNER_STATS));
+  } catch (e) {}
+  return DEFAULT_BANNER_STATS;
+}
+
+export function recordBannerImpression(key: AdBannerKey): void {
+  const stats = fetchAdBannerStats();
+  const updated = stats.map((b) => {
+    if (b.key === key) {
+      const imp = b.impressions + 1;
+      const ctr = imp > 0 ? parseFloat(((b.clicks / imp) * 100).toFixed(2)) : 0;
+      return { ...b, impressions: imp, ctr };
+    }
+    return b;
+  });
+  try {
+    localStorage.setItem(AD_STATS_STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {}
+}
+
+export function recordBannerClick(key: AdBannerKey): void {
+  const stats = fetchAdBannerStats();
+  const updated = stats.map((b) => {
+    if (b.key === key) {
+      const clicks = b.clicks + 1;
+      const imp = b.impressions;
+      const ctr = imp > 0 ? parseFloat(((clicks / imp) * 100).toFixed(2)) : 100;
+      const revenue = b.estimatedRevenue + 380; // 건당 약 380원 추정 수수료
+      return {
+        ...b,
+        clicks,
+        ctr,
+        estimatedRevenue: revenue,
+        lastClickedAt: '방금 전',
+      };
+    }
+    return b;
+  });
+  try {
+    localStorage.setItem(AD_STATS_STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {}
+}
+
+export function updateCoupangLinks(links: Record<AdBannerKey, string>): AdBannerStat[] {
+  const stats = fetchAdBannerStats();
+  const updated = stats.map((b) => {
+    if (links[b.key]) {
+      return { ...b, coupangUrl: links[b.key].trim() };
+    }
+    return b;
+  });
+  try {
+    localStorage.setItem(AD_STATS_STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {}
+  return updated;
+}
+
+// 📊 전체 가맹점 DB 엑셀(CSV) 다운로드 유틸리티
+export function exportStoresToCsv(stores: Store[]): void {
+  const headers = [
+    '매장ID',
+    '가게상호명',
+    '대표자명',
+    '업종카테고리',
+    '가게주소',
+    '연락처',
+    '사업자등록번호',
+    '개업연월일',
+    '국세청인증여부',
+    '영업상태(브레이크)',
+    '보유물물교환품목수',
+    '평점',
+  ];
+
+  const rows = stores.map((s) => [
+    `"${s.id}"`,
+    `"${s.storeName}"`,
+    `"${s.ownerName}"`,
+    `"${s.categoryName || s.category}"`,
+    `"${s.address || ''}"`,
+    `"${s.phone || ''}"`,
+    `"인증완료"`,
+    `"-"`,
+    `"${s.isVerified ? '인증완료(1:1대조)' : '미인증'}"`,
+    `"${s.breakTimeActive ? '교환가능(ON)' : '영업중(OFF)'}"`,
+    `"${s.exchangeItems?.length || 0}"`,
+    `"${s.rating || 5.0}"`,
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `TradeMe_가맹점DB_전체_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
 
 

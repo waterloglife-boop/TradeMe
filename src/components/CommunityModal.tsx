@@ -23,6 +23,7 @@ import {
   Navigation
 } from 'lucide-react';
 import { CommunityCategory, CommunityPost, CommunityComment, Store } from '../types/trade';
+import { CommunitySponsoredCard } from './CoupangAffiliateBanner';
 import {
   fetchCommunityPosts,
   fetchPostComments,
@@ -424,7 +425,7 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
               </div>
             </div>
           ) : (
-            filteredPosts.map((post) => {
+            filteredPosts.map((post, postIdx) => {
               const targetStore = findStoreByPost(post);
               const isMine = post.storeId === myStore.id || (myStore.storeName && post.storeName === myStore.storeName);
               const isCommentsOpen = !!openCommentsMap[post.id];
@@ -433,10 +434,11 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
               const travelTime = getTravelTimeEstimate(postDistance);
 
               return (
-                <div
-                  key={post.id}
-                  className="bg-white rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-md transition overflow-hidden"
-                >
+                <React.Fragment key={post.id}>
+                  {postIdx === 1 && <CommunitySponsoredCard />}
+                  <div
+                    className="bg-white rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-md transition overflow-hidden"
+                  >
                   {/* Card Header */}
                   <div className="p-4 pb-3 flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2.5">
@@ -681,7 +683,8 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
                       </div>
                     </div>
                   )}
-                </div>
+                  </div>
+                </React.Fragment>
               );
             })
           )}

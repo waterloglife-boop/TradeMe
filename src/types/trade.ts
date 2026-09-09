@@ -193,3 +193,34 @@ export interface IssuedVoucher {
   status: VoucherStatus; // AVAILABLE | USED | EXPIRED
   usedAt?: string; // 사용 일시 (ISO)
 }
+
+// 🎧 [원클릭 문의 및 오류, 제휴·광고 제안] (푸터 연동 모델)
+export type InquiryType = 'BUG' | 'INQUIRY' | 'FEATURE' | 'PARTNERSHIP';
+
+export interface CustomerInquiry {
+  id: string;
+  type: InquiryType;
+  senderName: string;
+  senderContact: string;
+  title: string;
+  content: string;
+  status: 'PENDING' | 'RESOLVED';
+  createdAt: string;
+}
+
+// 📈 [쿠팡 파트너스 & 4대 핵심 배너 통계 및 링크 관리]
+export type AdBannerKey = 'TOP_MAIN' | 'COMMUNITY_FEED' | 'STORE_DRAWER' | 'WALLET_FOOTER';
+
+export interface AdBannerStat {
+  id: string;
+  key: AdBannerKey;
+  icon: string;
+  name: string;
+  targetCategory: string;
+  impressions: number;
+  clicks: number;
+  ctr: number; // percentage
+  estimatedRevenue: number; // KRW
+  lastClickedAt?: string;
+  coupangUrl: string;
+}

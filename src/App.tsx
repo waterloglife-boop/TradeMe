@@ -14,6 +14,13 @@ import { ManageExchangeItemsModal } from './components/ManageExchangeItemsModal'
 import { TradeDashboardModal } from './components/TradeDashboardModal';
 import { CommunityModal } from './components/CommunityModal';
 import { CouponWalletModal } from './components/CouponWalletModal';
+import { Footer } from './components/Footer';
+import { WebmasterAuthModal } from './components/WebmasterAuthModal';
+import { WebmasterDashboardModal } from './components/WebmasterDashboardModal';
+import { InquiryModal } from './components/InquiryModal';
+import { TermsOfServiceModal, PrivacyPolicyModal } from './components/LegalModals';
+import { TopMainSlimBanner } from './components/CoupangAffiliateBanner';
+import { InquiryType } from './types/trade';
 import {
   fetchStoresFromSupabase,
   subscribeToTradeChat,
@@ -158,6 +165,26 @@ export const App: React.FC = () => {
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
   const [chatTargetStore, setChatTargetStore] = useState<Store | null>(null);
   const [messagesMap, setMessagesMap] = useState<{ [storeId: string]: ChatMessage[] }>({});
+
+  // 👑 Webmaster, Footer Inquiries, and Legal Modals state
+  const [isWebmasterAuthOpen, setIsWebmasterAuthOpen] = useState(false);
+  const [isWebmasterDashboardOpen, setIsWebmasterDashboardOpen] = useState(false);
+  const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
+  const [inquiryDefaultType, setInquiryDefaultType] = useState<InquiryType>('INQUIRY');
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [bannedStoreIds, setBannedStoreIds] = useState<string[]>([]);
+
+  const handleOpenInquiry = (type: InquiryType) => {
+    setInquiryDefaultType(type);
+    setIsInquiryModalOpen(true);
+  };
+
+  const handleToggleStoreBan = (storeId: string) => {
+    setBannedStoreIds((prev) =>
+      prev.includes(storeId) ? prev.filter((id) => id !== storeId) : [...prev, storeId]
+    );
+  };
 
   // Pure Supabase Data Loading on Initial Mount & Realtime Auth State Sync
   useEffect(() => {
@@ -816,6 +843,9 @@ export const App: React.FC = () => {
         voucherCount={voucherWalletCount}
       />
 
+      {/* 🏆 쿠팡 파트너스 홈 상단 슬림 기획전 띠배너 (식자재/도매) */}
+      <TopMainSlimBanner />
+
       {/* Main Map View */}
       <main className="relative flex-1">
         <NaverMapView
@@ -902,6 +932,14 @@ export const App: React.FC = () => {
           </aside>
         )}
       </main>
+
+      {/* 🎧 💌 아쿠아버디 스타일 원클릭 문의 & 법적 고지 푸터 (시크릿 3회 연속 클릭 이스터에그 내장) */}
+      <Footer
+        onOpenInquiry={handleOpenInquiry}
+        onOpenTerms={() => setIsTermsModalOpen(true)}
+        onOpenPrivacy={() => setIsPrivacyModalOpen(true)}
+        onOpenWebmasterAuth={() => setIsWebmasterAuthOpen(true)}
+      />
 
       {/* Auth / MyPage Modal (사장님 프로필 & 대시보드 올인원 허브) */}
       <AuthModal
@@ -1073,6 +1111,45 @@ export const App: React.FC = () => {
           setIsCommunityModalOpen(false);
           handleOpenChat(targetStore);
         }}
+      />
+
+      {/* 👤🛡️ 웹마스터 모드 보안 인증 팝업 (연속 3회 클릭 이스터에그) */}
+      <WebmasterAuthModal
+        isOpen={isWebmasterAuthOpen}
+        onClose={() => setIsWebmasterAuthOpen(false)}
+        onSuccess={() => {
+          setIsWebmasterAuthOpen(false);
+          setIsWebmasterDashboardOpen(true);
+        }}
+      />
+
+      {/* 🛡️ 웹마스터 관리자 커맨드 센터 (아쿠아버디 다크 블루 UI) */}
+      <WebmasterDashboardModal
+        isOpen={isWebmasterDashboardOpen}
+        onClose={() => setIsWebmasterDashboardOpen(false)}
+        stores={filteredStores}
+        bannedStoreIds={bannedStoreIds}
+        onToggleStoreBan={handleToggleStoreBan}
+      />
+
+      {/* 🎧 💌 원클릭 고객 지원 & 제휴 접수 모달 */}
+      <InquiryModal
+        isOpen={isInquiryModalOpen}
+        onClose={() => setIsInquiryModalOpen(false)}
+        defaultType={inquiryDefaultType}
+        defaultSenderName={myStore?.storeName && myStore.storeName !== '로그인 필요' ? `${myStore.storeName} (${userOwnerName})` : ''}
+      />
+
+      {/* 📜 이용약관 모달 */}
+      <TermsOfServiceModal
+        isOpen={isTermsModalOpen}
+        onClose={() => setIsTermsModalOpen(false)}
+      />
+
+      {/* 🔒 개인정보처리방침 모달 */}
+      <PrivacyPolicyModal
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
       />
 
     </div>
