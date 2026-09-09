@@ -52,7 +52,13 @@ const INITIAL_EMPTY_STORE_STATE: Store = {
 };
 
 export const App: React.FC = () => {
-  const [myStore, setMyStore] = useState<Store>(INITIAL_EMPTY_STORE_STATE);
+  const [myStore, setMyStore] = useState<Store>(() => {
+    try {
+      const saved = localStorage.getItem('trademe_my_store');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return INITIAL_EMPTY_STORE_STATE;
+  });
   const [stores, setStores] = useState<Store[]>([]);
   
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
@@ -69,15 +75,36 @@ export const App: React.FC = () => {
   const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
 
   // Location Picker State (비로그인 첫 방문 기준: 대한민국 표준 중심 서울시청/광화문)
-  const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>({
-    lat: 37.5665,
-    lng: 126.9780,
+  const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number }>(() => {
+    try {
+      const saved = localStorage.getItem('trademe_my_store');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.lat && parsed.lng) return { lat: parsed.lat, lng: parsed.lng };
+      }
+    } catch (e) {}
+    return { lat: 37.5665, lng: 126.9780 };
   });
 
   // Auth State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userOwnerName, setUserOwnerName] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    try {
+      return !!(localStorage.getItem('trademe_profile') || localStorage.getItem('trademe_my_store'));
+    } catch (e) {
+      return false;
+    }
+  });
+  const [userOwnerName, setUserOwnerName] = useState<string>(() => {
+    try {
+      const p = localStorage.getItem('trademe_profile');
+      if (p) {
+        const po = JSON.parse(p);
+        return po.owner_name || po.ownerName || '';
+      }
+    } catch (e) {}
+    return '';
+  });
 
   // 🌟 비로그인 상생 웰컴 플로팅 카드 & 사유 안내 알림 State
   const [showWelcomeCard, setShowWelcomeCard] = useState(true);
@@ -109,6 +136,14 @@ export const App: React.FC = () => {
   useEffect(() => {
     async function loadInitialData() {
       try {
+        // Clean up any legacy dummy community posts cache
+        try {
+          const cachedPosts = localStorage.getItem('trademe_community_posts_cache');
+          if (cachedPosts && (cachedPosts.includes('post_welcome_') || cachedPosts.includes('박해운'))) {
+            localStorage.removeItem('trademe_community_posts_cache');
+          }
+        } catch (e) {}
+
         // 1. Fetch all registered stores directly from Supabase (첫 화면에서는 어떤 매장도 자동 선택하지 않고 깨끗한 지도로 노출)
         const fetchedStores = await fetchStoresFromSupabase();
         setStores(fetchedStores || []);
@@ -131,6 +166,9 @@ export const App: React.FC = () => {
           const userStore = await fetchUserStoreFromSupabase();
           if (userStore) {
             setMyStore(userStore);
+            try {
+              localStorage.setItem('trademe_my_store', JSON.stringify(userStore));
+            } catch (e) {}
             if (userStore.lat && userStore.lng) {
               setPickedLocation({ lat: userStore.lat, lng: userStore.lng });
             }
@@ -152,9 +190,22 @@ export const App: React.FC = () => {
               if (profileObj?.owner_name || profileObj?.ownerName || storeObj?.ownerName) {
                 setIsLoggedIn(true);
                 setUserOwnerName(profileObj.owner_name || profileObj.ownerName || storeObj.ownerName || '사장님');
-                setMyStore(storeObj);
-                if (storeObj.lat && storeObj.lng) {
-                  setPickedLocation({ lat: storeObj.lat, lng: storeObj.lng });
+                
+                // Fetch fresh store from Supabase DB to ensure breakTimeActive and details are 100% synced!
+                const freshUserStore = await fetchUserStoreFromSupabase();
+                if (freshUserStore) {
+                  setMyStore(freshUserStore);
+                  try {
+                    localStorage.setItem('trademe_my_store', JSON.stringify(freshUserStore));
+                  } catch (e) {}
+                  if (freshUserStore.lat && freshUserStore.lng) {
+                    setPickedLocation({ lat: freshUserStore.lat, lng: freshUserStore.lng });
+                  }
+                } else {
+                  setMyStore(storeObj);
+                  if (storeObj.lat && storeObj.lng) {
+                    setPickedLocation({ lat: storeObj.lat, lng: storeObj.lng });
+                  }
                 }
                 return;
               }
@@ -187,18 +238,21 @@ export const App: React.FC = () => {
         const userStore = await fetchUserStoreFromSupabase();
         if (userStore) {
           setMyStore(userStore);
+          try {
+            localStorage.setItem('trademe_my_store', JSON.stringify(userStore));
+          } catch (e) {}
           if (userStore.lat && userStore.lng) {
             setPickedLocation({ lat: userStore.lat, lng: userStore.lng });
           }
         }
       } else if (event === 'SIGNED_OUT') {
-        setIsLoggedIn(false);
-        setUserOwnerName('');
-        setMyStore(INITIAL_EMPTY_STORE_STATE);
-        try {
-          localStorage.removeItem('trademe_profile');
-          localStorage.removeItem('trademe_my_store');
-        } catch (e) {}
+        // Only clear if localStorage doesn't have an active session (prevents wiping unconfirmed/fallback sessions)
+        const hasLocalProfile = !!localStorage.getItem('trademe_profile');
+        if (!hasLocalProfile) {
+          setIsLoggedIn(false);
+          setUserOwnerName('');
+          setMyStore(INITIAL_EMPTY_STORE_STATE);
+        }
       }
     });
 
@@ -300,6 +354,12 @@ export const App: React.FC = () => {
   };
 
   const handleToggleBreakTime = () => {
+    if (!isLoggedIn) {
+      setAuthModalNotice('💡 내 가게 교환 가능 설정은 사장님 로그인이 필요한 서비스입니다.');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const updatedStatus = !myStore.breakTimeActive;
     const updatedMyStore = { ...myStore, breakTimeActive: updatedStatus };
     setMyStore(updatedMyStore);
@@ -308,7 +368,12 @@ export const App: React.FC = () => {
       prevStores.map((s) => (s.id === myStore.id ? updatedMyStore : s))
     );
 
-    updateStoreStatusInSupabase(myStore.id, updatedStatus);
+    // Save to localStorage so state persists immediately across page refreshes
+    try {
+      localStorage.setItem('trademe_my_store', JSON.stringify(updatedMyStore));
+    } catch (e) {}
+
+    updateStoreStatusInSupabase(myStore.id, updatedStatus, myStore.userId);
   };
 
   const handleMapClickPinLocation = (lat: number, lng: number) => {

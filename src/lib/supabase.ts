@@ -340,7 +340,7 @@ export async function signInUser(email: string, pass: string): Promise<{
             lng: sData.lng || 126.9780,
             phone: sData.phone || '',
             isVerified: sData.is_verified ?? true,
-            breakTimeActive: !sData.is_exchange_active,
+            breakTimeActive: sData.is_exchange_active ?? sData.break_time_active ?? false,
             breakTimeHours: sData.operating_hours || sData.break_time_hours || '10:00 - 22:00',
             storeImageUrl: sData.store_image_url || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
             rating: sData.rating ?? 5.0,
@@ -402,7 +402,7 @@ export async function signInUser(email: string, pass: string): Promise<{
             lng: sData?.lng || 126.9780,
             phone: profile.phone || sData?.phone || '',
             isVerified: true,
-            breakTimeActive: false,
+            breakTimeActive: sData?.is_exchange_active ?? sData?.break_time_active ?? true,
             breakTimeHours: sData?.operating_hours || '10:00 - 22:00',
             storeImageUrl: sData?.store_image_url || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
             rating: sData?.rating ?? 5.0,
@@ -519,7 +519,7 @@ export async function signInUser(email: string, pass: string): Promise<{
             lng: sData?.lng || 126.9780,
             phone: profile.phone || sData?.phone || '',
             isVerified: true,
-            breakTimeActive: false,
+            breakTimeActive: sData?.is_exchange_active ?? sData?.break_time_active ?? true,
             breakTimeHours: sData?.operating_hours || '10:00 - 22:00',
             storeImageUrl: sData?.store_image_url || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
             rating: sData?.rating ?? 5.0,
@@ -719,6 +719,23 @@ export async function fetchUserProfileFromSupabase() {
       }
     }
 
+    if (!userId) {
+      try {
+        const p = localStorage.getItem('trademe_profile');
+        if (p) {
+          const po = JSON.parse(p);
+          if (po.id) userId = po.id;
+        }
+        if (!userId) {
+          const s = localStorage.getItem('trademe_my_store');
+          if (s) {
+            const so = JSON.parse(s);
+            if (so.userId) userId = so.userId;
+          }
+        }
+      } catch (e) {}
+    }
+
     if (userId) {
       const { data, error } = await supabase
         .from('profiles')
@@ -756,6 +773,23 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
       if (sessionData?.session?.user) {
         userId = sessionData.session.user.id;
       }
+    }
+
+    if (!userId) {
+      try {
+        const p = localStorage.getItem('trademe_profile');
+        if (p) {
+          const po = JSON.parse(p);
+          if (po.id) userId = po.id;
+        }
+        if (!userId) {
+          const s = localStorage.getItem('trademe_my_store');
+          if (s) {
+            const so = JSON.parse(s);
+            if (so.userId) userId = so.userId;
+          }
+        }
+      } catch (e) {}
     }
 
     if (!userId) {
@@ -1125,18 +1159,29 @@ export async function insertStoreAndItems(
 /**
  * 4. Update Store Exchange Availability Status in Supabase DB
  */
-export async function updateStoreStatusInSupabase(storeId: string, isActive: boolean) {
+export async function updateStoreStatusInSupabase(storeId: string, isActive: boolean, userId?: string) {
   try {
-    let { error } = await supabase
+    let query = supabase
       .from('stores')
-      .update({ is_exchange_active: isActive })
-      .eq('id', storeId);
+      .update({ is_exchange_active: isActive });
+
+    if (storeId) {
+      query = query.eq('id', storeId);
+    } else if (userId) {
+      query = query.eq('user_id', userId);
+    } else {
+      return;
+    }
+
+    let { error } = await query;
 
     if (error && error.message?.includes('column')) {
-      await supabase
+      let queryFallback = supabase
         .from('stores')
-        .update({ break_time_active: isActive })
-        .eq('id', storeId);
+        .update({ break_time_active: isActive });
+      if (storeId) queryFallback = queryFallback.eq('id', storeId);
+      else if (userId) queryFallback = queryFallback.eq('user_id', userId);
+      await queryFallback;
     }
   } catch (err) {
     console.warn('Store status update notice:', err);
@@ -1664,48 +1709,7 @@ export async function deleteMenuTestCampaignFromSupabase(
 const LOCAL_POSTS_KEY = 'trademe_community_posts_cache';
 const LOCAL_COMMENTS_KEY = 'trademe_community_comments_cache';
 
-const DEFAULT_WELCOME_POSTS: CommunityPost[] = [
-  {
-    id: 'post_welcome_1',
-    storeId: '',
-    authorName: '박해운 사장님',
-    storeName: '해운대갈비 양산점',
-    isAnonymous: false,
-    category: 'DAILY_TALK',
-    title: '오늘 비가 와서 그런지 저녁 홀이 조금 조용하네요 ㅠㅠ 다들 어떠세요?',
-    content: '재료 신선하게 준비해뒀는데 빗줄기가 굵어져서 배달만 조금씩 들어오네요. 북정동 이웃 사장님들 오늘 하루도 다들 고생 많으셨습니다! 힘내시고 마감까지 파이팅입니다.',
-    likesCount: 5,
-    commentsCount: 2,
-    createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'post_welcome_2',
-    storeId: '',
-    authorName: '이수민 사장님',
-    storeName: '달콤베이커리 북정점',
-    isAnonymous: false,
-    category: 'URGENT_TRADE',
-    title: '[마감임박] 당일 생산 크로와상 & 소금빵 4세트 남았습니다! 야식 교환해요 🥐',
-    content: '마감 1시간 전인데 오늘 구운 버터 풍미 가득한 크로와상이랑 소금빵이 남아 아깝네요. 이웃 사장님들 중 떡볶이, 치킨, 커피나 식사 메뉴로 맞바꾸실 분 계시면 바로 교환 제안 눌러주세요!',
-    urgentExchangeItem: '갓 구운 크로와상 2개 + 소금빵 2개 세트 ↔ 야식/식사/음료',
-    likesCount: 8,
-    commentsCount: 3,
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'post_welcome_3',
-    storeId: '',
-    authorName: '익명의 사장님',
-    storeName: '북정동 이웃 매장',
-    isAnonymous: true,
-    category: 'TIPS_QNA',
-    title: '북정동 쪽 냉장고/쇼케이스 수리 잘 보시는 기사님 추천 부탁드립니다',
-    content: '업소용 반찬 쇼케이스 온도가 오늘 낮부터 조금 안 내려가서 급하게 점검을 받아봐야 할 것 같은데, 바가지 안 씌우시고 친절하게 봐주시는 동네 수리기사님 아시는 분 계실까요?',
-    likesCount: 3,
-    commentsCount: 1,
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-  },
-];
+const DEFAULT_WELCOME_POSTS: CommunityPost[] = [];
 
 export async function fetchCommunityPosts(category?: string): Promise<CommunityPost[]> {
   try {
@@ -1720,7 +1724,7 @@ export async function fetchCommunityPosts(category?: string): Promise<CommunityP
 
     const { data, error } = await query;
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       const dbPosts = data.map((row: any) => ({
         id: row.id,
         storeId: row.store_id || '',
@@ -1745,16 +1749,18 @@ export async function fetchCommunityPosts(category?: string): Promise<CommunityP
     console.warn('[Community Notice] Falling back to local cache:', err);
   }
 
-  // Fallback to local storage or defaults
+  // Fallback to local storage or defaults (필터링하여 이전 더미 글 제거)
   try {
     const raw = localStorage.getItem(LOCAL_POSTS_KEY);
-    let cached: CommunityPost[] = raw ? JSON.parse(raw) : DEFAULT_WELCOME_POSTS;
+    let cached: CommunityPost[] = raw ? JSON.parse(raw) : [];
+    // Ensure all dummy/mock posts are completely removed
+    cached = cached.filter((p) => !p.id.startsWith('post_welcome_'));
     if (category && category !== 'ALL') {
       cached = cached.filter((p) => p.category === category);
     }
     return cached;
   } catch (e) {
-    return DEFAULT_WELCOME_POSTS;
+    return [];
   }
 }
 

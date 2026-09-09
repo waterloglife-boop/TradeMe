@@ -81,6 +81,12 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    try {
+      const cached = localStorage.getItem('trademe_community_posts_cache');
+      if (cached && (cached.includes('post_welcome_') || cached.includes('박해운'))) {
+        localStorage.removeItem('trademe_community_posts_cache');
+      }
+    } catch (e) {}
     loadPosts(true);
     const unsubscribe = subscribeToCommunity(() => {
       loadPosts(false);
@@ -193,11 +199,6 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
     if (targetStore && targetStore.lat && targetStore.lng && myStore.lat && myStore.lng) {
       return calculateDistanceKm(myStore.lat, myStore.lng, targetStore.lat, targetStore.lng);
     }
-
-    // Default sample posts fallback distances for realistic demo in Yangsan
-    if (post.id === 'post_welcome_1') return 0.8;
-    if (post.id === 'post_welcome_2') return 1.2;
-    if (post.id === 'post_welcome_3') return 0.5;
 
     return 2.5;
   };
