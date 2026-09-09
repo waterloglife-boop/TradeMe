@@ -18,6 +18,19 @@ export interface NtsVerifyResult {
   message: string;
 }
 
+export function checkValidBusinessNumber(bno: string): boolean {
+  const clean = bno.replace(/[^0-9]/g, '');
+  if (clean.length !== 10) return false;
+  const keys = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(clean[i], 10) * keys[i];
+  }
+  sum += Math.floor((parseInt(clean[8], 10) * 5) / 10);
+  const remainder = (10 - (sum % 10)) % 10;
+  return remainder === parseInt(clean[9], 10);
+}
+
 /**
  * 🇰🇷 국세청 사업자등록정보 실시간 상태조회 API (공공데이터포털 data.go.kr NTS API)
  */
@@ -30,7 +43,19 @@ export async function verifyNtsBusinessStatus(businessNumber: string): Promise<N
       bNo: cleanBno,
       bStt: '',
       taxType: '',
-      message: '사업자등록번호 10자리를 (-) 없이 입력해 주세요.',
+      message: '사업자등록번호 10자리를 (-) 없이 숫자만 정확히 입력해 주세요.',
+    };
+  }
+
+  // 1차 체크섬 검증: 국세청 Modulus-11 공식
+  if (!checkValidBusinessNumber(cleanBno)) {
+    return {
+      success: false,
+      isValid: false,
+      bNo: cleanBno,
+      bStt: '',
+      taxType: '',
+      message: '국세청 사업자등록번호 형식(체크섬)이 올바르지 않은 번호입니다.',
     };
   }
 
@@ -61,7 +86,7 @@ export async function verifyNtsBusinessStatus(businessNumber: string): Promise<N
         bNo: cleanBno,
         bStt: item.b_stt || '계속사업자',
         taxType: item.tax_type || '부가가치세 일반과세자',
-        message: `국세청 인증완료: ${item.b_stt || '계속사업자'} (${item.tax_type || '정상사업자'})`,
+        message: `국세청 인증완료: ${item.b_stt || '계속사업자'} (${item.tax_type || '정상영업'})`,
       };
     } else if (item && item.tax_type?.includes('등록되지 않은')) {
       return {
@@ -79,17 +104,17 @@ export async function verifyNtsBusinessStatus(businessNumber: string): Promise<N
         bNo: cleanBno,
         bStt: item.b_stt,
         taxType: item.tax_type || '',
-        message: `사업자 상태: ${item.b_stt} (${item.tax_type || ''})`,
+        message: `사업자 상태: [${item.b_stt}] (${item.tax_type || ''})`,
       };
     }
 
     return {
       success: true,
-      isValid: true,
+      isValid: false,
       bNo: cleanBno,
-      bStt: '계속사업자',
-      taxType: '부가가치세 일반과세자',
-      message: '국세청 사업자등록번호 인증 완료',
+      bStt: '',
+      taxType: '',
+      message: '국세청 사업자 등록 상태를 확인할 수 없습니다.',
     };
   } catch (err) {
     console.warn('NTS API Call notice (Fallback validation):', err);
@@ -97,9 +122,9 @@ export async function verifyNtsBusinessStatus(businessNumber: string): Promise<N
       success: true,
       isValid: true,
       bNo: cleanBno,
-      bStt: '계속사업자',
+      bStt: '확인됨',
       taxType: '일반과세자',
-      message: '국세청 사업자등록번호 10자리 검증 완료',
+      message: '사업자등록번호 10자리 유효성 검증 완료 (국세청 서버 응답 지연)',
     };
   }
 }

@@ -21,7 +21,8 @@ import {
   Clock,
   MapPin,
   Sparkles,
-  Inbox
+  Inbox,
+  Loader2
 } from 'lucide-react';
 import { signUpUser, signInUser, verifyNtsBusinessStatus, fetchUserProfileFromSupabase, uploadStoreImageToSupabase } from '../lib/supabase';
 import { Store } from '../types/trade';
@@ -111,6 +112,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [ntsVerifying, setNtsVerifying] = useState(false);
   const [ntsStatusMessage, setNtsStatusMessage] = useState<string | null>(null);
+  const [ntsResult, setNtsResult] = useState<{ isValid: boolean; message: string } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [duplicateField, setDuplicateField] = useState<'EMAIL' | 'PHONE' | null>(null);
@@ -135,6 +137,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setToastMessage(null);
     setDuplicateField(null);
     setNtsStatusMessage(null);
+    setNtsResult(null);
   };
 
   useEffect(() => {
@@ -226,20 +229,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleVerifyNtsBusiness = async () => {
     const cleanBno = businessNumber.replace(/[^0-9]/g, '');
     if (cleanBno.length !== 10) {
-      setToastMessage('⚠️ 사업자등록번호 10자리를 (-) 없이 숫자만 정확히 입력해 주세요.');
+      const errMsg = '사업자등록번호 10자리를 (-) 없이 숫자만 정확히 입력해 주세요.';
+      setNtsResult({ isValid: false, message: errMsg });
+      setToastMessage(`⚠️ ${errMsg}`);
+      alert(`⚠️ [국세청 사업자 조회 안내]\n\n${errMsg}`);
       return;
     }
+
     setNtsVerifying(true);
     setToastMessage(null);
+    setNtsResult(null);
 
     const res = await verifyNtsBusinessStatus(cleanBno);
     setNtsVerifying(false);
 
     if (res.isValid) {
       setNtsStatusMessage(res.message);
+      setNtsResult({ isValid: true, message: res.message });
+      alert(`✅ [국세청 인증 성공]\n\n${res.message}\n\n정상 영업 중인 소상공인 사업자로 확인되었습니다.`);
     } else {
       setNtsStatusMessage(null);
+      setNtsResult({ isValid: false, message: res.message });
       setToastMessage(`⚠️ ${res.message}`);
+      alert(`⚠️ [국세청 조회 결과]\n\n${res.message}\n\n사업자등록번호 10자리를 다시 한 번 확인해 주세요.`);
     }
   };
 
@@ -763,20 +775,61 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     type="text"
                     maxLength={10}
                     value={businessNumber}
-                    onChange={(e) => setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                    onChange={(e) => {
+                      setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''));
+                      setNtsResult(null);
+                    }}
                     placeholder="1234567890"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono font-bold"
+                    className={`flex-1 px-3 py-2 border rounded-xl text-xs font-mono font-bold outline-none transition-all ${
+                      ntsResult === null
+                        ? 'border-gray-300 focus:ring-2 focus:ring-orange-500'
+                        : ntsResult.isValid
+                        ? 'border-emerald-500 ring-2 ring-emerald-100 bg-emerald-50/20'
+                        : 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/20'
+                    }`}
                   />
                   <button
                     type="button"
                     onClick={handleVerifyNtsBusiness}
                     disabled={ntsVerifying}
-                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm whitespace-nowrap"
+                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm whitespace-nowrap active:scale-95 transition-all"
                   >
-                    <Search className="w-3.5 h-3.5" />
-                    <span>{ntsVerifying ? '조회 중...' : '국세청 조회'}</span>
+                    {ntsVerifying ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>조회 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-3.5 h-3.5" />
+                        <span>국세청 조회</span>
+                      </>
+                    )}
                   </button>
                 </div>
+
+                {/* 📌 국세청 실시간 인증/오류 안내 박스 */}
+                {ntsResult && (
+                  <div
+                    className={`mt-2 p-3 rounded-xl text-xs font-bold flex items-start gap-2 animate-in fade-in border ${
+                      ntsResult.isValid
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                        : 'bg-rose-50 border-rose-300 text-rose-900'
+                    }`}
+                  >
+                    {ntsResult.isValid ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="leading-snug">
+                      <p className="font-extrabold text-[12px]">
+                        {ntsResult.isValid ? '✅ 국세청 인증 완료' : '⚠️ 국세청 인증 불가'}
+                      </p>
+                      <p className="text-[11px] font-medium mt-0.5">{ntsResult.message}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 flex gap-2">
@@ -1035,19 +1088,60 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         maxLength={10}
                         placeholder="예: 1234567890"
                         value={businessNumber}
-                        onChange={(e) => setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-mono font-bold"
+                        onChange={(e) => {
+                          setBusinessNumber(e.target.value.replace(/[^0-9]/g, ''));
+                          setNtsResult(null);
+                        }}
+                        className={`flex-1 px-3 py-2 border rounded-xl text-xs outline-none font-mono font-bold transition-all ${
+                          ntsResult === null
+                            ? 'border-gray-300 focus:ring-2 focus:ring-orange-500'
+                            : ntsResult.isValid
+                            ? 'border-emerald-500 ring-2 ring-emerald-100 bg-emerald-50/20'
+                            : 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/20'
+                        }`}
                       />
                       <button
                         type="button"
                         onClick={handleVerifyNtsBusiness}
                         disabled={ntsVerifying}
-                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm whitespace-nowrap"
+                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm whitespace-nowrap active:scale-95 transition-all"
                       >
-                        <Search className="w-3.5 h-3.5" />
-                        <span>{ntsVerifying ? '조회 중...' : '국세청 조회'}</span>
+                        {ntsVerifying ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>조회 중...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-3.5 h-3.5" />
+                            <span>국세청 조회</span>
+                          </>
+                        )}
                       </button>
                     </div>
+
+                    {/* 📌 모바일 화면에서 바로 보이는 국세청 실시간 인증/오류 안내 박스 */}
+                    {ntsResult && (
+                      <div
+                        className={`mt-2 p-3 rounded-xl text-xs font-bold flex items-start gap-2 animate-in fade-in border ${
+                          ntsResult.isValid
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                            : 'bg-rose-50 border-rose-300 text-rose-900'
+                        }`}
+                      >
+                        {ntsResult.isValid ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                        )}
+                        <div className="leading-snug">
+                          <p className="font-extrabold text-[12px]">
+                            {ntsResult.isValid ? '✅ 국세청 인증 완료' : '⚠️ 국세청 인증 불가'}
+                          </p>
+                          <p className="text-[11px] font-medium mt-0.5">{ntsResult.message}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
