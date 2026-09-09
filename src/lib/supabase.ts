@@ -2195,6 +2195,8 @@ export function redeemVoucherInStorage(voucherId: string): { success: boolean; v
   vouchers[idx].status = 'USED';
   vouchers[idx].usedAt = new Date().toISOString();
   saveStoredVouchers(vouchers);
+  // Non-blocking cloud sync if table exists
+  syncVoucherToSupabase(vouchers[idx]);
   return { success: true, voucher: vouchers[idx] };
 }
 
@@ -2206,6 +2208,8 @@ export function restoreVoucherInStorage(voucherId: string): { success: boolean; 
   vouchers[idx].status = 'AVAILABLE';
   delete vouchers[idx].usedAt;
   saveStoredVouchers(vouchers);
+  // Non-blocking cloud sync if table exists
+  syncVoucherToSupabase(vouchers[idx]);
   return { success: true, voucher: vouchers[idx] };
 }
 
@@ -2217,7 +2221,89 @@ export function addIssuedVoucherToStorage(voucher: IssuedVoucher): { success: bo
   }
   vouchers.unshift(voucher);
   saveStoredVouchers(vouchers);
+  // Non-blocking cloud sync if table exists
+  syncVoucherToSupabase(voucher);
   return { success: true };
+}
+
+/**
+ * ☁️ Supabase Cloud Synchronization (Graceful / Non-blocking)
+ * Supabase DB에 `issued_vouchers` 테이블이 생성되어 있다면 자동 클라우드 백업 및 기기간 동기화,
+ * 테이블이 아직 없더라도 사용자 경험 중단 없이 로컬 스토리지로 100% 정상 작동합니다.
+ */
+export async function syncVoucherToSupabase(voucher: IssuedVoucher): Promise<void> {
+  try {
+    const payload = {
+      id: voucher.id,
+      trade_id: voucher.tradeId || null,
+      sender_store_id: voucher.senderStoreId,
+      sender_store_name: voucher.senderStoreName,
+      sender_owner_name: voucher.senderOwnerName || null,
+      sender_store_image_url: voucher.senderStoreImageUrl || null,
+      receiver_store_id: voucher.receiverStoreId,
+      receiver_store_name: voucher.receiverStoreName,
+      type: voucher.type || 'AMOUNT',
+      title: voucher.title,
+      description: voucher.description || null,
+      amount: voucher.amount || 0,
+      fulfillment_types: voucher.fulfillmentTypes || ['PICKUP', 'ON_SITE'],
+      status: voucher.status,
+      issued_at: voucher.issuedAt,
+      expires_at: voucher.expiresAt || null,
+      used_at: voucher.usedAt || null,
+    };
+
+    const { error } = await supabase.from('issued_vouchers').upsert(payload);
+    if (error) {
+      // Table doesn't exist or RLS: quiet log without disrupting user flow
+      console.log('[Supabase Sync Notice] issued_vouchers table sync:', error.message);
+    }
+  } catch (err) {
+    // Network or other exception: safe graceful fallback
+  }
+}
+
+export async function fetchVouchersFromSupabase(receiverStoreId?: string): Promise<IssuedVoucher[]> {
+  try {
+    if (!receiverStoreId) return fetchStoredVouchers();
+    const { data, error } = await supabase
+      .from('issued_vouchers')
+      .select('*')
+      .eq('receiver_store_id', receiverStoreId);
+
+    if (!error && data && data.length > 0) {
+      const dbVouchers: IssuedVoucher[] = data.map((row: any) => ({
+        id: row.id,
+        tradeId: row.trade_id,
+        senderStoreId: row.sender_store_id,
+        senderStoreName: row.sender_store_name,
+        senderOwnerName: row.sender_owner_name,
+        senderStoreImageUrl: row.sender_store_image_url,
+        receiverStoreId: row.receiver_store_id,
+        receiverStoreName: row.receiver_store_name,
+        type: row.type || 'AMOUNT',
+        title: row.title,
+        description: row.description,
+        amount: Number(row.amount) || 0,
+        fulfillmentTypes: row.fulfillment_types || ['PICKUP', 'ON_SITE'],
+        issuedAt: row.issued_at,
+        expiresAt: row.expires_at,
+        status: row.status || 'AVAILABLE',
+        usedAt: row.used_at || undefined,
+      }));
+
+      const local = fetchStoredVouchers();
+      const mergedMap = new Map<string, IssuedVoucher>();
+      local.forEach((v) => mergedMap.set(v.id, v));
+      dbVouchers.forEach((v) => mergedMap.set(v.id, v));
+      const merged = Array.from(mergedMap.values());
+      saveStoredVouchers(merged);
+      return merged;
+    }
+  } catch (err) {
+    // fallback
+  }
+  return fetchStoredVouchers(receiverStoreId);
 }
 
 /**
@@ -2322,6 +2408,11 @@ export function issueBilateralVouchersForTrade(
   }
 
   saveStoredVouchers(vouchers);
+
+  // Non-blocking background sync for both vouchers
+  syncVoucherToSupabase(voucherForB);
+  syncVoucherToSupabase(voucherForA);
+
   return { success: true, vouchers: [voucherForB, voucherForA] };
 }
 
