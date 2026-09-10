@@ -141,6 +141,20 @@ export interface ChatMessage {
   systemAction?: 'PROPOSAL' | 'ACCEPT' | 'COMPLETED';
 }
 
+export interface ChatConversationSummary {
+  counterpartStoreId: string;
+  counterpartStoreName: string;
+  counterpartOwnerName: string;
+  counterpartStoreImageUrl?: string;
+  counterpartCategory?: string;
+  counterpartCategoryName?: string;
+  counterpartPhone?: string;
+  counterpartBreakTimeActive?: boolean;
+  lastMessage: string;
+  lastMessageAt: string;
+  unreadCount?: number;
+}
+
 // ☕ [사장님 사랑방] 올인원 커뮤니티 타입 정의
 export type CommunityCategory = 'DAILY_TALK' | 'URGENT_TRADE' | 'TIPS_QNA';
 

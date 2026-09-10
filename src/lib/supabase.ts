@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign, CommunityPost, CommunityComment, CommunityCategory, FulfillmentType, IssuedVoucher } from '../types/trade';
+import { Store, ExchangeItem, TradeProposal, ChatMessage, ChatConversationSummary, MenuTestApplication, MenuTestCampaign, CommunityPost, CommunityComment, CommunityCategory, FulfillmentType, IssuedVoucher } from '../types/trade';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-trade-me.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-anon-key-12345';
@@ -1697,21 +1697,25 @@ export async function updateTradeProposalStatus(
 /**
  * 5. Fetch Chat History from Supabase Database for a specific Trade/Store
  */
-export async function fetchChatHistory(storeId: string): Promise<ChatMessage[]> {
+export async function fetchChatHistory(
+  targetStoreId: string,
+  myStoreId?: string
+): Promise<ChatMessage[]> {
   try {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('trade_id', storeId)
-      .order('created_at', { ascending: true });
+    let query = supabase.from('chat_messages').select('*');
+
+    if (myStoreId) {
+      query = query.or(
+        `and(trade_id.eq.${targetStoreId},sender_store_id.eq.${myStoreId}),and(trade_id.eq.${myStoreId},sender_store_id.eq.${targetStoreId}),trade_id.eq.${targetStoreId},sender_store_id.eq.${targetStoreId}`
+      );
+    } else {
+      query = query.or(`trade_id.eq.${targetStoreId},sender_store_id.eq.${targetStoreId}`);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: true });
 
     if (error) {
-      console.error('[Supabase Error] fetchChatHistory failed:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-      });
+      console.warn('[Supabase Error] fetchChatHistory warning:', error.message);
       return [];
     }
 
@@ -1719,7 +1723,18 @@ export async function fetchChatHistory(storeId: string): Promise<ChatMessage[]> 
       return [];
     }
 
-    return data.map((msg: any) => ({
+    // JS-side filter to ensure messages belong to this pair
+    const filtered = myStoreId
+      ? data.filter(
+          (msg: any) =>
+            (msg.trade_id === targetStoreId && msg.sender_store_id === myStoreId) ||
+            (msg.trade_id === myStoreId && msg.sender_store_id === targetStoreId) ||
+            msg.trade_id === targetStoreId ||
+            msg.sender_store_id === targetStoreId
+        )
+      : data;
+
+    return filtered.map((msg: any) => ({
       id: msg.id,
       senderId: msg.sender_store_id,
       senderName: msg.sender_name,
@@ -1728,12 +1743,128 @@ export async function fetchChatHistory(storeId: string): Promise<ChatMessage[]> 
         hour: '2-digit',
         minute: '2-digit',
       }),
-      isMe: false,
+      isMe: myStoreId ? msg.sender_store_id === myStoreId : false,
     }));
   } catch (err) {
     console.error('[Supabase Error] fetchChatHistory exception:', err);
     return [];
   }
+}
+
+/**
+ * 5-1. 내 매장이 참여 중인 모든 1:1 대화방 목록 조회 (대화함/쪽지함)
+ */
+export async function fetchMyChatConversations(
+  myStoreId: string,
+  allStores: Store[]
+): Promise<ChatConversationSummary[]> {
+  if (!myStoreId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .or(`trade_id.eq.${myStoreId},sender_store_id.eq.${myStoreId}`)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) {
+      console.warn('[Supabase Notice] fetchMyChatConversations warning:', error?.message);
+      return [];
+    }
+
+    const map = new Map<string, ChatConversationSummary>();
+
+    for (const row of data) {
+      const counterpartId =
+        row.sender_store_id === myStoreId ? row.trade_id : row.sender_store_id;
+
+      if (!counterpartId || counterpartId === myStoreId) continue;
+
+      if (!map.has(counterpartId)) {
+        const matchingStore = allStores.find((s) => s.id === counterpartId);
+        map.set(counterpartId, {
+          counterpartStoreId: counterpartId,
+          counterpartStoreName:
+            matchingStore?.storeName ||
+            (row.sender_store_id !== myStoreId ? row.sender_name : '이웃 매장'),
+          counterpartOwnerName:
+            matchingStore?.ownerName ||
+            (row.sender_store_id !== myStoreId ? row.sender_name : '사장님'),
+          counterpartStoreImageUrl: matchingStore?.storeImageUrl,
+          counterpartCategory: matchingStore?.category,
+          counterpartCategoryName: matchingStore?.categoryName,
+          counterpartPhone: matchingStore?.phone,
+          counterpartBreakTimeActive: matchingStore?.breakTimeActive,
+          lastMessage: row.message,
+          lastMessageAt: new Date(row.created_at || Date.now()).toLocaleString('ko-KR', {
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          unreadCount: 0,
+        });
+      }
+    }
+
+    return Array.from(map.values());
+  } catch (err) {
+    console.warn('[Supabase Notice] fetchMyChatConversations exception:', err);
+    return [];
+  }
+}
+
+/**
+ * 5-2. 내 매장으로 수신되는 모든 1:1 메시지 실시간 감지 구독
+ */
+export function subscribeToIncomingChats(
+  myStoreId: string,
+  onNewMessage: (data: {
+    counterpartStoreId: string;
+    senderName: string;
+    message: string;
+    rawMsg: ChatMessage;
+  }) => void
+) {
+  if (!myStoreId) return () => {};
+
+  const channel = supabase
+    .channel(`incoming-chat-${myStoreId}-${Date.now()}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `trade_id=eq.${myStoreId}`,
+      },
+      (payload) => {
+        const newMsg = payload.new as any;
+        if (newMsg.sender_store_id === myStoreId) return;
+
+        onNewMessage({
+          counterpartStoreId: newMsg.sender_store_id,
+          senderName: newMsg.sender_name,
+          message: newMsg.message,
+          rawMsg: {
+            id: newMsg.id,
+            senderId: newMsg.sender_store_id,
+            senderName: newMsg.sender_name,
+            message: newMsg.message,
+            timestamp: new Date(newMsg.created_at || Date.now()).toLocaleTimeString('ko-KR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            isMe: false,
+          },
+        });
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 /**

@@ -6,6 +6,7 @@ import { StoreDetailDrawer } from './components/StoreDetailDrawer';
 import { RegisterStoreAndItemsModal } from './components/RegisterStoreAndItemsModal';
 import { TradeProposalModal } from './components/TradeProposalModal';
 import { ChatDrawer } from './components/ChatDrawer';
+import { ChatListModal } from './components/ChatListModal';
 import { AuthModal } from './components/AuthModal';
 import { MenuTestApplyModal } from './components/MenuTestApplyModal';
 import { MenuTestDashboardModal } from './components/MenuTestDashboardModal';
@@ -24,11 +25,13 @@ import { InquiryType } from './types/trade';
 import {
   fetchStoresFromSupabase,
   subscribeToTradeChat,
+  subscribeToIncomingChats,
   sendChatMessageToSupabase,
   sendTradeProposalToSupabase,
   fetchTradeProposalsFromSupabase,
   fetchMenuTestApplications,
   fetchChatHistory,
+  fetchMyChatConversations,
   saveProfileToSupabase,
   updateStoreStatusInSupabase,
   fetchUserProfileFromSupabase,
@@ -37,7 +40,7 @@ import {
   fetchStoredVouchers,
   supabase,
 } from './lib/supabase';
-import { Store, ExchangeItem, TradeProposal, ChatMessage, MenuTestApplication, MenuTestCampaign } from './types/trade';
+import { Store, ExchangeItem, TradeProposal, ChatMessage, ChatConversationSummary, MenuTestApplication, MenuTestCampaign } from './types/trade';
 import { MapPin, X, ArrowRight, Sparkles } from 'lucide-react';
 
 const INITIAL_EMPTY_STORE_STATE: Store = {
@@ -165,6 +168,13 @@ export const App: React.FC = () => {
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
   const [chatTargetStore, setChatTargetStore] = useState<Store | null>(null);
   const [messagesMap, setMessagesMap] = useState<{ [storeId: string]: ChatMessage[] }>({});
+  const [isChatListModalOpen, setIsChatListModalOpen] = useState(false);
+  const [conversations, setConversations] = useState<ChatConversationSummary[]>([]);
+  const [incomingChatAlert, setIncomingChatAlert] = useState<{
+    counterpartStore: Store;
+    senderName: string;
+    message: string;
+  } | null>(null);
 
   // 👑 Webmaster, Footer Inquiries, and Legal Modals state
   const [isWebmasterAuthOpen, setIsWebmasterAuthOpen] = useState(false);
@@ -352,24 +362,20 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [myStore.id]);
 
-  // Supabase Realtime Chat Subscription & Past History Loader
+  // Supabase Realtime Chat Subscription & Past History Loader (양방향 대화 완벽 지원)
   useEffect(() => {
     if (!chatTargetStore) return;
 
     const storeId = chatTargetStore.id;
 
-    // 2. [초기 데이터 로딩 최적화] 과거 채팅 내역 Supabase에서 불러오기
+    // 2. [초기 데이터 로딩 최적화] 양방향 과거 채팅 내역 Supabase에서 불러오기
     async function loadHistory() {
-      const history = await fetchChatHistory(storeId);
+      const history = await fetchChatHistory(storeId, myStore.id);
       if (history && history.length > 0) {
-        setMessagesMap((prev) => {
-          if (prev[storeId] && prev[storeId].length > 0) return prev;
-          const formattedHistory = history.map((msg) => ({
-            ...msg,
-            isMe: msg.senderId === myStore.id,
-          }));
-          return { ...prev, [storeId]: formattedHistory };
-        });
+        setMessagesMap((prev) => ({
+          ...prev,
+          [storeId]: history,
+        }));
       }
     }
     loadHistory();
@@ -386,6 +392,68 @@ export const App: React.FC = () => {
 
     return () => unsubscribe();
   }, [chatTargetStore, myStore.id]);
+
+  // 💬 [1:1 대화함] 내 매장의 모든 대화방 목록 동기화
+  const refreshConversations = async () => {
+    if (!myStore.id) return;
+    const list = await fetchMyChatConversations(myStore.id, stores);
+    setConversations(list);
+  };
+
+  useEffect(() => {
+    refreshConversations();
+    const interval = setInterval(refreshConversations, 5000);
+    return () => clearInterval(interval);
+  }, [myStore.id, stores.length]);
+
+  // 🔔 [실시간 1:1 메시지 수신 리스너]
+  useEffect(() => {
+    if (!myStore.id) return;
+
+    const unsubscribe = subscribeToIncomingChats(myStore.id, (data) => {
+      refreshConversations();
+
+      // 현재 열려있는 대화방이면 말풍선 바로 추가
+      if (chatTargetStore?.id === data.counterpartStoreId) {
+        setMessagesMap((prev) => ({
+          ...prev,
+          [data.counterpartStoreId]: [...(prev[data.counterpartStoreId] || []), data.rawMsg],
+        }));
+      } else {
+        // 아니면 상단에 실시간 알림 토스트 팝업
+        const senderStore = stores.find((s) => s.id === data.counterpartStoreId) || {
+          id: data.counterpartStoreId,
+          ownerName: data.senderName,
+          storeName: data.senderName + ' 매장',
+          category: 'FOOD' as any,
+          categoryName: '외식업',
+          address: '인근 이웃 매장',
+          lat: myStore.lat || 35.318,
+          lng: myStore.lng || 129.006,
+          phone: '',
+          isVerified: true,
+          breakTimeActive: true,
+          breakTimeHours: '10:00 - 22:00',
+          storeImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+          exchangeItems: [],
+          rating: 5.0,
+          reviewCount: 1,
+        };
+
+        setIncomingChatAlert({
+          counterpartStore: senderStore,
+          senderName: data.senderName,
+          message: data.message,
+        });
+
+        setTimeout(() => {
+          setIncomingChatAlert((current) => (current?.message === data.message ? null : current));
+        }, 8000);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [myStore.id, chatTargetStore?.id, stores]);
 
   const handleLoginSuccess = async (ownerName: string, storeName: string, registeredStore?: Store) => {
     setIsLoggedIn(true);
@@ -836,6 +904,12 @@ export const App: React.FC = () => {
         hasRegisteredStore={hasRegisteredStore}
         pendingAlertCount={pendingTradeCount + pendingMenuTestCount}
         onOpenCommunityModal={() => setIsCommunityModalOpen(true)}
+        onOpenChatListModal={() => {
+          refreshConversations();
+          setIsChatListModalOpen(true);
+        }}
+        chatCount={conversations.length}
+        unreadChatCount={incomingChatAlert ? 1 : 0}
         onOpenCouponWallet={() => {
           refreshVoucherWalletCount();
           setIsCouponWalletOpen(true);
@@ -1091,6 +1165,89 @@ export const App: React.FC = () => {
         onSendMessage={handleSendChatMessage}
         onOpenCouponWallet={() => setIsCouponWalletOpen(true)}
       />
+
+      {/* 💬 1:1 사장님 대화함 목록 모달 */}
+      <ChatListModal
+        isOpen={isChatListModalOpen}
+        onClose={() => setIsChatListModalOpen(false)}
+        conversations={conversations}
+        onSelectConversation={(counterpartStoreId) => {
+          let target = stores.find((s) => s.id === counterpartStoreId);
+          if (!target) {
+            const conv = conversations.find((c) => c.counterpartStoreId === counterpartStoreId);
+            if (conv) {
+              target = {
+                id: conv.counterpartStoreId,
+                ownerName: conv.counterpartOwnerName,
+                storeName: conv.counterpartStoreName,
+                category: (conv.counterpartCategory as any) || 'FOOD',
+                categoryName: conv.counterpartCategoryName || '외식업',
+                address: '인근 이웃 매장',
+                lat: myStore.lat || 35.318,
+                lng: myStore.lng || 129.006,
+                phone: conv.counterpartPhone || '',
+                isVerified: true,
+                breakTimeActive: conv.counterpartBreakTimeActive ?? true,
+                breakTimeHours: '10:00 - 22:00',
+                storeImageUrl:
+                  conv.counterpartStoreImageUrl ||
+                  'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+                exchangeItems: [],
+                rating: 5.0,
+                reviewCount: 1,
+              };
+            }
+          }
+          if (target) {
+            setIsChatListModalOpen(false);
+            handleOpenChat(target);
+          }
+        }}
+      />
+
+      {/* 🔔 실시간 새 1:1 대화 도착 플로팅 토스트 알림 */}
+      {incomingChatAlert && (
+        <aside
+          aria-label="New Chat Notification"
+          className="fixed top-20 right-4 z-50 bg-gray-950/95 text-white p-4 rounded-3xl shadow-2xl border border-orange-400/90 backdrop-blur-md flex items-start gap-3.5 animate-in slide-in-from-top-4 max-w-sm"
+        >
+          <div className="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-xl flex-shrink-0 border border-orange-500/30 shadow-xs">
+            💬
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-orange-500 text-white">
+                새 1:1 대화 도착
+              </span>
+              <button
+                type="button"
+                onClick={() => setIncomingChatAlert(null)}
+                className="text-gray-400 hover:text-white p-0.5 rounded-lg"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-xs font-extrabold text-white mt-1 truncate">
+              [{incomingChatAlert.counterpartStore.storeName}] {incomingChatAlert.senderName} 사장님
+            </p>
+            <p className="text-xs text-gray-300 line-clamp-2 mt-0.5 leading-relaxed font-normal">
+              "{incomingChatAlert.message}"
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const target = incomingChatAlert.counterpartStore;
+                setIncomingChatAlert(null);
+                handleOpenChat(target);
+              }}
+              className="mt-2.5 w-full py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-extrabold rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              <span>대화창 열기 및 답장하기</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </aside>
+      )}
 
       {/* ☕ 사장님 사랑방 커뮤니티 모달 */}
       <CommunityModal

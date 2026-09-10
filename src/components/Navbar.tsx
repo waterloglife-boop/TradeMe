@@ -18,6 +18,9 @@ interface NavbarProps {
   hasRegisteredStore?: boolean;
   pendingAlertCount?: number;
   onOpenCommunityModal?: () => void;
+  onOpenChatListModal?: () => void;
+  chatCount?: number;
+  unreadChatCount?: number;
   onOpenRegisterModal?: () => void;
   onOpenTradeDashboard?: () => void;
   onOpenMenuTestDashboard?: () => void;
@@ -42,6 +45,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   hasRegisteredStore = false,
   pendingAlertCount = 0,
   onOpenCommunityModal,
+  onOpenChatListModal,
+  chatCount = 0,
+  unreadChatCount = 0,
   onOpenCouponWallet,
   voucherCount = 0,
 }) => {
@@ -83,6 +89,29 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-xs sm:text-sm">☕</span>
                 <span className="hidden sm:inline">사장님 사랑방</span>
                 <span className="sm:hidden">사랑방</span>
+              </button>
+            )}
+
+            {/* 💬 1:1 사장님 대화함 버튼 */}
+            {onOpenChatListModal && (
+              <button
+                type="button"
+                onClick={onOpenChatListModal}
+                className="relative flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap"
+              >
+                <span className="text-xs sm:text-sm">💬</span>
+                <span className="hidden sm:inline">1:1 대화함</span>
+                <span className="sm:hidden">대화함</span>
+                {chatCount > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-white/25 text-white">
+                    {chatCount}
+                  </span>
+                )}
+                {unreadChatCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-red-600 text-white font-black text-[9px] rounded-full flex items-center justify-center shadow-lg animate-bounce border-2 border-white">
+                    {unreadChatCount}
+                  </span>
+                )}
               </button>
             )}
 
