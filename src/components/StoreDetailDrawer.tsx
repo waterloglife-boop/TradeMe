@@ -62,7 +62,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 md:left-auto md:right-6 md:bottom-6 md:top-20 z-40 md:w-96 bg-white rounded-t-3xl md:rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[72vh] md:max-h-[calc(100vh-120px)] transition-all animate-in slide-in-from-bottom">
+    <div className="fixed bottom-0 left-0 right-0 md:left-auto md:right-6 md:bottom-6 md:top-20 z-50 md:w-96 bg-white rounded-t-3xl md:rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[75vh] md:max-h-[calc(100vh-120px)] transition-all animate-in slide-in-from-bottom pb-safe md:pb-0">
       
       {/* Mobile Top Drag / Grab Bar Handle */}
       <div 
@@ -331,7 +331,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                     </div>
                     <div className="text-right flex-shrink-0">
                       <span className="text-2xl font-black text-yellow-200 drop-shadow-sm">
-                        {voucherItem.estimatedPrice.toLocaleString()}
+                        {(voucherItem.estimatedPrice || 0).toLocaleString()}
                       </span>
                       <span className="text-xs font-black text-white ml-0.5">원</span>
                     </div>
@@ -375,7 +375,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                       <span>🎟️</span>
                       <span>
                         {store.breakTimeActive
-                          ? `1:1 금액 교환권 (${voucherItem.estimatedPrice.toLocaleString()}원) 맞교환 제안`
+                          ? `1:1 금액 교환권 (${(voucherItem.estimatedPrice || 0).toLocaleString()}원) 맞교환 제안`
                           : `나중에 금액권 교환 어때요? (찔러보기)`}
                       </span>
                     </button>
@@ -387,31 +387,25 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                 </div>
               )}
 
-              {/* Registered Signature Exchange Items Section */}
-              <div className="flex items-center justify-between pt-1">
-                <h3 className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
-                  <Utensils className="w-4 h-4 text-orange-500" />
-                  대표 메뉴 및 서비스 품목 ({regularItems.length}개)
-                </h3>
-                <span className="text-xs text-gray-500">1:1 지정 교환</span>
-              </div>
-
-              {regularItems.length === 0 ? (
-                <div className="text-center py-6 text-gray-400 text-xs bg-gray-50 rounded-xl border border-gray-100">
-                  {voucherItem
-                    ? '등록된 개별 지정 메뉴는 없으나, 위의 상생 금액 교환권으로 전 메뉴 교환이 가능합니다.'
-                    : '아직 등록된 교환 품목이 없습니다.'}
+              {/* 📦 Regular Exchange Items Section */}
+              {regularItems.length === 0 && !store.voucherActive && !voucherItem ? (
+                <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-4">
+                  <Utensils className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500 font-medium">등록된 교환 품목이 없습니다.</p>
                 </div>
               ) : (
                 regularItems.map((item) => (
                   <div
                     key={item.id}
-                    className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm hover:shadow-md transition-all flex flex-col gap-3"
+                    className="p-3.5 bg-white rounded-2xl border border-gray-200/80 shadow-xs space-y-3 hover:border-orange-300 transition-all"
                   >
                     <div className="flex gap-3">
                       <img
-                        src={item.imageUrl}
+                        src={item.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80'}
                         alt={item.title}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
+                        }}
                         className="w-20 h-20 rounded-lg object-cover flex-shrink-0 bg-gray-100"
                       />
                       <div className="flex-1 min-w-0">
@@ -420,7 +414,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                             {item.title}
                           </h4>
                           <span className="px-2 py-0.5 text-xs font-extrabold text-orange-600 bg-orange-50 border border-orange-200 rounded-md whitespace-nowrap ml-2">
-                            약 {item.estimatedPrice.toLocaleString()}원
+                            약 {(item.estimatedPrice || (item as any).estimatedValue || 0).toLocaleString()}원
                           </span>
                         </div>
                         <p className="text-xs text-gray-600 line-clamp-2 mt-1">
@@ -493,7 +487,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
 
       {/* Bottom Footer Action */}
       {!isMyStore && (
-        <div className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
+        <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] md:pb-3 bg-white border-t border-gray-200 flex items-center gap-2">
           <button
             onClick={() => onOpenChat(store)}
             className="flex-1 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-1.5 transition-all"

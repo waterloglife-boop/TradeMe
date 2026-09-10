@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
+import { MobileBottomNav, MobileTab } from './components/MobileBottomNav';
 import { MapView } from './components/MapView';
 import { NaverMapView } from './components/NaverMapView';
 import { StoreDetailDrawer } from './components/StoreDetailDrawer';
@@ -74,12 +75,6 @@ export const App: React.FC = () => {
   const [stores, setStores] = useState<Store[]>([]);
   
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
-
-  useEffect(() => {
-    (window as any).__testSetSelectedStore = (s: Store | null) => setSelectedStore(s);
-    (window as any).__testOpenTradeDashboard = () => setIsTradeDashboardOpen(true);
-    (window as any).__testOpenCouponWallet = () => setIsCouponWalletOpen(true);
-  }, []);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [onlyBreakTime, setOnlyBreakTime] = useState<boolean>(false);
@@ -195,6 +190,24 @@ export const App: React.FC = () => {
       prev.includes(storeId) ? prev.filter((id) => id !== storeId) : [...prev, storeId]
     );
   };
+
+  // 🧪 Automation Test Hooks for Browser Verification
+  useEffect(() => {
+    (window as any).__testSetSelectedStore = (s: Store | null) => setSelectedStore(s);
+    (window as any).__testOpenTradeDashboard = () => setIsTradeDashboardOpen(true);
+    (window as any).__testOpenCouponWallet = () => { setIsCouponWalletOpen(true); setMobileActiveTab('WALLET'); };
+    (window as any).__testOpenChatListModal = () => { setIsChatListModalOpen(true); setMobileActiveTab('CHAT'); };
+    (window as any).__testOpenCommunityModal = () => { setIsCommunityModalOpen(true); setMobileActiveTab('COMMUNITY'); };
+    (window as any).__testOpenAuthModal = () => { setIsAuthModalOpen(true); setMobileActiveTab('MY_STORE'); };
+    (window as any).__testCloseAllModals = () => {
+      setIsChatListModalOpen(false);
+      setIsCommunityModalOpen(false);
+      setIsCouponWalletOpen(false);
+      setIsAuthModalOpen(false);
+      setSelectedStore(null);
+      setMobileActiveTab('MAP');
+    };
+  }, []);
 
   // Pure Supabase Data Loading on Initial Mount & Realtime Auth State Sync
   useEffect(() => {
@@ -878,10 +891,31 @@ export const App: React.FC = () => {
     sendChatMessageToSupabase(applicantTargetStore.id, myStore.id, myStore.ownerName, welcomeText);
   };
 
+  // 📱 모바일 웹앱 Bottom Navigation Tab State
+  const [mobileActiveTab, setMobileActiveTab] = useState<MobileTab>('MAP');
+
+  const handleSelectMobileTab = (tab: MobileTab) => {
+    setMobileActiveTab(tab);
+    if (tab === 'MAP') {
+      setSelectedStore(null);
+      setIsChatDrawerOpen(false);
+    } else if (tab === 'CHAT') {
+      refreshConversations();
+      setIsChatListModalOpen(true);
+    } else if (tab === 'COMMUNITY') {
+      setIsCommunityModalOpen(true);
+    } else if (tab === 'WALLET') {
+      refreshVoucherWalletCount();
+      setIsCouponWalletOpen(true);
+    } else if (tab === 'MY_STORE') {
+      setIsAuthModalOpen(true);
+    }
+  };
+
   const hasRegisteredStore = isLoggedIn && !!myStore?.storeName && myStore.storeName !== '로그인 필요';
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-gray-100 flex flex-col font-sans pb-16 md:pb-0">
       
       {/* Navbar with Auth & Break Time Toggle */}
       <Navbar
@@ -959,7 +993,7 @@ export const App: React.FC = () => {
 
         {/* 🌟 비로그인 첫 방문 상생 웰컴 플로팅 카드 */}
         {!isLoggedIn && showWelcomeCard && (
-          <aside aria-label="Welcome Card" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-lg bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-orange-200/90 p-4 sm:p-5 animate-in fade-in slide-in-from-bottom-5 transition-all">
+          <aside aria-label="Welcome Card" className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-lg bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-orange-200/90 p-4 sm:p-5 animate-in fade-in slide-in-from-bottom-5 transition-all">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 text-white flex items-center justify-center text-lg flex-shrink-0 shadow-md">
@@ -1021,6 +1055,7 @@ export const App: React.FC = () => {
         onClose={() => {
           setIsAuthModalOpen(false);
           setAuthModalNotice(null);
+          setMobileActiveTab('MAP');
         }}
         isLoggedIn={isLoggedIn}
         userOwnerName={userOwnerName}
@@ -1057,11 +1092,13 @@ export const App: React.FC = () => {
         onClose={() => {
           refreshVoucherWalletCount();
           setIsCouponWalletOpen(false);
+          setMobileActiveTab('MAP');
         }}
         myStore={myStore}
         onWalletUpdate={refreshVoucherWalletCount}
         onExploreStores={() => {
           setIsCouponWalletOpen(false);
+          setMobileActiveTab('MAP');
         }}
       />
 
@@ -1169,7 +1206,10 @@ export const App: React.FC = () => {
       {/* 💬 1:1 사장님 대화함 목록 모달 */}
       <ChatListModal
         isOpen={isChatListModalOpen}
-        onClose={() => setIsChatListModalOpen(false)}
+        onClose={() => {
+          setIsChatListModalOpen(false);
+          setMobileActiveTab('MAP');
+        }}
         conversations={conversations}
         onSelectConversation={(counterpartStoreId) => {
           let target = stores.find((s) => s.id === counterpartStoreId);
@@ -1252,7 +1292,10 @@ export const App: React.FC = () => {
       {/* ☕ 사장님 사랑방 커뮤니티 모달 */}
       <CommunityModal
         isOpen={isCommunityModalOpen}
-        onClose={() => setIsCommunityModalOpen(false)}
+        onClose={() => {
+          setIsCommunityModalOpen(false);
+          setMobileActiveTab('MAP');
+        }}
         myStore={myStore}
         userOwnerName={userOwnerName}
         stores={stores}
@@ -1307,6 +1350,19 @@ export const App: React.FC = () => {
       <PrivacyPolicyModal
         isOpen={isPrivacyModalOpen}
         onClose={() => setIsPrivacyModalOpen(false)}
+      />
+
+      {/* 📱 모바일 전용 5대 탭 Bottom Navigation Bar (PWA 친화적 UI) */}
+      <MobileBottomNav
+        activeTab={mobileActiveTab}
+        onSelectTab={handleSelectMobileTab}
+        isLoggedIn={isLoggedIn}
+        userOwnerName={userOwnerName}
+        voucherCount={voucherWalletCount}
+        chatCount={conversations.length}
+        unreadChatCount={incomingChatAlert ? 1 : 0}
+        pendingAlertCount={pendingTradeCount + pendingMenuTestCount}
+        myBreakTimeActive={myStore.breakTimeActive}
       />
 
     </div>

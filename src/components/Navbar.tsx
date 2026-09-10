@@ -77,8 +77,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Right Action Controls */}
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {/* Mobile Right Controls: Compact BreakTime toggle & Store status (md:hidden) */}
+          <div className="flex items-center gap-1.5 md:hidden flex-shrink-0">
+            <button
+              type="button"
+              onClick={onToggleBreakTime}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border cursor-pointer select-none transition-all active:scale-95 ${
+                myBreakTimeActive
+                  ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-2xs'
+                  : 'bg-gray-100 border-gray-200 text-gray-600'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${myBreakTimeActive ? 'bg-amber-500 animate-pulse' : 'bg-gray-400'}`} />
+              <span className="text-xs font-extrabold">
+                {myBreakTimeActive ? '교환 ON' : '교환 OFF'}
+              </span>
+            </button>
+          </div>
+
+          {/* Desktop Right Action Controls (hidden md:flex) */}
+          <div className="hidden md:flex items-center gap-1 sm:gap-2 flex-shrink-0">
             
             {/* ☕ 사장님 사랑방 커뮤니티 버튼 */}
             {onOpenCommunityModal && (
@@ -198,7 +216,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Filter Navigation Bar (Smooth Horizontal Scroll on Mobile & Desktop) */}
-        <div className="py-2 border-t border-gray-100 overflow-x-auto no-scrollbar">
+        <div className="py-2 border-t border-gray-100 overflow-x-auto no-scrollbar scroll-touch">
           <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap min-w-max px-0.5">
             <button
               onClick={() => onSelectCategory('ALL')}

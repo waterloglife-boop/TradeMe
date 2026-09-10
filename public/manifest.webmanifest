@@ -1,0 +1,19 @@
+{
+  "name": "Trade Me - 소상공인 1:1 물물교환",
+  "short_name": "TradeMe",
+  "description": "식사 · 베이커리 · 편의점 신선식품 · 숙박 소상공인 1:1 자원 맞교환 플랫폼",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

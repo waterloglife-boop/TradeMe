@@ -216,7 +216,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
       </div>
 
       {/* Chat Input */}
-      <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
+      <form onSubmit={handleSend} className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] md:pb-3 bg-white border-t border-gray-200 flex items-center gap-2">
         <input
           type="text"
           placeholder="메시지를 입력하세요..."
