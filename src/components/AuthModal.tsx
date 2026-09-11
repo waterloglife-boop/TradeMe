@@ -378,7 +378,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     } else if (mode === 'SIGNUP') {
       const lowerEmail = email.toLowerCase().trim();
-      if (['owner@trademe.kr', 'admin@trademe.kr'].includes(lowerEmail)) {
+      if (lowerEmail === 'owner@trademe.kr') {
         setToastMessage('⚠️ 이미 가입된 이메일 주소입니다. 다른 이메일 주소를 입력해 주시거나 로그인해 주세요.');
         setDuplicateField('EMAIL');
         setLoading(false);
@@ -1516,25 +1516,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>{loading ? '처리 중...' : mode === 'LOGIN' ? '로그인 하기' : '사장님 무료 가입 및 시작'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-
-              {mode === 'LOGIN' && (
-                <div className="pt-2 border-t border-gray-100 flex flex-col items-center gap-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmail('admin@trademe.kr');
-                      setPassword('1901123');
-                      setToastMessage(null);
-                    }}
-                    className="text-xs font-extrabold text-orange-700 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 px-3.5 py-2 rounded-xl border border-orange-200 shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
-                  >
-                    <span>👑 웹마스터 테스트 계정 원클릭 입력 (admin@trademe.kr)</span>
-                  </button>
-                  <p className="text-[10px] text-gray-400">
-                    💡 마라위크 매장과의 1:1 대화 및 맞교환권 테스트용 공식 계정입니다.
-                  </p>
-                </div>
-              )}
 
             </form>
           </div>

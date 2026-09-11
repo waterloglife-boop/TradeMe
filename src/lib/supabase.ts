@@ -496,13 +496,13 @@ export async function signInUser(email: string, pass: string): Promise<{
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = pass.trim();
 
-  // 1. 웹마스터 테스트 전용 계정 즉시 인증 (admin@trademe.kr, master@trademe.kr, test@trademe.kr)
-  if (['admin@trademe.kr', 'master@trademe.kr', 'test@trademe.kr', 'owner@trademe.kr', 'demo@trademe.kr'].includes(cleanEmail)) {
+  // 1. 웹마스터 테스트 전용 계정 즉시 인증 (master@trademe.kr, demo@trademe.kr)
+  if (['master@trademe.kr', 'demo@trademe.kr'].includes(cleanEmail)) {
     if (cleanPass !== '1901123' && cleanPass !== 'test1234!') {
       return {
         success: false,
-        error: '웹마스터 테스트 계정 비밀번호가 일치하지 않습니다. (마스터 암호: 1901123)',
-        message: '웹마스터 테스트 계정 비밀번호가 일치하지 않습니다. (마스터 암호: 1901123)',
+        error: '웹마스터 계정 비밀번호가 일치하지 않습니다. (마스터 암호: 1901123)',
+        message: '웹마스터 계정 비밀번호가 일치하지 않습니다. (마스터 암호: 1901123)',
       };
     }
 
@@ -527,7 +527,7 @@ export async function signInUser(email: string, pass: string): Promise<{
       success: true,
       user: testUser as any,
       store: WEBMASTER_TEST_STORE,
-      message: '웹마스터 테스트 사장님 계정으로 로그인되었습니다! 마라위크 매장과의 1:1 대화 및 교환권을 테스트하실 수 있습니다.',
+      message: '웹마스터 계정으로 로그인되었습니다.',
     };
   }
 
@@ -1120,11 +1120,11 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
         details: storesError.details,
         hint: storesError.hint,
       });
-      return [WEBMASTER_TEST_STORE];
+      return [];
     }
 
     if (!storesData || storesData.length === 0) {
-      return [WEBMASTER_TEST_STORE];
+      return [];
     }
 
     // Fetch items for all stores
@@ -1196,16 +1196,11 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
       };
     });
 
-    // 🛡️ 공식 웹마스터 테스트 매장 항상 연동 (마라위크 매장과의 1:1 맞교환 및 대화 테스트 지원)
-    const hasTest = dbStores.some((s) => s.id === WEBMASTER_TEST_STORE.id || s.storeName === WEBMASTER_TEST_STORE.storeName);
-    if (!hasTest) {
-      dbStores.push(WEBMASTER_TEST_STORE);
-    }
-
-    return dbStores;
+    // 💡 테스트 가맹점(store-webmaster-test-bakery) 제외 필터링
+    return dbStores.filter((s) => s.id !== 'store-webmaster-test-bakery' && !s.storeName.includes('테스트 베이커리'));
   } catch (err) {
     console.error('[Supabase Error] fetchStoresFromSupabase exception:', err);
-    return [WEBMASTER_TEST_STORE];
+    return [];
   }
 }
 

@@ -1,0 +1,38 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad2" x1="32" y1="32" x2="480" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF6B2B" />
+      <stop offset="100%" stop-color="#EA580C" />
+    </linearGradient>
+    <filter id="dropShadow2" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#5C1D06" flood-opacity="0.36" />
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.2" />
+    </filter>
+  </defs>
+
+  <rect x="16" y="16" width="480" height="480" rx="110" fill="url(#bgGrad2)" />
+  <rect x="17" y="17" width="478" height="478" rx="109" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="2.5" />
+
+  <g filter="url(#dropShadow2)">
+    <!-- Top Bold Circular Arrow -->
+    <path d="M 140 230 C 140 145 200 100 285 100 C 340 100 385 130 405 175" 
+          stroke="#FFFFFF" stroke-width="36" stroke-linecap="round" fill="none" />
+    <polygon points="425,215 365,185 415,145" fill="#FFFFFF" />
+
+    <!-- Bottom Bold Circular Arrow -->
+    <path d="M 372 282 C 372 367 312 412 227 412 C 172 412 127 382 107 337" 
+          stroke="#FFFFFF" stroke-width="36" stroke-linecap="round" fill="none" />
+    <polygon points="87,297 147,327 97,367" fill="#FFFFFF" />
+
+    <!-- Center: Classic Storefront Silhouette -->
+    <!-- Awning Roof -->
+    <path d="M 175 220 L 256 160 L 337 220 H 175 Z" fill="#FFFFFF" />
+    <!-- Shop Body Frame -->
+    <rect x="195" y="232" width="122" height="74" rx="12" fill="#FFFFFF" />
+    <!-- Shop Door & Exchange Arrows in doorway -->
+    <rect x="236" y="248" width="40" height="58" rx="8" fill="#F97316" />
+    <!-- Mini Doorway Trade Sync Symbol -->
+    <path d="M 246 270 H 266 M 260 265 L 266 270 L 260 275" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+    <path d="M 266 284 H 246 M 252 279 L 246 284 L 252 289" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+  </g>
+</svg>

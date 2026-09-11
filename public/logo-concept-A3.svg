@@ -1,0 +1,36 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad3" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7A30" />
+      <stop offset="60%" stop-color="#F97316" />
+      <stop offset="100%" stop-color="#C2410C" />
+    </linearGradient>
+    <filter id="dropShadow3">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#000" flood-opacity="0.32" />
+    </filter>
+  </defs>
+
+  <rect x="16" y="16" width="480" height="480" rx="110" fill="url(#bgGrad3)" />
+
+  <g filter="url(#dropShadow3)">
+    <!-- Seamless Circular Trade Ring with 2 Giant Arrowheads -->
+    <!-- Top Arc & Arrow -->
+    <path d="M 150 256 C 150 160 210 115 295 115 C 345 115 385 140 405 180" 
+          stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" fill="none" />
+    <path d="M 370 145 L 430 190 L 375 235 Z" fill="#FFFFFF" />
+
+    <!-- Bottom Arc & Arrow -->
+    <path d="M 362 256 C 362 352 302 397 217 397 C 167 397 127 372 107 332" 
+          stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" fill="none" />
+    <path d="M 142 367 L 82 322 L 137 277 Z" fill="#FFFFFF" />
+
+    <!-- Center: Modern Barter Handshake & Voucher Ticket -->
+    <rect x="200" y="210" width="112" height="92" rx="20" fill="#FFFFFF" />
+    <circle cx="200" cy="256" r="14" fill="#F97316" />
+    <circle cx="312" cy="256" r="14" fill="#EA580C" />
+    
+    <!-- Bold 'T' & 'M' Trade Monogram or Barter Mark -->
+    <text x="256" y="268" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+          font-size="34" font-weight="900" fill="#EA580C" text-anchor="middle" letter-spacing="-1">TM</text>
+  </g>
+</svg>
