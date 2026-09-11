@@ -59,8 +59,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           
           {/* Logo & Slogan */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-md shadow-orange-500/20 flex-shrink-0">
-              <RefreshCw className="w-4 h-4 sm:w-6 sm:h-6 animate-spin-slow" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl shadow-md shadow-orange-500/20 flex-shrink-0 overflow-hidden border border-orange-200 bg-white transition-transform hover:scale-105">
+              <img src="/favicon.svg" alt="Trade Me 로고" className="w-full h-full object-cover" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">

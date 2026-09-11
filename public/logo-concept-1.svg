@@ -1,0 +1,82 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="64" y1="32" x2="448" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF6B2B" />
+      <stop offset="50%" stop-color="#F97316" />
+      <stop offset="100%" stop-color="#EA580C" />
+    </linearGradient>
+
+    <!-- Subtle Inner Glow -->
+    <radialGradient id="innerGlow" cx="20%" cy="15%" r="85%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.35" />
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Emblem Shadow -->
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#7C2D12" flood-opacity="0.32" />
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.18" />
+    </filter>
+
+    <!-- Soft Accent Glow for Center Badge -->
+    <linearGradient id="badgeGrad" x1="160" y1="140" x2="352" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#FFF7ED" />
+    </linearGradient>
+
+    <linearGradient id="arrowGrad1" x1="140" y1="180" x2="370" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#EA580C" />
+      <stop offset="100%" stop-color="#C2410C" />
+    </linearGradient>
+
+    <linearGradient id="arrowGrad2" x1="370" y1="340" x2="140" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#EA580C" />
+    </linearGradient>
+
+    <linearGradient id="ticketGrad" x1="180" y1="190" x2="330" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFEDD5" />
+      <stop offset="100%" stop-color="#FED7AA" />
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Base (Apple iOS 110px radius style) -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bgGrad)" />
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#innerGlow)" />
+
+  <!-- Outer Protective Border / Sheen -->
+  <rect x="17" y="17" width="478" height="478" rx="107" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="2.5" />
+
+  <!-- Center Icon: Crisp Interlocking Shop & Exchange Arrows Emblem -->
+  <g filter="url(#dropShadow)">
+    <!-- Store Awning Roof Silhouette (Top Arch) -->
+    <path d="M168 200 C168 152 206 116 256 116 C306 116 344 152 344 200" 
+          stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" fill="none" opacity="0.95" />
+    
+    <!-- Top-Right Exchange Flow Arrow Head -->
+    <path d="M320 128 L360 148 L356 196" 
+          fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Store Base & Bottom Exchange Flow (Bottom Arch) -->
+    <path d="M344 312 C344 360 306 396 256 396 C206 396 168 360 168 312" 
+          stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" fill="none" opacity="0.95" />
+    
+    <!-- Bottom-Left Exchange Flow Arrow Head -->
+    <path d="M192 384 L152 364 L156 316" 
+          fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Center Voucher / Merchant Card (The mutual trade item) -->
+    <rect x="200" y="212" width="112" height="88" rx="20" fill="#FFFFFF" />
+    
+    <!-- Ticket Cutout Notches (Left and Right) -->
+    <circle cx="200" cy="256" r="12" fill="#F97316" />
+    <circle cx="312" cy="256" r="12" fill="#EA580C" />
+
+    <!-- Center 1:1 Trade Icon (Handshake / Star / Sync) -->
+    <path d="M236 256 L276 256 M264 244 L276 256 L264 268" 
+          stroke="#EA580C" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+    <circle cx="236" cy="256" r="4.5" fill="#EA580C" />
+  </g>
+</svg>

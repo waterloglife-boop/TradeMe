@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad2" x1="32" y1="32" x2="480" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF5722" />
+      <stop offset="100%" stop-color="#E64A19" />
+    </linearGradient>
+    <filter id="shadow2" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#4E1906" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bgGrad2)" />
+  <rect x="17" y="17" width="478" height="478" rx="107" stroke="#FFFFFF" stroke-opacity="0.3" stroke-width="2.5" />
+
+  <!-- Stylized Interlocking T and M with arrows -->
+  <g filter="url(#shadow2)" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <!-- T top bar curving into M -->
+    <path d="M140 170 H372" stroke-width="32" />
+    <path d="M256 170 V340" stroke-width="32" />
+    <!-- Circular trade ribbons -->
+    <path d="M170 260 C170 320 220 360 290 340 C340 325 360 280 340 230 C325 190 280 210 240 250" 
+          stroke-width="24" stroke="#FFF7ED" fill="none" stroke-dasharray="2 0" />
+    <polygon points="150,240 170,275 195,245" fill="#FFFFFF" stroke="none" />
+    <polygon points="260,265 235,245 255,225" fill="#FFFFFF" stroke="none" />
+  </g>
+</svg>
