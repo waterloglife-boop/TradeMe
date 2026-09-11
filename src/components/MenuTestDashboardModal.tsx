@@ -17,6 +17,7 @@ interface MenuTestDashboardModalProps {
   myStore: Store;
   onAcceptAndOpenChat: (applicant: MenuTestApplication) => void;
   onOpenRegisterMenuTest?: (campaignToEdit?: MenuTestCampaign | null, activeCount?: number) => void;
+  onOpenMyApplications?: () => void;
   refreshTrigger?: number;
 }
 
@@ -26,6 +27,7 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
   myStore,
   onAcceptAndOpenChat,
   onOpenRegisterMenuTest,
+  onOpenMyApplications,
   refreshTrigger = 0,
 }) => {
   const [campaigns, setCampaigns] = useState<MenuTestCampaign[]>([]);
@@ -182,7 +184,7 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
             </div>
           </div>
 
-          {/* Sub-Header: Badges & Register Button */}
+          {/* Sub-Header: Badges & Buttons */}
           <div className="mt-2.5 pt-2 border-t border-purple-500/30 flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="px-2 py-0.5 bg-white/20 text-white font-extrabold text-[10px] sm:text-xs rounded-full whitespace-nowrap">
@@ -195,21 +197,36 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
               )}
             </div>
 
-            {onOpenRegisterMenuTest && (
-              <button
-                onClick={() => {
-                  if (activeCount >= 2) {
-                    alert('💡 현재 최대치인 2개의 신메뉴를 동시 모집 중입니다. 새 모집글을 등록하시려면 기존 글 중 하나를 마감해 주세요.');
-                  } else {
-                    onOpenRegisterMenuTest(null, activeCount);
-                  }
-                }}
-                className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-purple-50 text-purple-800 font-extrabold text-xs rounded-xl shadow-xs transition-all active:scale-95 whitespace-nowrap"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>신규 모집 (+1)</span>
-              </button>
-            )}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {onOpenMyApplications && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenMyApplications();
+                  }}
+                  className="px-2.5 py-1 bg-white/15 hover:bg-white/25 text-white font-extrabold text-xs rounded-xl transition-all whitespace-nowrap active:scale-95"
+                >
+                  <span>🧪 내가 신청한 시식단 보기</span>
+                </button>
+              )}
+
+              {onOpenRegisterMenuTest && (
+                <button
+                  onClick={() => {
+                    if (activeCount >= 2) {
+                      alert('💡 현재 최대치인 2개의 신메뉴를 동시 모집 중입니다. 새 모집글을 등록하시려면 기존 글 중 하나를 마감해 주세요.');
+                    } else {
+                      onOpenRegisterMenuTest(null, activeCount);
+                    }
+                  }}
+                  className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-purple-50 text-purple-800 font-extrabold text-xs rounded-xl shadow-xs transition-all active:scale-95 whitespace-nowrap"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>신규 모집 (+1)</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -455,27 +472,15 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
 
                   <div className="flex items-center gap-2">
                     {app.status === 'PENDING' ? (
-                      <>
-                        <button
-                          type="button"
-                          disabled={actionLoadingId === app.id}
-                          onClick={() => handleStatusChange(app, 'REJECTED')}
-                          className="px-3 py-2 bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 font-bold text-xs rounded-xl border border-gray-200 transition-all flex items-center gap-1"
-                        >
-                          <XCircle className="w-3.5 h-3.5" />
-                          <span>정원 초과 / 거절</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={actionLoadingId === app.id}
-                          onClick={() => handleStatusChange(app, 'ACCEPTED')}
-                          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>체험단 수락 & 1:1 대화방 시작</span>
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        disabled={actionLoadingId === app.id}
+                        onClick={() => handleStatusChange(app, 'ACCEPTED')}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 whitespace-nowrap"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>체험단 선정 & 1:1 대화방 시작</span>
+                      </button>
                     ) : app.status === 'ACCEPTED' ? (
                       <button
                         type="button"
@@ -483,7 +488,7 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
                           onAcceptAndOpenChat(app);
                           onClose();
                         }}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 whitespace-nowrap"
                       >
                         <MessageSquare className="w-4 h-4" />
                         <span>{app.applicantOwnerName} 사장님과 1:1 대화하기</span>
@@ -492,9 +497,9 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
                       <button
                         type="button"
                         onClick={() => handleStatusChange(app, 'ACCEPTED')}
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-purple-50 text-gray-600 hover:text-purple-600 font-bold text-xs rounded-xl border border-gray-200 transition-all"
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-purple-50 text-gray-600 hover:text-purple-600 font-bold text-xs rounded-xl border border-gray-200 transition-all whitespace-nowrap"
                       >
-                        수락으로 변경하기
+                        선정으로 변경하기
                       </button>
                     )}
                   </div>
@@ -507,7 +512,7 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
 
         {/* Footer */}
         <div className="p-3 bg-white border-t border-gray-200 text-center text-[11px] text-gray-500 flex-shrink-0">
-          💡 지원서를 수락하면 상대 사장님과의 1:1 대화방이 즉시 열리며, 방문 일정 및 인원을 조율할 수 있습니다.
+          💡 함께하고 싶은 사장님을 <strong>[체험단 선정]</strong>해 주세요. 미선정된 사장님께는 거절 알림이 발송되지 않으며, 정해진 모집 기간이 지나면 자연스럽게 마감 처리됩니다.
         </div>
 
       </div>

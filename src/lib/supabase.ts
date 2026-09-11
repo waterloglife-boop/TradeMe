@@ -2123,6 +2123,26 @@ export function subscribeToIncomingChats(
 /**
  * 6. 🧪 [신메뉴/신규서비스 체험단 지원서 관리]
  */
+const CANCELLED_MENU_APPS_KEY = 'trademe_cancelled_menu_application_ids';
+
+export function getCancelledMenuApplicationIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(CANCELLED_MENU_APPS_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw));
+  } catch {
+    return new Set();
+  }
+}
+
+export function markMenuApplicationAsCancelled(id: string) {
+  try {
+    const set = getCancelledMenuApplicationIds();
+    set.add(id);
+    localStorage.setItem(CANCELLED_MENU_APPS_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {}
+}
+
 export async function applyMenuTestCampaign(application: Omit<MenuTestApplication, 'id' | 'createdAt' | 'status'>) {
   const applicationId = `app-${Date.now()}`;
   try {
@@ -2152,6 +2172,28 @@ export async function applyMenuTestCampaign(application: Omit<MenuTestApplicatio
       });
     }
 
+    // Save locally to trademe_my_menu_applications for instantaneous UI update
+    try {
+      const raw = localStorage.getItem('trademe_my_menu_applications');
+      const list = raw ? JSON.parse(raw) : [];
+      list.unshift({
+        id: applicationId,
+        storeId: application.storeId,
+        campaignId: application.campaignId,
+        campaignTitle: application.campaignTitle,
+        applicantUserId: application.applicantUserId,
+        applicantStoreName: application.applicantStoreName,
+        applicantOwnerName: application.applicantOwnerName,
+        applicantPhone: application.applicantPhone,
+        snsUrl: application.snsUrl,
+        message: application.message,
+        feedbackType: application.feedbackType,
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+      });
+      localStorage.setItem('trademe_my_menu_applications', JSON.stringify(list.slice(0, 50)));
+    } catch (e) {}
+
     // Increment applicant count on store table if possible
     try {
       const { data: storeData } = await supabase
@@ -2176,6 +2218,7 @@ export async function applyMenuTestCampaign(application: Omit<MenuTestApplicatio
 
 export async function fetchMenuTestApplications(storeId?: string): Promise<MenuTestApplication[]> {
   try {
+    const cancelledIds = getCancelledMenuApplicationIds();
     let query = supabase
       .from('menu_test_applications')
       .select('*')
@@ -2201,7 +2244,53 @@ export async function fetchMenuTestApplications(storeId?: string): Promise<MenuT
       return [];
     }
 
-    const dbApps: MenuTestApplication[] = data.map((item: any) => ({
+    const dbApps: MenuTestApplication[] = data
+      .filter((item: any) => !cancelledIds.has(item.id))
+      .map((item: any) => ({
+        id: item.id,
+        storeId: item.store_id,
+        campaignId: item.campaign_id,
+        campaignTitle: item.campaign_title,
+        applicantUserId: item.applicant_user_id,
+        applicantStoreName: item.applicant_store_name,
+        applicantOwnerName: item.applicant_owner_name,
+        applicantPhone: item.applicant_phone,
+        snsUrl: item.sns_url,
+        message: item.message,
+        feedbackType: item.feedback_type,
+        status: item.status,
+        createdAt: item.created_at,
+      }));
+
+    return dbApps;
+  } catch (err) {
+    console.error('[Supabase Error] fetchMenuTestApplications exception:', err);
+    return [];
+  }
+}
+
+export async function fetchMyMenuTestApplications(storeId?: string, storeName?: string): Promise<MenuTestApplication[]> {
+  try {
+    const cancelledIds = getCancelledMenuApplicationIds();
+    let query = supabase
+      .from('menu_test_applications')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (storeId && storeName) {
+      query = query.or(`applicant_user_id.eq.${storeId},applicant_store_name.eq.${storeName}`);
+    } else if (storeId) {
+      query = query.eq('applicant_user_id', storeId);
+    } else if (storeName) {
+      query = query.eq('applicant_store_name', storeName);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[Supabase Error] fetchMyMenuTestApplications failed:', error);
+    }
+
+    const dbApps: MenuTestApplication[] = (data || []).map((item: any) => ({
       id: item.id,
       storeId: item.store_id,
       campaignId: item.campaign_id,
@@ -2217,10 +2306,79 @@ export async function fetchMenuTestApplications(storeId?: string): Promise<MenuT
       createdAt: item.created_at,
     }));
 
-    return dbApps;
+    // Merge with local storage cache
+    let localList: MenuTestApplication[] = [];
+    try {
+      const raw = localStorage.getItem('trademe_my_menu_applications');
+      if (raw) localList = JSON.parse(raw);
+    } catch (e) {}
+
+    const mergedMap = new Map<string, MenuTestApplication>();
+    localList.forEach((app) => mergedMap.set(app.id, app));
+    dbApps.forEach((app) => mergedMap.set(app.id, app));
+
+    const finalApps = Array.from(mergedMap.values())
+      .filter((app) => !cancelledIds.has(app.id))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return finalApps;
   } catch (err) {
-    console.error('[Supabase Error] fetchMenuTestApplications exception:', err);
+    console.error('[Supabase Error] fetchMyMenuTestApplications exception:', err);
     return [];
+  }
+}
+
+export async function cancelMenuTestApplication(
+  applicationId: string,
+  storeId?: string
+): Promise<{ success: boolean }> {
+  try {
+    // 1. Mark in tombstone
+    markMenuApplicationAsCancelled(applicationId);
+
+    // 2. Remove from local storage cache
+    try {
+      const raw = localStorage.getItem('trademe_my_menu_applications');
+      if (raw) {
+        const list: MenuTestApplication[] = JSON.parse(raw);
+        const updated = list.filter((a) => a.id !== applicationId);
+        localStorage.setItem('trademe_my_menu_applications', JSON.stringify(updated));
+      }
+    } catch (e) {}
+
+    // 3. Delete from Supabase
+    const { error } = await supabase
+      .from('menu_test_applications')
+      .delete()
+      .eq('id', applicationId);
+
+    if (error) {
+      console.error('[Supabase Error] cancelMenuTestApplication delete failed:', error);
+    }
+
+    // 4. Decrement count on target store if possible
+    if (storeId) {
+      try {
+        const { data: storeData } = await supabase
+          .from('stores')
+          .select('menu_test_applicant_count')
+          .eq('id', storeId)
+          .maybeSingle();
+
+        const currentCount = storeData?.menu_test_applicant_count || 0;
+        if (currentCount > 0) {
+          await supabase
+            .from('stores')
+            .update({ menu_test_applicant_count: currentCount - 1 })
+            .eq('id', storeId);
+        }
+      } catch (e) {}
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('[Supabase Error] cancelMenuTestApplication exception:', err);
+    return { success: false };
   }
 }
 

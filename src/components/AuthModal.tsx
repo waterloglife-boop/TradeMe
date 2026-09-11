@@ -625,7 +625,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               )}
 
-              {/* 2. 1:1 물물교환 제안함 */}
+              {/* 2. 1:1 물물교환 & 시식단 신청함 */}
               <div
                 onClick={() => {
                   onClose();
@@ -634,13 +634,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="bg-white hover:bg-amber-50/50 p-4 rounded-2xl border border-gray-200 hover:border-amber-300 shadow-sm hover:shadow transition-all cursor-pointer flex items-center justify-between group active:scale-[0.99]"
               >
                 <div className="flex items-center gap-3.5">
-                  <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-                    🤝
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-100 to-orange-100 text-amber-800 flex items-center justify-center text-xl flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+                    🔄
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="font-extrabold text-sm text-gray-900 group-hover:text-amber-700 transition-colors">
-                        1:1 물물교환 제안함 (거래 관리)
+                        1:1 거래 & 시식단 신청함
                       </h4>
                       {pendingTradeCount > 0 && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-500 text-white animate-bounce shadow-sm">
@@ -649,7 +649,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      이웃 사장님들의 실시간 제안 및 비동기 찔러보기 확인
+                      받은/보낸 제안, 비동기 찔러보기 및 내가 신청한 신메뉴 시식단 확인/취소
                     </p>
                   </div>
                 </div>

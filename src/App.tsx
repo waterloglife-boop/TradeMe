@@ -156,8 +156,13 @@ export const App: React.FC = () => {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isManageItemsModalOpen, setIsManageItemsModalOpen] = useState(false);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
-  const [targetProposalItem, setTargetProposalItem] = useState<ExchangeItem | null>(null);
   const [isTradeDashboardOpen, setIsTradeDashboardOpen] = useState(false);
+  const [tradeDashboardTab, setTradeDashboardTab] = useState<'RECEIVED' | 'SENT' | 'MY_APPLICATIONS'>('RECEIVED');
+
+  const handleOpenTradeDashboard = (tab: 'RECEIVED' | 'SENT' | 'MY_APPLICATIONS' = 'RECEIVED') => {
+    setTradeDashboardTab(tab);
+    setIsTradeDashboardOpen(true);
+  };
 
   // 🧪 Menu Test Application & Dashboard Modal state
   const [isMenuTestModalOpen, setIsMenuTestModalOpen] = useState(false);
@@ -1192,7 +1197,7 @@ export const App: React.FC = () => {
         onToggleBreakTime={handleToggleBreakTime}
         onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        onOpenTradeDashboard={() => setIsTradeDashboardOpen(true)}
+        onOpenTradeDashboard={() => handleOpenTradeDashboard('RECEIVED')}
         onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
         isLoggedIn={isLoggedIn}
         userOwnerName={userOwnerName}
@@ -1341,7 +1346,7 @@ export const App: React.FC = () => {
         }}
         voucherCount={voucherWalletCount}
         onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
-        onOpenTradeDashboard={() => setIsTradeDashboardOpen(true)}
+        onOpenTradeDashboard={() => handleOpenTradeDashboard('RECEIVED')}
         onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
         pendingTradeCount={pendingTradeCount}
         pendingMenuTestCount={pendingMenuTestCount}
@@ -1388,9 +1393,14 @@ export const App: React.FC = () => {
         onClose={() => setIsMenuTestModalOpen(false)}
         targetStore={targetMenuTestStore}
         targetCampaign={targetMenuTestCampaign}
+        applicantUserId={myStore.id}
         applicantOwnerName={userOwnerName}
         applicantStoreName={myStore.storeName}
         applicantPhone={myStore.phone}
+        onOpenMyApplications={() => {
+          setIsMenuTestModalOpen(false);
+          handleOpenTradeDashboard('MY_APPLICATIONS');
+        }}
         onSuccess={() => {
           fetchStoresFromSupabase().then((data) => {
             if (data && data.length > 0) setStores(data);
@@ -1408,6 +1418,10 @@ export const App: React.FC = () => {
           setEditingCampaign(campaignToEdit || null);
           setRegisterActiveCampaignCount(activeCount || 0);
           setIsRegisterMenuTestModalOpen(true);
+        }}
+        onOpenMyApplications={() => {
+          setIsMenuTestDashboardOpen(false);
+          handleOpenTradeDashboard('MY_APPLICATIONS');
         }}
         refreshTrigger={menuTestRefreshTrigger}
       />
@@ -1447,6 +1461,7 @@ export const App: React.FC = () => {
         allStores={stores}
         onAcceptAndOpenChat={handleAcceptTradeProposalAndOpenChat}
         onOpenChat={handleOpenChat}
+        initialTab={tradeDashboardTab}
       />
 
       {/* 1:1 Equivalent Exchange Proposal Modal */}

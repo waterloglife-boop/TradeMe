@@ -8,10 +8,12 @@ interface MenuTestApplyModalProps {
   onClose: () => void;
   targetStore: Store | null;
   targetCampaign?: MenuTestCampaign | null;
+  applicantUserId?: string;
   applicantOwnerName: string;
   applicantStoreName: string;
   applicantPhone: string;
   onSuccess: () => void;
+  onOpenMyApplications?: () => void;
 }
 
 export const MenuTestApplyModal: React.FC<MenuTestApplyModalProps> = ({
@@ -19,10 +21,12 @@ export const MenuTestApplyModal: React.FC<MenuTestApplyModalProps> = ({
   onClose,
   targetStore,
   targetCampaign,
+  applicantUserId,
   applicantOwnerName,
   applicantStoreName,
   applicantPhone,
   onSuccess,
+  onOpenMyApplications,
 }) => {
   const [snsUrl, setSnsUrl] = useState('');
   const [message, setMessage] = useState('');
@@ -48,6 +52,7 @@ export const MenuTestApplyModal: React.FC<MenuTestApplyModalProps> = ({
       storeId: targetStore.id,
       campaignId: targetCampaign?.id,
       campaignTitle: activeTitle,
+      applicantUserId: applicantUserId,
       applicantStoreName: applicantStoreName || '이웃 사장님 매장',
       applicantOwnerName: applicantOwnerName || '이웃 사장님',
       applicantPhone: applicantPhone || '010-0000-0000',
@@ -63,7 +68,7 @@ export const MenuTestApplyModal: React.FC<MenuTestApplyModalProps> = ({
         setSubmitted(false);
         onSuccess();
         onClose();
-      }, 2000);
+      }, 3000);
     }
   };
 
@@ -108,16 +113,33 @@ export const MenuTestApplyModal: React.FC<MenuTestApplyModalProps> = ({
 
         {/* Content Body */}
         {submitted ? (
-          <div className="p-8 flex flex-col items-center justify-center text-center space-y-3">
+          <div className="p-7 sm:p-8 flex flex-col items-center justify-center text-center space-y-3">
             <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center shadow-lg animate-bounce">
               <CheckCircle2 className="w-10 h-10" />
             </div>
             <h3 className="text-lg font-extrabold text-gray-900">
               신메뉴 체험단 신청이 완료되었습니다!
             </h3>
-            <p className="text-xs text-gray-600 max-w-xs">
-              <strong>{targetStore.ownerName}</strong> 사장님께 신청서가 전달되었습니다. 승인 시 1:1 대화방으로 일정 조율 알림이 도착합니다.
+            <p className="text-xs text-gray-600 max-w-xs leading-relaxed">
+              <strong>{targetStore.ownerName}</strong> 사장님께 신청서가 전달되었습니다. 사장님이 최종 선정 시 1:1 대화방으로 일정 조율 알림이 도착합니다.
             </p>
+            <div className="text-[11px] text-purple-800 bg-purple-50 rounded-xl p-2.5 border border-purple-200 max-w-xs text-left">
+              💡 신청 내역 확인 및 신청 취소는 <strong>[내 제안 & 시식단 신청함]</strong>에서 언제든 가능합니다.
+            </div>
+            {onOpenMyApplications && (
+              <button
+                type="button"
+                onClick={() => {
+                  onSuccess();
+                  onClose();
+                  onOpenMyApplications();
+                }}
+                className="mt-1 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+              >
+                <span>내 신청 내역 바로 확인하기</span>
+                <span>&rarr;</span>
+              </button>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 text-xs">
