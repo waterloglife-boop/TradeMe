@@ -101,39 +101,43 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 via-amber-600 to-orange-600 p-4 text-white flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-lg shadow-inner">
-              🤝
+        <div className="bg-gradient-to-r from-orange-500 via-amber-600 to-orange-600 p-3.5 sm:p-4 text-white flex-shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/20 flex items-center justify-center text-base sm:text-lg shadow-inner flex-shrink-0">
+                🤝
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h2 className="font-extrabold text-sm sm:text-base tracking-tight truncate">
+                    1:1 물물교환 제안함
+                  </h2>
+                  {pendingReceivedCount > 0 && (
+                    <span className="px-2 py-0.5 bg-white text-orange-700 font-extrabold text-[10px] rounded-full shadow-sm whitespace-nowrap">
+                      새 제안 {pendingReceivedCount}건
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] sm:text-[11px] text-orange-100 truncate">
+                  {myStore.storeName} ({myStore.ownerName} 사장님)
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-extrabold text-base tracking-tight flex items-center gap-2">
-                <span>1:1 물물교환 제안함 (거래 관리)</span>
-                {pendingReceivedCount > 0 && (
-                  <span className="px-2 py-0.5 bg-white text-orange-700 font-extrabold text-[10px] rounded-full shadow-sm animate-bounce">
-                    새 제안 {pendingReceivedCount}건
-                  </span>
-                )}
-              </h2>
-              <p className="text-[11px] text-orange-100">
-                {myStore.storeName} ({myStore.ownerName} 사장님)
-              </p>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={loadProposals}
+                className="p-1.5 rounded-lg text-orange-100 hover:text-white hover:bg-white/20 transition-all"
+                title="새로고침"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-orange-100 hover:text-white hover:bg-white/20 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={loadProposals}
-              className="p-1.5 rounded-lg text-orange-100 hover:text-white hover:bg-white/20 transition-all"
-              title="새로고침"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-orange-100 hover:text-white hover:bg-white/20 transition-all"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
         </div>
 
@@ -167,7 +171,7 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50/50">
+        <div className="p-3.5 sm:p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50/50">
           {loading && currentList.length === 0 ? (
             <div className="text-center py-12 text-gray-500 text-xs">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-orange-500" />
@@ -198,7 +202,7 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
               return (
                 <div
                   key={proposal.id}
-                  className={`bg-white rounded-2xl p-4 border shadow-sm transition-all space-y-3 ${
+                  className={`bg-white rounded-2xl p-3.5 sm:p-4 border shadow-sm transition-all space-y-3 ${
                     proposal.status === 'ACCEPTED'
                       ? 'border-emerald-300 ring-2 ring-emerald-100'
                       : proposal.status === 'REJECTED'
@@ -208,23 +212,22 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
                       : 'border-orange-200 hover:shadow-md'
                   }`}
                 >
-                  {/* Card Header: Mode Badge & Status */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* Poke vs Realtime Badge */}
+                  {/* Card Header: Badges Row + Store & Status Row */}
+                  <div className="space-y-2">
+                    {/* Badge Row */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {proposal.isPoke ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 border border-indigo-200 flex items-center gap-1 shadow-sm">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-indigo-50 text-indigo-800 border border-indigo-200 inline-flex items-center gap-1 whitespace-nowrap shadow-2xs">
                           <span>👉</span>
-                          비동기 찔러보기 (교환 OFF 상태 제안)
+                          <span>비동기 찔러보기</span>
                         </span>
                       ) : (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-sm">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-300 inline-flex items-center gap-1 whitespace-nowrap shadow-2xs">
                           <span>⚡</span>
-                          실시간 물물교환 제안
+                          <span>실시간 물물교환</span>
                         </span>
                       )}
 
-                      {/* Voucher Trade Badge */}
                       {(proposal.tradeType === 'VOUCHER' ||
                         proposal.tradeFulfillment?.includes('교환권') ||
                         proposal.myItemTitle?.includes('교환권') ||
@@ -233,43 +236,51 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
                         proposal.targetItemTitle?.includes('교환권') ||
                         proposal.targetItemTitle?.includes('이용권') ||
                         proposal.targetItemTitle?.includes('상품권')) && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-sm">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 whitespace-nowrap shadow-2xs">
                           <span>🎟️</span>
                           <span>상생 교환권 맞발행</span>
                         </span>
                       )}
-
-                      <span className="text-xs font-extrabold text-gray-900">
-                        {otherStoreName} ({otherOwnerName})
-                      </span>
                     </div>
 
-                    {/* Status Badge & Delete */}
-                    <div className="flex items-center gap-1.5">
-                      {proposal.status === 'ACCEPTED' ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          교환 수락됨
+                    {/* Store Title & Status Pill Row */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="text-xs sm:text-sm font-extrabold text-gray-900 truncate block">
+                          {otherStoreName}{' '}
+                          <span className="text-[11px] text-gray-500 font-normal">
+                            ({otherOwnerName})
+                          </span>
                         </span>
-                      ) : proposal.status === 'REJECTED' ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200">
-                          거절됨
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
-                          수락 대기중
-                        </span>
-                      )}
+                      </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteProposal(proposal.id)}
-                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                        title="제안 내역 삭제"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Status Badge & Delete Button */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {proposal.status === 'ACCEPTED' ? (
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1 whitespace-nowrap shadow-2xs">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                            <span>교환 수락됨</span>
+                          </span>
+                        ) : proposal.status === 'REJECTED' ? (
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200 whitespace-nowrap">
+                            거절됨
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 inline-flex items-center gap-1 whitespace-nowrap shadow-2xs">
+                            <Clock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                            <span>수락 대기중</span>
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteProposal(proposal.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition active:scale-95 flex-shrink-0"
+                          title="제안 내역 삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -311,13 +322,13 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
                         <span>희망 픽업: <strong>{proposal.proposedTime}</strong></span>
                       </div>
                       {proposal.tradeFulfillment && (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap">
                           {proposal.tradeFulfillment}
                         </span>
                       )}
                     </div>
 
-                    <div className={`px-2.5 py-1 rounded-lg text-xs font-extrabold ${
+                    <div className={`px-2.5 py-1 rounded-lg text-xs font-extrabold whitespace-nowrap ${
                       proposal.priceDifference === 0
                         ? 'bg-emerald-100 text-emerald-800'
                         : 'bg-amber-100 text-amber-900'
@@ -330,7 +341,7 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
 
                   {/* Memo/Message if exists */}
                   {proposal.message && (
-                    <div className="bg-white rounded-lg p-2 border border-gray-200 text-xs text-gray-700">
+                    <div className="bg-white rounded-lg p-2.5 border border-gray-200 text-xs text-gray-700">
                       <span className="text-[10px] font-bold text-gray-400 block mb-0.5">💬 전달 메모:</span>
                       <p className="font-medium">{proposal.message}</p>
                     </div>
@@ -338,14 +349,14 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
 
                   {/* Action Buttons (For Received Proposals) */}
                   {activeTab === 'RECEIVED' && (
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
                       {proposal.status === 'PENDING' ? (
                         <>
                           <button
                             type="button"
                             disabled={actionLoadingId === proposal.id}
                             onClick={() => handleStatusChange(proposal, 'REJECTED')}
-                            className="px-3 py-2 bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 font-bold text-xs rounded-xl border border-gray-200 transition-all flex items-center gap-1"
+                            className="px-3 py-2 bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 font-bold text-xs rounded-xl border border-gray-200 transition-all flex items-center gap-1 active:scale-95 whitespace-nowrap"
                           >
                             <XCircle className="w-3.5 h-3.5" />
                             <span>거절</span>
@@ -355,14 +366,14 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
                             type="button"
                             disabled={actionLoadingId === proposal.id}
                             onClick={() => handleStatusChange(proposal, 'ACCEPTED')}
-                            className={`px-4 py-2 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 ${
+                            className={`px-3.5 sm:px-4 py-2 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${
                               proposal.isPoke
                                 ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700'
                                 : 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700'
                             }`}
                           >
                             <CheckCircle2 className="w-4 h-4" />
-                            <span>교환 수락 & 1:1 대화 시작</span>
+                            <span>교환 수락 & 대화방 열기</span>
                           </button>
                         </>
                       ) : proposal.status === 'ACCEPTED' ? (
@@ -372,7 +383,7 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
                             onAcceptAndOpenChat(proposal);
                             onClose();
                           }}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
                         >
                           <MessageSquare className="w-4 h-4" />
                           <span>1:1 대화방 열기</span>
@@ -381,7 +392,7 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleStatusChange(proposal, 'ACCEPTED')}
-                          className="px-3 py-1.5 bg-gray-100 hover:bg-orange-50 text-gray-600 hover:text-orange-600 font-bold text-xs rounded-xl border border-gray-200 transition-all"
+                          className="px-3 py-1.5 bg-gray-100 hover:bg-orange-50 text-gray-600 hover:text-orange-600 font-bold text-xs rounded-xl border border-gray-200 transition-all whitespace-nowrap"
                         >
                           수락으로 변경하기
                         </button>

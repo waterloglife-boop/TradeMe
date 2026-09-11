@@ -125,15 +125,15 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
     }
   };
 
-  const getFeedbackBadge = (type?: MenuTestFeedbackType) => {
+  const getFeedbackBadge = (type: MenuTestFeedbackType) => {
     switch (type) {
       case 'BLOG_SNS':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">📱 SNS / 블로그 후기</span>;
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 whitespace-nowrap">📱 SNS / 블로그 후기</span>;
       case 'SECRET_REPORT':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">🔒 1:1 비밀 피드백 리포트</span>;
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 whitespace-nowrap">🔒 1:1 비밀 피드백 리포트</span>;
       case 'BOTH':
       default:
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">🌟 SNS 후기 + 비밀 피드백</span>;
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 whitespace-nowrap">🌟 SNS 후기 + 비밀 피드백</span>;
     }
   };
 
@@ -145,35 +145,56 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
   const acceptedCount = applications.filter((a) => a.status === 'ACCEPTED').length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 p-4 text-white flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shadow-inner">
-              🧪
+        <div className="bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 p-3.5 sm:p-4 text-white flex-shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg sm:text-xl shadow-inner flex-shrink-0">
+                🧪
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-extrabold text-sm sm:text-base tracking-tight truncate">
+                  신메뉴 시식단 & 서포터즈 모집
+                </h2>
+                <p className="text-[10px] sm:text-[11px] text-purple-100 truncate">
+                  {myStore.storeName} ({myStore.ownerName} 사장님)
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-extrabold text-base tracking-tight flex items-center gap-2">
-                <span>신메뉴 시식단 & 서포터즈 모집 관리</span>
-                <span className="px-2 py-0.5 bg-white/20 text-white font-extrabold text-[10px] rounded-full">
-                  동시 모집 {activeCount}/2개
-                </span>
-                {pendingCount > 0 && (
-                  <span className="px-2 py-0.5 bg-amber-400 text-gray-950 font-extrabold text-[10px] rounded-full animate-bounce">
-                    새 신청 {pendingCount}건
-                  </span>
-                )}
-              </h2>
-              <p className="text-[11px] text-purple-100">
-                {myStore.storeName} ({myStore.ownerName} 사장님)
-              </p>
+
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={loadData}
+                className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-white/20 transition-all"
+                title="새로고침"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-white/20 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           </div>
 
-          {/* Header Action Buttons */}
-          <div className="flex items-center gap-2">
+          {/* Sub-Header: Badges & Register Button */}
+          <div className="mt-2.5 pt-2 border-t border-purple-500/30 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="px-2 py-0.5 bg-white/20 text-white font-extrabold text-[10px] sm:text-xs rounded-full whitespace-nowrap">
+                동시 모집 {activeCount}/2개
+              </span>
+              {pendingCount > 0 && (
+                <span className="px-2 py-0.5 bg-amber-400 text-gray-950 font-extrabold text-[10px] sm:text-xs rounded-full whitespace-nowrap animate-bounce">
+                  새 신청 {pendingCount}건
+                </span>
+              )}
+            </div>
+
             {onOpenRegisterMenuTest && (
               <button
                 onClick={() => {
@@ -183,25 +204,12 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
                     onOpenRegisterMenuTest(null, activeCount);
                   }
                 }}
-                className="flex items-center gap-1 px-3.5 py-1.5 bg-white hover:bg-purple-50 text-purple-800 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 whitespace-nowrap"
+                className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-purple-50 text-purple-800 font-extrabold text-xs rounded-xl shadow-xs transition-all active:scale-95 whitespace-nowrap"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>신규 모집 (+1)</span>
               </button>
             )}
-            <button
-              onClick={loadData}
-              className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-white/20 transition-all"
-              title="새로고침"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-white/20 transition-all"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
         </div>
 
@@ -355,49 +363,55 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
               >
                 {/* Card Header */}
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-extrabold text-sm text-gray-900">
                         {app.applicantStoreName}
                       </span>
                       <span className="text-xs text-gray-600 font-medium">
                         ({app.applicantOwnerName} 사장님)
                       </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {app.campaignTitle && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-gray-100 text-purple-800 border border-purple-200">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-gray-100 text-purple-800 border border-purple-200 whitespace-nowrap">
                           {app.campaignTitle}
                         </span>
                       )}
                       {getFeedbackBadge(app.feedbackType)}
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-1">
+
+                    <div className="flex items-center gap-2 text-[11px] text-gray-500 flex-wrap pt-0.5">
                       <a
                         href={`tel:${app.applicantPhone}`}
-                        className="flex items-center gap-1 text-gray-700 hover:text-purple-600 font-medium"
+                        className="flex items-center gap-1 text-gray-700 hover:text-purple-600 font-medium whitespace-nowrap"
                       >
                         <Phone className="w-3 h-3 text-gray-400" />
                         {app.applicantPhone}
                       </a>
                       <span>·</span>
-                      <span>{new Date(app.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 접수</span>
+                      <span className="whitespace-nowrap">
+                        {new Date(app.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 접수
+                      </span>
                     </div>
                   </div>
 
                   {/* Status Badge */}
-                  <div>
+                  <div className="flex-shrink-0">
                     {app.status === 'ACCEPTED' ? (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        선정 완료
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1 whitespace-nowrap shadow-2xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                        <span>선정 완료</span>
                       </span>
                     ) : app.status === 'REJECTED' ? (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200 whitespace-nowrap">
                         미선정
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-amber-600" />
-                        검토 대기중
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 inline-flex items-center gap-1 whitespace-nowrap shadow-2xs">
+                        <Clock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                        <span>검토 대기중</span>
                       </span>
                     )}
                   </div>

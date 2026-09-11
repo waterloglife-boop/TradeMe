@@ -45,6 +45,8 @@ import {
   signOutUser,
   fetchStoredVouchers,
   fetchVouchersFromSupabase,
+  isDummyTradeProposal,
+  getDeletedProposalIds,
   supabase,
 } from './lib/supabase';
 import { Store, ExchangeItem, TradeProposal, ChatMessage, ChatConversationSummary, MenuTestApplication, MenuTestCampaign } from './types/trade';
@@ -251,25 +253,34 @@ export const App: React.FC = () => {
         // Clean up any legacy dummy trade proposals cache
         try {
           const cachedProposals = localStorage.getItem('trademe_trade_proposals');
-          if (cachedProposals && (cachedProposals.includes('소담') || cachedProposals.includes('헤어살롱') || cachedProposals.includes('달콤') || cachedProposals.includes('test-bakery'))) {
+          if (cachedProposals) {
             const parsed = JSON.parse(cachedProposals);
+            const deletedIds = getDeletedProposalIds();
             const filtered = parsed.filter((p: any) =>
-              !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(p.requesterStoreName) &&
+              !deletedIds.has(p.id) &&
+              !isDummyTradeProposal(p) &&
+              !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(p.myStoreName) &&
               !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(p.targetStoreName)
             );
-            localStorage.setItem('trademe_trade_proposals', JSON.stringify(filtered));
+            if (filtered.length !== parsed.length) {
+              localStorage.setItem('trademe_trade_proposals', JSON.stringify(filtered));
+            }
           }
         } catch (e) {}
 
         // Clean up any legacy dummy chats cache
         try {
           const cachedChats = localStorage.getItem('trademe_local_chats');
-          if (cachedChats && (cachedChats.includes('소담') || cachedChats.includes('헤어살롱') || cachedChats.includes('달콤') || cachedChats.includes('test-bakery'))) {
+          if (cachedChats) {
             const parsed = JSON.parse(cachedChats);
             const filtered = parsed.filter((m: any) =>
-              !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(m.sender_name)
+              !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(m.sender_name) &&
+              !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(m.senderName) &&
+              m.sender_store_id !== 'store-webmaster-test-bakery'
             );
-            localStorage.setItem('trademe_local_chats', JSON.stringify(filtered));
+            if (filtered.length !== parsed.length) {
+              localStorage.setItem('trademe_local_chats', JSON.stringify(filtered));
+            }
           }
         } catch (e) {}
 

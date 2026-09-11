@@ -1542,19 +1542,59 @@ export async function sendTradeProposalToSupabase(
   }
 }
 
+const DUMMY_STORE_NAMES = ['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'];
+const DUMMY_STORE_IDS = ['store-webmaster-test-bakery', 'test-bakery', 'store-demo-bakery-yangsan'];
+
+export function isDummyTradeProposal(p: any): boolean {
+  if (!p) return true;
+  if (p.id && (p.id.startsWith('trade-demo-') || p.id.startsWith('trade-seed-') || p.id.startsWith('trade-sample-'))) return true;
+  if (DUMMY_STORE_IDS.includes(p.myStoreId) || DUMMY_STORE_IDS.includes(p.targetStoreId)) return true;
+  if (DUMMY_STORE_IDS.includes(p.requester_store_id) || DUMMY_STORE_IDS.includes(p.target_store_id)) return true;
+  const myName = p.myStoreName || p.requester_store_name || '';
+  const targetName = p.targetStoreName || p.target_store_name || '';
+  if (DUMMY_STORE_NAMES.some((d) => myName.includes(d) || targetName.includes(d))) return true;
+  if (myName.includes('테스트 베이커리') || targetName.includes('테스트 베이커리')) return true;
+  return false;
+}
+
+const DELETED_PROPOSALS_KEY = 'trademe_deleted_proposal_ids';
+
+export function getDeletedProposalIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DELETED_PROPOSALS_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch (e) {}
+  return new Set();
+}
+
+export function markProposalAsDeleted(proposalId: string) {
+  try {
+    const deleted = getDeletedProposalIds();
+    deleted.add(proposalId);
+    localStorage.setItem(DELETED_PROPOSALS_KEY, JSON.stringify(Array.from(deleted)));
+  } catch (e) {}
+}
+
 export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise<TradeProposal[]> {
+  const deletedIds = getDeletedProposalIds();
+
   const getLocalProposals = (): TradeProposal[] => {
     try {
       const localRaw = localStorage.getItem('trademe_trade_proposals');
       const localProposals: TradeProposal[] = localRaw ? JSON.parse(localRaw) : [];
-      if (!storeId) return localProposals;
-      return localProposals.filter(
+      const cleanProposals = localProposals.filter(
+        (p) => !deletedIds.has(p.id) && !isDummyTradeProposal(p)
+      );
+      if (cleanProposals.length !== localProposals.length) {
+        localStorage.setItem('trademe_trade_proposals', JSON.stringify(cleanProposals));
+      }
+      if (!storeId) return cleanProposals;
+      return cleanProposals.filter(
         (p) =>
           p.myStoreId === storeId ||
           p.targetStoreId === storeId ||
           p.targetStoreId === 'my-store' ||
-          p.myStoreId === 'my-store' ||
-          !p.targetStoreId
+          p.myStoreId === 'my-store'
       );
     } catch (e) {
       return [];
@@ -1608,38 +1648,41 @@ export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise
       }
     } catch (ce) {}
 
-    const dbProposals: TradeProposal[] = (data || []).map((item: any) => {
-      const isAccepted = item.status === 'ACCEPTED' || acceptedTradeIds.has(item.id);
-      return {
-        id: item.id,
-        myStoreId: item.requester_store_id,
-        targetStoreId: item.target_store_id,
-        myExchangeItemId: item.requester_item_id,
-        targetExchangeItemId: item.target_item_id,
-        myStoreName: item.requester_store_name,
-        myOwnerName: item.requester_owner_name,
-        myItemTitle: item.requester_item_title,
-        myItemImageUrl: item.requester_item_image_url,
-        myItemPrice: item.requester_item_price ? Number(item.requester_item_price) : undefined,
-        targetStoreName: item.target_store_name,
-        targetOwnerName: item.target_owner_name,
-        targetItemTitle: item.target_item_title,
-        targetItemImageUrl: item.target_item_image_url,
-        targetItemPrice: item.target_item_price ? Number(item.target_item_price) : undefined,
-        tradeType: item.trade_type || 'VOUCHER',
-        tradeFulfillment: item.trade_fulfillment,
-        priceDifference: item.price_difference || 0,
-        proposedTime: item.pickup_time || '',
-        isPoke: item.is_poke || false,
-        message: item.message || '',
-        status: isAccepted ? 'ACCEPTED' : (item.status || 'PENDING'),
-        createdAt: item.created_at || new Date().toISOString(),
-      };
-    });
+    const dbProposals: TradeProposal[] = (data || [])
+      .filter((item: any) => !deletedIds.has(item.id) && !isDummyTradeProposal(item))
+      .map((item: any) => {
+        const isAccepted = item.status === 'ACCEPTED' || acceptedTradeIds.has(item.id);
+        return {
+          id: item.id,
+          myStoreId: item.requester_store_id,
+          targetStoreId: item.target_store_id,
+          myExchangeItemId: item.requester_item_id,
+          targetExchangeItemId: item.target_item_id,
+          myStoreName: item.requester_store_name,
+          myOwnerName: item.requester_owner_name,
+          myItemTitle: item.requester_item_title,
+          myItemImageUrl: item.requester_item_image_url,
+          myItemPrice: item.requester_item_price ? Number(item.requester_item_price) : undefined,
+          targetStoreName: item.target_store_name,
+          targetOwnerName: item.target_owner_name,
+          targetItemTitle: item.target_item_title,
+          targetItemImageUrl: item.target_item_image_url,
+          targetItemPrice: item.target_item_price ? Number(item.target_item_price) : undefined,
+          tradeType: item.trade_type || 'VOUCHER',
+          tradeFulfillment: item.trade_fulfillment,
+          priceDifference: item.price_difference || 0,
+          proposedTime: item.pickup_time || '',
+          isPoke: item.is_poke || false,
+          message: item.message || '',
+          status: isAccepted ? 'ACCEPTED' : (item.status || 'PENDING'),
+          createdAt: item.created_at || new Date().toISOString(),
+        };
+      });
 
     // Merge: Local proposals first, then overlay DB values (DB status takes priority, local rich metadata preserved)
     const mergedMap = new Map<string, TradeProposal>();
     for (const lp of localList) {
+      if (deletedIds.has(lp.id) || isDummyTradeProposal(lp)) continue;
       const isAccepted = lp.status === 'ACCEPTED' || acceptedTradeIds.has(lp.id);
       mergedMap.set(lp.id, {
         ...lp,
@@ -1648,6 +1691,7 @@ export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise
     }
 
     for (const dp of dbProposals) {
+      if (deletedIds.has(dp.id) || isDummyTradeProposal(dp)) continue;
       const existing = mergedMap.get(dp.id);
       if (existing) {
         mergedMap.set(dp.id, {
@@ -1670,7 +1714,9 @@ export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise
       }
     }
 
-    const merged = Array.from(mergedMap.values());
+    const merged = Array.from(mergedMap.values()).filter(
+      (p) => !deletedIds.has(p.id) && !isDummyTradeProposal(p)
+    );
     try {
       localStorage.setItem('trademe_trade_proposals', JSON.stringify(merged));
     } catch (e) {}
@@ -1738,6 +1784,8 @@ export async function updateTradeProposalStatus(
  * 4-0-1. 물물교환 제안 내역 삭제
  */
 export async function deleteTradeProposal(proposalId: string): Promise<boolean> {
+  markProposalAsDeleted(proposalId);
+
   try {
     await supabase.from('trades').delete().eq('id', proposalId);
   } catch (e) {}
