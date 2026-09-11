@@ -37,6 +37,7 @@ import {
   fetchMenuTestApplications,
   fetchChatHistory,
   fetchMyChatConversations,
+  deleteChatConversation,
   saveProfileToSupabase,
   updateStoreStatusInSupabase,
   fetchUserProfileFromSupabase,
@@ -236,11 +237,45 @@ export const App: React.FC = () => {
         // Clean up any legacy dummy seed vouchers cache
         try {
           const cachedVouchers = localStorage.getItem('trademe_vouchers');
-          if (cachedVouchers && (cachedVouchers.includes('voucher-seed-') || cachedVouchers.includes('소담 한정식') || cachedVouchers.includes('헤어살롱 유') || cachedVouchers.includes('달콤 베이커리'))) {
+          if (cachedVouchers && (cachedVouchers.includes('voucher-seed-') || cachedVouchers.includes('소담') || cachedVouchers.includes('헤어살롱') || cachedVouchers.includes('달콤') || cachedVouchers.includes('test-bakery'))) {
             const parsed = JSON.parse(cachedVouchers);
-            const filtered = parsed.filter((v: any) => !v.id?.startsWith('voucher-seed-') && !['소담 한정식', '헤어살롱 유', '달콤 베이커리'].includes(v.senderStoreName));
+            const filtered = parsed.filter((v: any) => !v.id?.startsWith('voucher-seed-') && !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(v.senderStoreName));
             localStorage.setItem('trademe_vouchers', JSON.stringify(filtered));
             setVoucherWalletCount(filtered.filter((v: any) => v.status === 'AVAILABLE').length);
+          }
+        } catch (e) {}
+
+        // Clean up any legacy dummy trade proposals cache
+        try {
+          const cachedProposals = localStorage.getItem('trademe_trade_proposals');
+          if (cachedProposals && (cachedProposals.includes('소담') || cachedProposals.includes('헤어살롱') || cachedProposals.includes('달콤') || cachedProposals.includes('test-bakery'))) {
+            const parsed = JSON.parse(cachedProposals);
+            const filtered = parsed.filter((p: any) =>
+              !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(p.requesterStoreName) &&
+              !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(p.targetStoreName)
+            );
+            localStorage.setItem('trademe_trade_proposals', JSON.stringify(filtered));
+          }
+        } catch (e) {}
+
+        // Clean up any legacy dummy chats cache
+        try {
+          const cachedChats = localStorage.getItem('trademe_local_chats');
+          if (cachedChats && (cachedChats.includes('소담') || cachedChats.includes('헤어살롱') || cachedChats.includes('달콤') || cachedChats.includes('test-bakery'))) {
+            const parsed = JSON.parse(cachedChats);
+            const filtered = parsed.filter((m: any) =>
+              !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(m.sender_name)
+            );
+            localStorage.setItem('trademe_local_chats', JSON.stringify(filtered));
+          }
+        } catch (e) {}
+
+        // Clean up test admin user session if cached
+        try {
+          const savedStore = localStorage.getItem('trademe_my_store');
+          if (savedStore && (savedStore.includes('store-webmaster-test-bakery') || savedStore.includes('테스트 베이커리'))) {
+            localStorage.removeItem('trademe_my_store');
+            localStorage.removeItem('trademe_profile');
           }
         } catch (e) {}
 
@@ -423,6 +458,16 @@ export const App: React.FC = () => {
     if (!myStore.id) return;
     const list = await fetchMyChatConversations(myStore.id, stores);
     setConversations(list);
+  };
+
+  const handleDeleteConversation = async (counterpartStoreId: string) => {
+    if (!myStore.id) return;
+    await deleteChatConversation(counterpartStoreId, myStore.id);
+    setConversations((prev) => prev.filter((c) => c.counterpartStoreId !== counterpartStoreId));
+    if (chatTargetStore?.id === counterpartStoreId) {
+      setIsChatDrawerOpen(false);
+      setChatTargetStore(null);
+    }
   };
 
   useEffect(() => {
@@ -1400,6 +1445,7 @@ export const App: React.FC = () => {
         onAcceptTrade={handleAcceptTradeFromChat}
         onRejectTrade={handleRejectTradeFromChat}
         onOpenCouponWallet={() => setIsCouponWalletOpen(true)}
+        onDeleteChat={handleDeleteConversation}
       />
 
       {/* 💬 1:1 사장님 대화함 목록 모달 */}
@@ -1410,6 +1456,7 @@ export const App: React.FC = () => {
           setMobileActiveTab('MAP');
         }}
         conversations={conversations}
+        onDeleteConversation={handleDeleteConversation}
         onSelectConversation={(counterpartStoreId) => {
           let target = stores.find((s) => s.id === counterpartStoreId);
           if (!target) {

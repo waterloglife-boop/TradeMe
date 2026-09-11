@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, MessageSquare, ArrowRight, Store, Clock, ChevronRight } from 'lucide-react';
+import { X, MessageSquare, ArrowRight, Store, Clock, ChevronRight, Trash2 } from 'lucide-react';
 import { ChatConversationSummary } from '../types/trade';
 
 interface ChatListModalProps {
@@ -7,6 +7,7 @@ interface ChatListModalProps {
   onClose: () => void;
   conversations: ChatConversationSummary[];
   onSelectConversation: (counterpartStoreId: string) => void;
+  onDeleteConversation?: (counterpartStoreId: string) => void;
   isLoading?: boolean;
 }
 
@@ -15,6 +16,7 @@ export const ChatListModal: React.FC<ChatListModalProps> = ({
   onClose,
   conversations,
   onSelectConversation,
+  onDeleteConversation,
   isLoading,
 }) => {
   if (!isOpen) return null;
@@ -128,7 +130,22 @@ export const ChatListModal: React.FC<ChatListModalProps> = ({
                 </div>
 
                 {/* Right Action Button */}
-                <div className="flex items-center gap-1 flex-shrink-0 pl-2">
+                <div className="flex items-center gap-1.5 flex-shrink-0 pl-2">
+                  {onDeleteConversation && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`'${conv.counterpartStoreName}' 사장님과의 대화 내역을 모두 삭제하고 나가시겠습니까?`)) {
+                          onDeleteConversation(conv.counterpartStoreId);
+                        }
+                      }}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                      title="대화방 삭제 및 나가기"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="px-3 py-2 rounded-xl bg-orange-50 group-hover:bg-orange-600 group-hover:text-white text-orange-600 text-xs font-extrabold transition-all flex items-center gap-1"

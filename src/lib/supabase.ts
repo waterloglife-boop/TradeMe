@@ -424,69 +424,10 @@ export async function signUpUser(
   }
 }
 
-// 🛡️ [공식 웹마스터 테스트 가맹점]
-// 1인 사용자 환경에서 마라위크 매장과의 1:1 대화 및 교환권 거래를 원활하게 상호 테스트할 수 있도록 지원하는 공식 가맹점
-export const WEBMASTER_TEST_STORE: Store = {
-  id: 'store-webmaster-test-bakery',
-  userId: 'user-webmaster-test',
-  ownerName: '웹마스터 김동욱',
-  storeName: '트레이드미 테스트 베이커리',
-  category: 'CAFE',
-  categoryName: '카페/디저트',
-  address: '경상남도 양산시 물금읍 야리2길 15',
-  lat: 35.3185,
-  lng: 129.0065,
-  phone: '010-9876-5432',
-  isVerified: true,
-  breakTimeActive: true,
-  breakTimeHours: '10:00 - 22:00',
-  storeImageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80',
-  rating: 5.0,
-  reviewCount: 14,
-  isMenuTesting: false,
-  voucherActive: true,
-  voucherAmount: 10000,
-  voucherMaxIssue: 5,
-  voucherFulfillmentTypes: ['PICKUP', 'DELIVERY', 'ON_SITE'],
-  exchangeItems: [
-    {
-      id: 'item-test-bakery-1',
-      storeId: 'store-webmaster-test-bakery',
-      type: 'FOOD',
-      title: '🥐 [대표] 수제 크루아상 & 아메리카노 2인 세트',
-      description: '갓 구운 프랑스 고메버터 크루아상과 스페셜티 아메리카노 2잔 세트입니다. 매장 방문 식사 또는 포장 픽업 가능합니다.',
-      estimatedPrice: 12000,
-      imageUrl: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=600&q=80',
-      isAvailable: true,
-      fulfillmentTypes: ['PICKUP', 'DELIVERY', 'ON_SITE'],
-    },
-    {
-      id: 'item-test-bakery-voucher',
-      storeId: 'store-webmaster-test-bakery',
-      type: 'VOUCHER',
-      title: '🎟️ [상생 교환권] 10,000원 모바일 금액 교환권',
-      description: '트레이드미 상생 교환권입니다. 매장 방문 시 전 메뉴에서 10,000원 상당으로 자유롭게 차감 결제하실 수 있습니다.',
-      estimatedPrice: 10000,
-      imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80',
-      isAvailable: true,
-      fulfillmentTypes: ['PICKUP', 'ON_SITE'],
-      isVoucher: true,
-    },
-    {
-      id: 'item-test-bakery-2',
-      storeId: 'store-webmaster-test-bakery',
-      type: 'FOOD',
-      title: '🍰 [인기] 딸기 생크림 조각케이크 & 디저트 세트',
-      description: '100% 동물성 생크림과 신선한 생딸기를 듬뿍 올린 프리미엄 조각케이크입니다.',
-      estimatedPrice: 15000,
-      imageUrl: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=600&q=80',
-      isAvailable: true,
-      fulfillmentTypes: ['PICKUP', 'ON_SITE'],
-    },
-  ],
-};
-
-export async function signInUser(email: string, pass: string): Promise<{
+export async function signInUser(
+  email: string,
+  pass: string
+): Promise<{
   success: boolean;
   user?: any;
   store?: Store;
@@ -495,41 +436,6 @@ export async function signInUser(email: string, pass: string): Promise<{
 }> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = pass.trim();
-
-  // 1. 웹마스터 테스트 전용 계정 즉시 인증 (master@trademe.kr, demo@trademe.kr)
-  if (['master@trademe.kr', 'demo@trademe.kr'].includes(cleanEmail)) {
-    if (cleanPass !== '1901123' && cleanPass !== 'test1234!') {
-      return {
-        success: false,
-        error: '웹마스터 계정 비밀번호가 일치하지 않습니다. (마스터 암호: 1901123)',
-        message: '웹마스터 계정 비밀번호가 일치하지 않습니다. (마스터 암호: 1901123)',
-      };
-    }
-
-    const testUser = {
-      id: 'user-webmaster-test',
-      email: cleanEmail,
-      user_metadata: {
-        owner_name: WEBMASTER_TEST_STORE.ownerName,
-        store_name: WEBMASTER_TEST_STORE.storeName,
-        business_number: '123-45-67890',
-        phone: WEBMASTER_TEST_STORE.phone,
-        address: WEBMASTER_TEST_STORE.address,
-      },
-    };
-
-    try {
-      localStorage.setItem('trademe_profile', JSON.stringify(testUser.user_metadata));
-      localStorage.setItem('trademe_my_store', JSON.stringify(WEBMASTER_TEST_STORE));
-    } catch (e) {}
-
-    return {
-      success: true,
-      user: testUser as any,
-      store: WEBMASTER_TEST_STORE,
-      message: '웹마스터 계정으로 로그인되었습니다.',
-    };
-  }
 
   try {
     // 2. Supabase Auth signInWithPassword
@@ -1826,6 +1732,26 @@ export async function updateTradeProposalStatus(
 }
 
 /**
+ * 4-0-1. 물물교환 제안 내역 삭제
+ */
+export async function deleteTradeProposal(proposalId: string): Promise<boolean> {
+  try {
+    await supabase.from('trades').delete().eq('id', proposalId);
+  } catch (e) {}
+
+  try {
+    const raw = localStorage.getItem('trademe_trade_proposals');
+    if (raw) {
+      const list = JSON.parse(raw);
+      const filtered = list.filter((p: any) => p.id !== proposalId);
+      localStorage.setItem('trademe_trade_proposals', JSON.stringify(filtered));
+    }
+  } catch (e) {}
+
+  return true;
+}
+
+/**
  * 4-1. 1:1 물물교환 제안 상태 실시간 감지 구독
  */
 export function subscribeToTradeProposals(
@@ -2050,6 +1976,46 @@ export async function fetchMyChatConversations(
 }
 
 /**
+ * 5-1-1. 1:1 대화방 전체 내역 삭제 및 방 나가기
+ */
+export async function deleteChatConversation(
+  counterpartStoreId: string,
+  myStoreId: string
+): Promise<boolean> {
+  if (!counterpartStoreId || !myStoreId) return false;
+
+  // 1. Supabase Database chat_messages 삭제 (양방향 메시지 일괄 삭제)
+  try {
+    await supabase
+      .from('chat_messages')
+      .delete()
+      .or(
+        `and(trade_id.eq.${counterpartStoreId},sender_store_id.eq.${myStoreId}),and(trade_id.eq.${myStoreId},sender_store_id.eq.${counterpartStoreId})`
+      );
+  } catch (err) {
+    console.warn('[Supabase Notice] deleteChatConversation cloud delete warning:', err);
+  }
+
+  // 2. localStorage 'trademe_local_chats' 캐시 삭제
+  try {
+    const raw = localStorage.getItem('trademe_local_chats');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const filtered = parsed.filter(
+        (m: any) =>
+          !(
+            (m.trade_id === counterpartStoreId && m.sender_store_id === myStoreId) ||
+            (m.trade_id === myStoreId && m.sender_store_id === counterpartStoreId)
+          )
+      );
+      localStorage.setItem('trademe_local_chats', JSON.stringify(filtered));
+    }
+  } catch (e) {}
+
+  return true;
+}
+
+/**
  * 5-2. 내 매장으로 수신되는 모든 1:1 메시지 실시간 감지 구독
  */
 export function subscribeToIncomingChats(
@@ -2229,6 +2195,26 @@ export async function updateMenuTestApplicationStatus(
     return { success: true };
   } catch (err) {
     console.error('[Supabase Error] updateMenuTestApplicationStatus exception:', err);
+    return { success: false };
+  }
+}
+
+export async function deleteMenuTestApplication(
+  applicationId: string
+): Promise<{ success: boolean }> {
+  try {
+    const { error } = await supabase
+      .from('menu_test_applications')
+      .delete()
+      .eq('id', applicationId);
+
+    if (error) {
+      console.error('[Supabase Error] deleteMenuTestApplication failed:', error);
+      return { success: false };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error('[Supabase Error] deleteMenuTestApplication exception:', err);
     return { success: false };
   }
 }
@@ -2584,6 +2570,40 @@ export async function createPostComment(
   return { success: true, data: createdComment };
 }
 
+export async function deleteCommunityComment(
+  commentId: string,
+  postId: string
+): Promise<boolean> {
+  try {
+    await supabase.from('community_comments').delete().eq('id', commentId);
+  } catch (e) {}
+
+  try {
+    const raw = localStorage.getItem(LOCAL_COMMENTS_KEY);
+    if (raw) {
+      const allComments: CommunityComment[] = JSON.parse(raw);
+      const filtered = allComments.filter((c) => c.id !== commentId);
+      localStorage.setItem(LOCAL_COMMENTS_KEY, JSON.stringify(filtered));
+    }
+  } catch (e) {}
+
+  try {
+    const { data: post } = await supabase
+      .from('community_posts')
+      .select('comments_count')
+      .eq('id', postId)
+      .single();
+    if (post && post.comments_count > 0) {
+      await supabase
+        .from('community_posts')
+        .update({ comments_count: post.comments_count - 1 })
+        .eq('id', postId);
+    }
+  } catch (e) {}
+
+  return true;
+}
+
 export function subscribeToCommunity(onUpdate: () => void) {
   const channel = supabase
     .channel('public:community_realtime')
@@ -2690,6 +2710,16 @@ export function addIssuedVoucherToStorage(voucher: IssuedVoucher): { success: bo
   saveStoredVouchers(vouchers);
   // Non-blocking cloud sync if table exists
   syncVoucherToSupabase(voucher);
+  return { success: true };
+}
+
+export function deleteVoucherFromStorage(voucherId: string): { success: boolean; error?: string } {
+  const vouchers = fetchStoredVouchers();
+  const filtered = vouchers.filter((v) => v.id !== voucherId);
+  saveStoredVouchers(filtered);
+  try {
+    supabase.from('issued_vouchers').delete().eq('id', voucherId);
+  } catch (e) {}
   return { success: true };
 }
 

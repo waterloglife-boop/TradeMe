@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Ticket, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, ChevronRight, ShieldCheck, ArrowRight, Store as StoreIcon, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { X, Ticket, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, ChevronRight, ShieldCheck, ArrowRight, Store as StoreIcon, AlertTriangle, ShieldAlert, Trash2 } from 'lucide-react';
 import { Store, IssuedVoucher } from '../types/trade';
-import { fetchStoredVouchers, fetchVouchersFromSupabase, redeemVoucherInStorage, restoreVoucherInStorage } from '../lib/supabase';
+import { fetchStoredVouchers, fetchVouchersFromSupabase, redeemVoucherInStorage, restoreVoucherInStorage, deleteVoucherFromStorage } from '../lib/supabase';
 
 interface CouponWalletModalProps {
   isOpen: boolean;
@@ -72,6 +72,15 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
     } else {
       showToast(res.error || '복원에 실패했습니다.');
     }
+  };
+
+  const handleDeleteVoucher = (voucherId: string) => {
+    if (!confirm('이 교환권 내역을 영구 삭제하시겠습니까?')) return;
+    deleteVoucherFromStorage(voucherId);
+    const updated = fetchStoredVouchers(myStore.id, myStore.storeName);
+    setVouchers(updated);
+    showToast('🗑️ 교환권 내역이 삭제되었습니다.');
+    onWalletUpdate?.();
   };
 
   // Helper for D-Day calculation
@@ -287,17 +296,27 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
                           : `만료 일자: ${new Date(voucher.expiresAt).toLocaleDateString('ko-KR')}`}
                       </span>
 
-                      {voucher.status === 'USED' && (
+                      <div className="flex items-center gap-1.5">
+                        {voucher.status === 'USED' && (
+                          <button
+                            type="button"
+                            onClick={() => handleRestore(voucher.id)}
+                            className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1 active:scale-95"
+                            title="실수로 사용 완료를 누른 경우 복원합니다"
+                          >
+                            <RotateCcw className="w-3 h-3 text-amber-600" />
+                            <span>사용 복원</span>
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => handleRestore(voucher.id)}
-                          className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1 active:scale-95"
-                          title="실수로 사용 완료를 누른 경우 복원합니다"
+                          onClick={() => handleDeleteVoucher(voucher.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                          title="교환권 내역 삭제"
                         >
-                          <RotateCcw className="w-3 h-3 text-amber-600" />
-                          <span>실수로 누르셨나요? (사용 복원)</span>
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 ))

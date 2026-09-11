@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRightLeft, CheckCircle2, XCircle, Clock, MessageSquare, AlertCircle, RefreshCw, Sparkles, Inbox, Send } from 'lucide-react';
+import { X, ArrowRightLeft, CheckCircle2, XCircle, Clock, MessageSquare, AlertCircle, RefreshCw, Sparkles, Inbox, Send, Trash2 } from 'lucide-react';
 import { TradeProposal, Store } from '../types/trade';
-import { fetchTradeProposalsFromSupabase, updateTradeProposalStatus, fetchStoredVouchers, issueBilateralVouchersForTrade, subscribeToTradeProposals } from '../lib/supabase';
+import { fetchTradeProposalsFromSupabase, updateTradeProposalStatus, deleteTradeProposal, fetchStoredVouchers, issueBilateralVouchersForTrade, subscribeToTradeProposals } from '../lib/supabase';
 
 interface TradeDashboardModalProps {
   isOpen: boolean;
@@ -85,6 +85,12 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
       onAcceptAndOpenChat(proposal);
       onClose();
     }
+  };
+
+  const handleDeleteProposal = async (proposalId: string) => {
+    if (!confirm('이 물물교환 제안 내역을 삭제하시겠습니까?')) return;
+    await deleteTradeProposal(proposalId);
+    setProposals((prev) => prev.filter((p) => p.id !== proposalId));
   };
 
   const currentList = activeTab === 'RECEIVED' ? receivedProposals : sentProposals;
@@ -238,8 +244,8 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
                       </span>
                     </div>
 
-                    {/* Status Badge */}
-                    <div>
+                    {/* Status Badge & Delete */}
+                    <div className="flex items-center gap-1.5">
                       {proposal.status === 'ACCEPTED' ? (
                         <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -255,6 +261,15 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
                           수락 대기중
                         </span>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProposal(proposal.id)}
+                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                        title="제안 내역 삭제"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 

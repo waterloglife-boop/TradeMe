@@ -4,6 +4,7 @@ import { MenuTestApplication, MenuTestCampaign, Store, MenuTestFeedbackType } fr
 import {
   fetchMenuTestApplications,
   updateMenuTestApplicationStatus,
+  deleteMenuTestApplication,
   fetchMenuTestCampaigns,
   saveMenuTestCampaignToSupabase,
   deleteMenuTestCampaignFromSupabase,
@@ -100,6 +101,12 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
       const hasActive = updatedList.some((c) => c.status === 'RECRUITING');
       await supabase.from('stores').update({ is_menu_testing: hasActive }).eq('id', myStore.id);
     }
+  };
+
+  const handleDeleteApplication = async (applicationId: string) => {
+    if (!confirm('이 지원서를 영구 삭제하시겠습니까?')) return;
+    await deleteMenuTestApplication(applicationId);
+    setApplications((prev) => prev.filter((a) => a.id !== applicationId));
   };
 
   const handleStatusChange = async (app: MenuTestApplication, newStatus: 'ACCEPTED' | 'REJECTED') => {
@@ -271,16 +278,14 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      {campaigns.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCampaign(camp.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                          title="삭제"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCampaign(camp.id)}
+                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                        title="모집글 삭제"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -423,50 +428,62 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-end gap-2 pt-1">
-                  {app.status === 'PENDING' ? (
-                    <>
-                      <button
-                        type="button"
-                        disabled={actionLoadingId === app.id}
-                        onClick={() => handleStatusChange(app, 'REJECTED')}
-                        className="px-3 py-2 bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 font-bold text-xs rounded-xl border border-gray-200 transition-all flex items-center gap-1"
-                      >
-                        <XCircle className="w-3.5 h-3.5" />
-                        <span>정원 초과 / 거절</span>
-                      </button>
+                <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteApplication(app.id)}
+                    className="px-2.5 py-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl text-xs font-bold transition-all flex items-center gap-1 border border-transparent hover:border-red-100"
+                    title="지원서 삭제"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>지원서 삭제</span>
+                  </button>
 
+                  <div className="flex items-center gap-2">
+                    {app.status === 'PENDING' ? (
+                      <>
+                        <button
+                          type="button"
+                          disabled={actionLoadingId === app.id}
+                          onClick={() => handleStatusChange(app, 'REJECTED')}
+                          className="px-3 py-2 bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 font-bold text-xs rounded-xl border border-gray-200 transition-all flex items-center gap-1"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>정원 초과 / 거절</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={actionLoadingId === app.id}
+                          onClick={() => handleStatusChange(app, 'ACCEPTED')}
+                          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>체험단 수락 & 1:1 대화방 시작</span>
+                        </button>
+                      </>
+                    ) : app.status === 'ACCEPTED' ? (
                       <button
                         type="button"
-                        disabled={actionLoadingId === app.id}
-                        onClick={() => handleStatusChange(app, 'ACCEPTED')}
-                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+                        onClick={() => {
+                          onAcceptAndOpenChat(app);
+                          onClose();
+                        }}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
                       >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>체험단 수락 & 1:1 대화방 시작</span>
+                        <MessageSquare className="w-4 h-4" />
+                        <span>{app.applicantOwnerName} 사장님과 1:1 대화하기</span>
                       </button>
-                    </>
-                  ) : app.status === 'ACCEPTED' ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onAcceptAndOpenChat(app);
-                        onClose();
-                      }}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      <span>{app.applicantOwnerName} 사장님과 1:1 대화하기</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleStatusChange(app, 'ACCEPTED')}
-                      className="px-3 py-1.5 bg-gray-100 hover:bg-purple-50 text-gray-600 hover:text-purple-600 font-bold text-xs rounded-xl border border-gray-200 transition-all"
-                    >
-                      수락으로 변경하기
-                    </button>
-                  )}
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange(app, 'ACCEPTED')}
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-purple-50 text-gray-600 hover:text-purple-600 font-bold text-xs rounded-xl border border-gray-200 transition-all"
+                      >
+                        수락으로 변경하기
+                      </button>
+                    )}
+                  </div>
                 </div>
 
               </div>

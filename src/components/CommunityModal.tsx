@@ -30,6 +30,7 @@ import {
   createPostComment,
   likeCommunityPost,
   deleteCommunityPost,
+  deleteCommunityComment,
   subscribeToCommunity,
 } from '../lib/supabase';
 import { CreateCommunityPostModal } from './CreateCommunityPostModal';
@@ -155,6 +156,21 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
     const ok = await deleteCommunityPost(postId);
     if (ok) {
       setPosts((prev) => prev.filter((p) => p.id !== postId));
+    }
+  };
+
+  // Delete comment
+  const handleDeleteComment = async (commentId: string, postId: string) => {
+    if (!confirm('정말 이 댓글을 삭제하시겠습니까?')) return;
+    const ok = await deleteCommunityComment(commentId, postId);
+    if (ok) {
+      setCommentsMap((prev) => ({
+        ...prev,
+        [postId]: (prev[postId] || []).filter((c) => c.id !== commentId),
+      }));
+      setPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, commentsCount: Math.max(0, p.commentsCount - 1) } : p))
+      );
     }
   };
 
@@ -427,7 +443,10 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
           ) : (
             filteredPosts.map((post, postIdx) => {
               const targetStore = findStoreByPost(post);
-              const isMine = post.storeId === myStore.id || (myStore.storeName && post.storeName === myStore.storeName);
+              const isMine =
+                post.storeId === myStore.id ||
+                (Boolean(myStore.storeName) && post.storeName === myStore.storeName) ||
+                (Boolean(userOwnerName) && Boolean(post.authorName) && (post.authorName.includes(userOwnerName) || userOwnerName.includes(post.authorName)));
               const isCommentsOpen = !!openCommentsMap[post.id];
               const comments = commentsMap[post.id] || [];
               const postDistance = getPostDistance(post);
@@ -496,11 +515,13 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
 
                     {isMine && (
                       <button
+                        type="button"
                         onClick={() => handleDeletePost(post.id)}
-                        className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-gray-100 transition"
+                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 transition font-bold"
                         title="게시글 삭제"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
+                        <span>삭제</span>
                       </button>
                     )}
                   </div>
@@ -608,22 +629,41 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
                       {/* Comments List */}
                       {comments.length > 0 ? (
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                          {comments.map((cmt) => (
-                            <div
-                              key={cmt.id}
-                              className="p-2.5 bg-white rounded-xl border border-gray-200/70 text-xs space-y-1"
-                            >
-                              <div className="flex items-center justify-between text-[11px]">
-                                <span className="font-black text-gray-800">
-                                  {cmt.isAnonymous ? '🤫 익명의 사장님' : `🏬 ${cmt.storeName}`}
-                                </span>
-                                <span className="text-gray-400">{formatTimeAgo(cmt.createdAt)}</span>
+                          {comments.map((cmt) => {
+                            const isMineComment =
+                              cmt.storeId === myStore.id ||
+                              (Boolean(myStore.storeName) && cmt.storeName === myStore.storeName) ||
+                              (Boolean(userOwnerName) && Boolean(cmt.authorName) && (cmt.authorName.includes(userOwnerName) || userOwnerName.includes(cmt.authorName)));
+
+                            return (
+                              <div
+                                key={cmt.id}
+                                className="p-2.5 bg-white rounded-xl border border-gray-200/70 text-xs space-y-1"
+                              >
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="font-black text-gray-800">
+                                    {cmt.isAnonymous ? '🤫 익명의 사장님' : `🏬 ${cmt.storeName}`}
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-gray-400">{formatTimeAgo(cmt.createdAt)}</span>
+                                    {isMineComment && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteComment(cmt.id, post.id)}
+                                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-gray-100 rounded transition"
+                                        title="댓글 삭제"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="text-gray-700 whitespace-pre-line leading-relaxed">
+                                  {cmt.content}
+                                </p>
                               </div>
-                              <p className="text-gray-700 whitespace-pre-line leading-relaxed">
-                                {cmt.content}
-                              </p>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <div className="text-center py-4 text-xs text-gray-400">

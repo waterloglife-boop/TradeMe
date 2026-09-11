@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Send, Phone, ArrowRightLeft, CheckCircle2, Store, Clock } from 'lucide-react';
+import { X, Send, Phone, ArrowRightLeft, CheckCircle2, Store, Clock, Trash2 } from 'lucide-react';
 import { Store as StoreType, ChatMessage } from '../types/trade';
 import { fetchStoredVouchers } from '../lib/supabase';
 
@@ -13,6 +13,7 @@ interface ChatDrawerProps {
   onAcceptTrade?: (tradeData?: any) => void;
   onRejectTrade?: (tradeData?: any) => void;
   onOpenCouponWallet?: () => void;
+  onDeleteChat?: (counterpartStoreId: string) => void;
 }
 
 export const ChatDrawer: React.FC<ChatDrawerProps> = ({
@@ -25,6 +26,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   onAcceptTrade,
   onRejectTrade,
   onOpenCouponWallet,
+  onDeleteChat,
 }) => {
   const [inputText, setInputText] = useState('');
 
@@ -133,14 +135,30 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
         <div className="flex items-center gap-1">
           <a
             href={`tel:${targetStore.phone}`}
-            className="p-2 rounded-lg bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700"
+            className="p-2 rounded-lg bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 transition"
             title="전화걸기"
           >
             <Phone className="w-4 h-4" />
           </a>
+          {onDeleteChat && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm(`'${targetStore.storeName}' 사장님과의 대화 내역을 모두 삭제하고 대화방을 나가시겠습니까?`)) {
+                  onDeleteChat(targetStore.id);
+                  onClose();
+                }
+              }}
+              className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-red-400 hover:bg-gray-700 transition"
+              title="대화 내역 전체 삭제 및 나가기"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-lg bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700"
+            className="p-2 rounded-lg bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 transition"
           >
             <X className="w-5 h-5" />
           </button>
