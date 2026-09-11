@@ -1577,15 +1577,16 @@ export async function sendTradeProposalToSupabase(
     createdAt: new Date().toISOString(),
   };
 
-  // 1. LocalStorage Backup for instant offline / mock access
+  // 1. LocalStorage Backup for instant offline access
   try {
     const raw = localStorage.getItem('trademe_trade_proposals');
     const existing: TradeProposal[] = raw ? JSON.parse(raw) : [];
     localStorage.setItem('trademe_trade_proposals', JSON.stringify([newProposal, ...existing]));
   } catch (e) {}
 
+  // 2. Supabase Cloud DB Insert with graceful adaptive fallback
   try {
-    const { error } = await supabase.from('trades').insert({
+    const fullPayload: any = {
       id: tradeId,
       requester_store_id: requesterStoreId,
       target_store_id: targetStoreId,
@@ -1595,11 +1596,40 @@ export async function sendTradeProposalToSupabase(
       pickup_time: pickupTime,
       is_poke: isPoke,
       message: message,
+      trade_type: meta?.tradeType || 'VOUCHER',
+      trade_fulfillment: meta?.tradeFulfillment,
+      requester_store_name: meta?.myStoreName,
+      requester_owner_name: meta?.myOwnerName,
+      requester_item_title: meta?.myItemTitle,
+      requester_item_image_url: meta?.myItemImageUrl,
+      requester_item_price: meta?.myItemPrice,
+      target_store_name: meta?.targetStoreName,
+      target_owner_name: meta?.targetOwnerName,
+      target_item_title: meta?.targetItemTitle,
+      target_item_image_url: meta?.targetItemImageUrl,
+      target_item_price: meta?.targetItemPrice,
       status: 'PENDING',
-    });
+    };
+
+    const { error } = await supabase.from('trades').insert(fullPayload);
 
     if (error) {
-      console.warn('Supabase trades insert notice:', error.message);
+      console.warn('Supabase full trades insert notice:', error.message, '-> Retrying with resilient fallback');
+      // Resilient Fallback: If missing columns (PGRST204) or exchange_items foreign key constraints (23503) occur
+      const fallbackPayload: any = {
+        id: tradeId,
+        requester_store_id: requesterStoreId,
+        target_store_id: targetStoreId,
+        requester_item_id: null,
+        target_item_id: null,
+        price_difference: priceDifference,
+        pickup_time: pickupTime,
+        status: 'PENDING',
+      };
+      const retryRes = await supabase.from('trades').insert(fallbackPayload);
+      if (retryRes.error) {
+        console.warn('Supabase trades fallback notice:', retryRes.error.message);
+      }
     }
     return { success: true, tradeId, proposal: newProposal };
   } catch (err) {
@@ -1640,31 +1670,107 @@ export async function fetchTradeProposalsFromSupabase(storeId?: string): Promise
     const { data, error } = await query;
     const localList = getLocalProposals();
 
-    if (error || !data || data.length === 0) {
-      return localList;
+    // Check issued_vouchers in Supabase as cloud-level source of truth for accepted trades
+    const acceptedTradeIds = new Set<string>();
+    try {
+      let vQuery = supabase.from('issued_vouchers').select('trade_id');
+      if (storeId) {
+        vQuery = vQuery.or(`receiver_store_id.eq.${storeId},sender_store_id.eq.${storeId}`);
+      }
+      const { data: vData } = await vQuery;
+      if (vData) {
+        vData.forEach((v: any) => {
+          if (v.trade_id) acceptedTradeIds.add(v.trade_id);
+        });
+      }
+    } catch (ve) {}
+
+    // Check recent chat_messages for acceptance
+    try {
+      const rawChats = localStorage.getItem('trademe_local_chats');
+      if (rawChats) {
+        const chats = JSON.parse(rawChats);
+        chats.forEach((c: any) => {
+          if (c.message && c.message.includes('수락하셨습니다')) {
+            const match = c.message.match(/TRADE_DATA:({.*?})/);
+            if (match && match[1]) {
+              try {
+                const parsed = JSON.parse(match[1]);
+                if (parsed.tradeId) acceptedTradeIds.add(parsed.tradeId);
+              } catch (e) {}
+            }
+          }
+        });
+      }
+    } catch (ce) {}
+
+    const dbProposals: TradeProposal[] = (data || []).map((item: any) => {
+      const isAccepted = item.status === 'ACCEPTED' || acceptedTradeIds.has(item.id);
+      return {
+        id: item.id,
+        myStoreId: item.requester_store_id,
+        targetStoreId: item.target_store_id,
+        myExchangeItemId: item.requester_item_id,
+        targetExchangeItemId: item.target_item_id,
+        myStoreName: item.requester_store_name,
+        myOwnerName: item.requester_owner_name,
+        myItemTitle: item.requester_item_title,
+        myItemImageUrl: item.requester_item_image_url,
+        myItemPrice: item.requester_item_price ? Number(item.requester_item_price) : undefined,
+        targetStoreName: item.target_store_name,
+        targetOwnerName: item.target_owner_name,
+        targetItemTitle: item.target_item_title,
+        targetItemImageUrl: item.target_item_image_url,
+        targetItemPrice: item.target_item_price ? Number(item.target_item_price) : undefined,
+        tradeType: item.trade_type || 'VOUCHER',
+        tradeFulfillment: item.trade_fulfillment,
+        priceDifference: item.price_difference || 0,
+        proposedTime: item.pickup_time || '',
+        isPoke: item.is_poke || false,
+        message: item.message || '',
+        status: isAccepted ? 'ACCEPTED' : (item.status || 'PENDING'),
+        createdAt: item.created_at || new Date().toISOString(),
+      };
+    });
+
+    // Merge: Local proposals first, then overlay DB values (DB status takes priority, local rich metadata preserved)
+    const mergedMap = new Map<string, TradeProposal>();
+    for (const lp of localList) {
+      const isAccepted = lp.status === 'ACCEPTED' || acceptedTradeIds.has(lp.id);
+      mergedMap.set(lp.id, {
+        ...lp,
+        status: isAccepted ? 'ACCEPTED' : lp.status,
+      });
     }
 
-    const dbProposals: TradeProposal[] = data.map((item: any) => ({
-      id: item.id,
-      myStoreId: item.requester_store_id,
-      targetStoreId: item.target_store_id,
-      myExchangeItemId: item.requester_item_id,
-      targetExchangeItemId: item.target_item_id,
-      priceDifference: item.price_difference || 0,
-      proposedTime: item.pickup_time || '',
-      isPoke: item.is_poke || false,
-      message: item.message || '',
-      status: item.status || 'PENDING',
-      createdAt: item.created_at || new Date().toISOString(),
-    }));
-
-    // Merge db and local proposals
-    const merged = [...dbProposals];
-    for (const lp of localList) {
-      if (!merged.some((dp) => dp.id === lp.id)) {
-        merged.push(lp);
+    for (const dp of dbProposals) {
+      const existing = mergedMap.get(dp.id);
+      if (existing) {
+        mergedMap.set(dp.id, {
+          ...existing,
+          ...dp,
+          myItemTitle: dp.myItemTitle || existing.myItemTitle,
+          targetItemTitle: dp.targetItemTitle || existing.targetItemTitle,
+          myStoreName: dp.myStoreName || existing.myStoreName,
+          targetStoreName: dp.targetStoreName || existing.targetStoreName,
+          myItemPrice: dp.myItemPrice ?? existing.myItemPrice,
+          targetItemPrice: dp.targetItemPrice ?? existing.targetItemPrice,
+          myItemImageUrl: dp.myItemImageUrl || existing.myItemImageUrl,
+          targetItemImageUrl: dp.targetItemImageUrl || existing.targetItemImageUrl,
+          tradeType: dp.tradeType || existing.tradeType,
+          tradeFulfillment: dp.tradeFulfillment || existing.tradeFulfillment,
+          status: (dp.status === 'ACCEPTED' || existing.status === 'ACCEPTED' || acceptedTradeIds.has(dp.id)) ? 'ACCEPTED' : dp.status,
+        });
+      } else {
+        mergedMap.set(dp.id, dp);
       }
     }
+
+    const merged = Array.from(mergedMap.values());
+    try {
+      localStorage.setItem('trademe_trade_proposals', JSON.stringify(merged));
+    } catch (e) {}
+
     return merged;
   } catch (err) {
     console.error('[Supabase Error] fetchTradeProposalsFromSupabase exception:', err);
@@ -1686,25 +1792,126 @@ export async function updateTradeProposalStatus(
   } catch (e) {}
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('trades')
       .update({ status })
-      .eq('id', proposalId);
+      .eq('id', proposalId)
+      .select();
 
     if (error) {
-      console.error('[Supabase Error] updateTradeProposalStatus failed:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-      });
-      return { success: false };
+      console.warn('[Supabase Error] updateTradeProposalStatus failed:', error.message);
     }
+
+    // If update returned 0 rows (proposal wasn't in Supabase DB yet), upsert it directly
+    if (!data || data.length === 0) {
+      try {
+        const raw = localStorage.getItem('trademe_trade_proposals');
+        const list: TradeProposal[] = raw ? JSON.parse(raw) : [];
+        const found = list.find((p) => p.id === proposalId);
+        if (found) {
+          await supabase.from('trades').upsert({
+            id: found.id,
+            requester_store_id: found.myStoreId,
+            target_store_id: found.targetStoreId,
+            price_difference: found.priceDifference || 0,
+            pickup_time: found.proposedTime || '브레이크 타임',
+            status: status,
+          });
+        }
+      } catch (upsertErr) {
+        console.warn('Trades fallback upsert note:', upsertErr);
+      }
+    }
+
     return { success: true };
   } catch (err) {
     console.error('[Supabase Error] updateTradeProposalStatus exception:', err);
     return { success: true };
   }
+}
+
+/**
+ * 4-1. 1:1 물물교환 제안 상태 실시간 감지 구독
+ */
+export function subscribeToTradeProposals(
+  myStoreId: string,
+  onUpdate: (updatedRow: any) => void
+) {
+  if (!myStoreId) return () => {};
+
+  const channel = supabase
+    .channel(`trade-proposals-${myStoreId}-${Date.now()}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'trades',
+      },
+      (payload) => {
+        const row = (payload.new || payload.old) as any;
+        if (row && (row.requester_store_id === myStoreId || row.target_store_id === myStoreId)) {
+          onUpdate(row);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * 4-2. 상생 교환권(바우처) 실시간 수신 리스너
+ */
+export function subscribeToVouchers(
+  myStoreId: string,
+  onNewVoucher: (voucher: IssuedVoucher) => void
+) {
+  if (!myStoreId) return () => {};
+
+  const channel = supabase
+    .channel(`vouchers-realtime-${myStoreId}-${Date.now()}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'issued_vouchers',
+        filter: `receiver_store_id=eq.${myStoreId}`,
+      },
+      (payload) => {
+        const row = payload.new as any;
+        if (row) {
+          const voucher: IssuedVoucher = {
+            id: row.id,
+            tradeId: row.trade_id,
+            senderStoreId: row.sender_store_id,
+            senderStoreName: row.sender_store_name,
+            senderOwnerName: row.sender_owner_name,
+            senderStoreImageUrl: row.sender_store_image_url,
+            receiverStoreId: row.receiver_store_id,
+            receiverStoreName: row.receiver_store_name,
+            type: row.type || 'AMOUNT',
+            title: row.title,
+            description: row.description,
+            amount: Number(row.amount) || 0,
+            fulfillmentTypes: row.fulfillment_types || ['PICKUP', 'ON_SITE'],
+            issuedAt: row.issued_at,
+            expiresAt: row.expires_at,
+            status: row.status || 'AVAILABLE',
+            usedAt: row.used_at || undefined,
+          };
+          onNewVoucher(voucher);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 /**
@@ -2530,32 +2737,35 @@ export async function syncVoucherToSupabase(voucher: IssuedVoucher): Promise<voi
 
 export async function fetchVouchersFromSupabase(receiverStoreId?: string): Promise<IssuedVoucher[]> {
   try {
-    if (!receiverStoreId) return fetchStoredVouchers();
-    const { data, error } = await supabase
-      .from('issued_vouchers')
-      .select('*')
-      .eq('receiver_store_id', receiverStoreId);
+    let query = supabase.from('issued_vouchers').select('*');
+    if (receiverStoreId) {
+      query = query.or(`receiver_store_id.eq.${receiverStoreId},receiver_store_id.eq.my_store`);
+    }
+
+    const { data, error } = await query.order('issued_at', { ascending: false });
 
     if (!error && data && data.length > 0) {
-      const dbVouchers: IssuedVoucher[] = data.map((row: any) => ({
-        id: row.id,
-        tradeId: row.trade_id,
-        senderStoreId: row.sender_store_id,
-        senderStoreName: row.sender_store_name,
-        senderOwnerName: row.sender_owner_name,
-        senderStoreImageUrl: row.sender_store_image_url,
-        receiverStoreId: row.receiver_store_id,
-        receiverStoreName: row.receiver_store_name,
-        type: row.type || 'AMOUNT',
-        title: row.title,
-        description: row.description,
-        amount: Number(row.amount) || 0,
-        fulfillmentTypes: row.fulfillment_types || ['PICKUP', 'ON_SITE'],
-        issuedAt: row.issued_at,
-        expiresAt: row.expires_at,
-        status: row.status || 'AVAILABLE',
-        usedAt: row.used_at || undefined,
-      }));
+      const dbVouchers: IssuedVoucher[] = data
+        .filter((row: any) => !row.id.startsWith('voucher-seed-') && !row.trade_id?.startsWith('trade-demo-'))
+        .map((row: any) => ({
+          id: row.id,
+          tradeId: row.trade_id,
+          senderStoreId: row.sender_store_id,
+          senderStoreName: row.sender_store_name,
+          senderOwnerName: row.sender_owner_name,
+          senderStoreImageUrl: row.sender_store_image_url,
+          receiverStoreId: row.receiver_store_id,
+          receiverStoreName: row.receiver_store_name,
+          type: row.type || 'AMOUNT',
+          title: row.title,
+          description: row.description,
+          amount: Number(row.amount) || 0,
+          fulfillmentTypes: row.fulfillment_types || ['PICKUP', 'ON_SITE'],
+          issuedAt: row.issued_at,
+          expiresAt: row.expires_at,
+          status: row.status || 'AVAILABLE',
+          usedAt: row.used_at || undefined,
+        }));
 
       const local = fetchStoredVouchers();
       const mergedMap = new Map<string, IssuedVoucher>();
@@ -2563,10 +2773,19 @@ export async function fetchVouchersFromSupabase(receiverStoreId?: string): Promi
       dbVouchers.forEach((v) => mergedMap.set(v.id, v));
       const merged = Array.from(mergedMap.values());
       saveStoredVouchers(merged);
+
+      if (receiverStoreId) {
+        return merged.filter(
+          (v) =>
+            v.receiverStoreId === receiverStoreId ||
+            v.receiverStoreId === 'my_store' ||
+            !v.receiverStoreId
+        );
+      }
       return merged;
     }
   } catch (err) {
-    // fallback
+    console.warn('[Supabase Notice] fetchVouchersFromSupabase fallback:', err);
   }
   return fetchStoredVouchers(receiverStoreId);
 }

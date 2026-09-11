@@ -27,6 +27,8 @@ import {
   fetchStoresFromSupabase,
   subscribeToTradeChat,
   subscribeToIncomingChats,
+  subscribeToTradeProposals,
+  subscribeToVouchers,
   sendChatMessageToSupabase,
   sendTradeProposalToSupabase,
   fetchTradeProposalsFromSupabase,
@@ -41,6 +43,7 @@ import {
   fetchUserStoreFromSupabase,
   signOutUser,
   fetchStoredVouchers,
+  fetchVouchersFromSupabase,
   supabase,
 } from './lib/supabase';
 import { Store, ExchangeItem, TradeProposal, ChatMessage, ChatConversationSummary, MenuTestApplication, MenuTestCampaign } from './types/trade';
@@ -105,6 +108,13 @@ export const App: React.FC = () => {
     try {
       const vs = fetchStoredVouchers(myStore.id, myStore.storeName);
       setVoucherWalletCount(vs.filter((v) => v.status === 'AVAILABLE').length);
+      if (myStore.id) {
+        fetchVouchersFromSupabase(myStore.id).then((cloudVs) => {
+          if (cloudVs) {
+            setVoucherWalletCount(cloudVs.filter((v) => v.status === 'AVAILABLE').length);
+          }
+        });
+      }
     } catch (e) {}
   };
 
@@ -428,6 +438,16 @@ export const App: React.FC = () => {
     const unsubscribe = subscribeToIncomingChats(myStore.id, (data) => {
       refreshConversations();
 
+      // 🎟️ 상대방이 물물교환 제안을 수락한 경우 실시간으로 내 보관함 및 제안 상태 즉각 동기화
+      if (data.rawMsg.systemAction === 'ACCEPT' || (data.message && data.message.includes('수락하셨습니다'))) {
+        fetchVouchersFromSupabase(myStore.id).then(() => {
+          refreshVoucherWalletCount();
+        });
+        fetchTradeProposalsFromSupabase(myStore.id).then(() => {
+          refreshPendingAlertCounts();
+        });
+      }
+
       // 현재 열려있는 대화방이면 말풍선 바로 추가
       if (chatTargetStore?.id === data.counterpartStoreId) {
         setMessagesMap((prev) => ({
@@ -469,6 +489,38 @@ export const App: React.FC = () => {
 
     return () => unsubscribe();
   }, [myStore.id, chatTargetStore?.id, stores]);
+
+  // 🤝 [실시간 물물교환 제안 & 상생 교환권 클라우드 동기화 리스너]
+  useEffect(() => {
+    if (!myStore.id) return;
+
+    // 접속 시 클라우드 보관함 자동 초기 동기화
+    fetchVouchersFromSupabase(myStore.id).then(() => {
+      refreshVoucherWalletCount();
+    });
+
+    // 실시간 제안 상태 변경(수락/거절) 감지
+    const unsubProposals = subscribeToTradeProposals(myStore.id, () => {
+      fetchTradeProposalsFromSupabase(myStore.id).then(() => {
+        refreshPendingAlertCounts();
+      });
+      fetchVouchersFromSupabase(myStore.id).then(() => {
+        refreshVoucherWalletCount();
+      });
+    });
+
+    // 실시간 교환권 발행 감지
+    const unsubVouchers = subscribeToVouchers(myStore.id, () => {
+      fetchVouchersFromSupabase(myStore.id).then(() => {
+        refreshVoucherWalletCount();
+      });
+    });
+
+    return () => {
+      unsubProposals();
+      unsubVouchers();
+    };
+  }, [myStore.id]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Ticket, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, ChevronRight, ShieldCheck, ArrowRight, Store as StoreIcon, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Store, IssuedVoucher } from '../types/trade';
-import { fetchStoredVouchers, redeemVoucherInStorage, restoreVoucherInStorage } from '../lib/supabase';
+import { fetchStoredVouchers, fetchVouchersFromSupabase, redeemVoucherInStorage, restoreVoucherInStorage } from '../lib/supabase';
 
 interface CouponWalletModalProps {
   isOpen: boolean;
@@ -27,6 +27,14 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
       const list = fetchStoredVouchers(myStore.id, myStore.storeName);
       setVouchers(list);
       setToastMessage(null);
+
+      // ☁️ Synchronize latest vouchers from Supabase cloud in real-time
+      fetchVouchersFromSupabase(myStore.id).then((cloudList) => {
+        if (cloudList && cloudList.length > 0) {
+          setVouchers(cloudList);
+          onWalletUpdate?.();
+        }
+      });
     }
   }, [isOpen, myStore.id, myStore.storeName]);
 

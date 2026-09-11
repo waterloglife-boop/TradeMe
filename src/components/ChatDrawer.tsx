@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Send, Phone, ArrowRightLeft, CheckCircle2, Store, Clock } from 'lucide-react';
 import { Store as StoreType, ChatMessage } from '../types/trade';
+import { fetchStoredVouchers } from '../lib/supabase';
 
 interface ChatDrawerProps {
   isOpen: boolean;
@@ -76,6 +77,13 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     if (hasReject) return 'REJECTED';
 
     if (tradeData?.tradeId) {
+      // 1. Check if voucher was issued for this trade
+      try {
+        const vList = fetchStoredVouchers();
+        if (vList.some((v) => v.tradeId === tradeData.tradeId)) return 'ACCEPTED';
+      } catch (e) {}
+
+      // 2. Check local proposals
       try {
         const raw = localStorage.getItem('trademe_trade_proposals');
         if (raw) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowRightLeft, CheckCircle2, XCircle, Clock, MessageSquare, AlertCircle, RefreshCw, Sparkles, Inbox, Send } from 'lucide-react';
 import { TradeProposal, Store } from '../types/trade';
-import { fetchTradeProposalsFromSupabase, updateTradeProposalStatus, fetchStoredVouchers, issueBilateralVouchersForTrade } from '../lib/supabase';
+import { fetchTradeProposalsFromSupabase, updateTradeProposalStatus, fetchStoredVouchers, issueBilateralVouchersForTrade, subscribeToTradeProposals } from '../lib/supabase';
 
 interface TradeDashboardModalProps {
   isOpen: boolean;
@@ -35,6 +35,12 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadProposals();
+      const unsubscribe = subscribeToTradeProposals(myStore.id, () => {
+        loadProposals();
+      });
+      return () => {
+        unsubscribe();
+      };
     }
   }, [isOpen, myStore.id]);
 
