@@ -96,26 +96,21 @@ export const App: React.FC = () => {
 
   // 🎟️ 내 교환권 보관함 State (Phase 3)
   const [isCouponWalletOpen, setIsCouponWalletOpen] = useState(false);
-  const [voucherWalletCount, setVoucherWalletCount] = useState<number>(() => {
-    try {
-      const vs = fetchStoredVouchers();
-      return vs.filter((v) => v.status === 'AVAILABLE').length;
-    } catch (e) {
-      return 0;
-    }
-  });
+  const [voucherWalletCount, setVoucherWalletCount] = useState<number>(0);
 
   const refreshVoucherWalletCount = () => {
+    if (!myStore?.id || myStore.id === 'my_store') {
+      setVoucherWalletCount(0);
+      return;
+    }
     try {
       const vs = fetchStoredVouchers(myStore.id, myStore.storeName);
       setVoucherWalletCount(vs.filter((v) => v.status === 'AVAILABLE').length);
-      if (myStore.id) {
-        fetchVouchersFromSupabase(myStore.id).then((cloudVs) => {
-          if (cloudVs) {
-            setVoucherWalletCount(cloudVs.filter((v) => v.status === 'AVAILABLE').length);
-          }
-        });
-      }
+      fetchVouchersFromSupabase(myStore.id).then((cloudVs) => {
+        if (cloudVs) {
+          setVoucherWalletCount(cloudVs.filter((v) => v.status === 'AVAILABLE').length);
+        }
+      });
     } catch (e) {}
   };
 
@@ -237,11 +232,19 @@ export const App: React.FC = () => {
         // Clean up any legacy dummy seed vouchers cache
         try {
           const cachedVouchers = localStorage.getItem('trademe_vouchers');
-          if (cachedVouchers && (cachedVouchers.includes('voucher-seed-') || cachedVouchers.includes('소담') || cachedVouchers.includes('헤어살롱') || cachedVouchers.includes('달콤') || cachedVouchers.includes('test-bakery'))) {
+          if (cachedVouchers) {
             const parsed = JSON.parse(cachedVouchers);
-            const filtered = parsed.filter((v: any) => !v.id?.startsWith('voucher-seed-') && !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(v.senderStoreName));
-            localStorage.setItem('trademe_vouchers', JSON.stringify(filtered));
-            setVoucherWalletCount(filtered.filter((v: any) => v.status === 'AVAILABLE').length);
+            const filtered = parsed.filter(
+              (v: any) =>
+                !v.id?.startsWith('voucher-seed-') &&
+                !v.tradeId?.startsWith('trade-demo-') &&
+                v.receiverStoreId !== 'my_store' &&
+                Boolean(v.receiverStoreId) &&
+                !['소담 한정식', '헤어살롱 유', '달콤 베이커리', '트레이드미 테스트 베이커리'].includes(v.senderStoreName)
+            );
+            if (filtered.length !== parsed.length) {
+              localStorage.setItem('trademe_vouchers', JSON.stringify(filtered));
+            }
           }
         } catch (e) {}
 
@@ -537,7 +540,12 @@ export const App: React.FC = () => {
 
   // 🤝 [실시간 물물교환 제안 & 상생 교환권 클라우드 동기화 리스너]
   useEffect(() => {
-    if (!myStore.id) return;
+    if (!myStore.id || myStore.id === 'my_store') {
+      setVoucherWalletCount(0);
+      return;
+    }
+
+    refreshVoucherWalletCount();
 
     // 접속 시 클라우드 보관함 자동 초기 동기화
     fetchVouchersFromSupabase(myStore.id).then(() => {
@@ -1078,9 +1086,17 @@ export const App: React.FC = () => {
     setIsLoggedIn(false);
     setUserOwnerName('');
     setMyStore(INITIAL_EMPTY_STORE_STATE);
+    setVoucherWalletCount(0);
+    setPendingTradeCount(0);
+    setPendingMenuTestCount(0);
+    setConversations([]);
+    setMessagesMap({});
     try {
       localStorage.removeItem('trademe_profile');
       localStorage.removeItem('trademe_my_store');
+      localStorage.removeItem('trademe_vouchers');
+      localStorage.removeItem('trademe_trade_proposals');
+      localStorage.removeItem('trademe_local_chats');
     } catch (e) {}
   };
 

@@ -26,7 +26,7 @@ import {
   fetchAdBannerStats,
   updateCoupangLinks,
   exportStoresToCsv,
-  fetchStoredVouchers,
+  getAllStoredVouchers,
   fetchCommunityPosts
 } from '../lib/supabase';
 
@@ -111,7 +111,7 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
       } catch (e) {}
 
       // Load all vouchers across storage
-      const vList = fetchStoredVouchers('', '');
+      const vList = getAllStoredVouchers();
       setAllVouchers(vList);
     }
   }, [isOpen]);

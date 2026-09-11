@@ -692,6 +692,9 @@ export async function signOutUser() {
     try {
       localStorage.removeItem('trademe_profile');
       localStorage.removeItem('trademe_my_store');
+      localStorage.removeItem('trademe_vouchers');
+      localStorage.removeItem('trademe_trade_proposals');
+      localStorage.removeItem('trademe_local_chats');
     } catch (e) {}
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -2638,34 +2641,37 @@ export function getInitialDemoVouchers(_receiverStoreId: string = 'my_store', _r
   return [];
 }
 
-export function fetchStoredVouchers(receiverStoreId?: string, receiverStoreName?: string): IssuedVoucher[] {
+export function getAllStoredVouchers(): IssuedVoucher[] {
   try {
     const raw = localStorage.getItem(VOUCHER_STORAGE_KEY);
     if (!raw) {
       return [];
     }
     const list: IssuedVoucher[] = JSON.parse(raw);
-    // 💡 가짜 더미 정보(seed/demo)만 제거하고, 실제 1:1 물물교환 체결로 발행된 모든 교환권은 정상 유지
+    // 💡 가짜 더미 정보(seed/demo) 및 레거시 my_store 교환권 제거
     const cleanList = list.filter(
       (v) =>
         !v.id.startsWith('voucher-seed-') &&
-        !v.tradeId?.startsWith('trade-demo-')
+        !v.tradeId?.startsWith('trade-demo-') &&
+        v.receiverStoreId !== 'my_store' &&
+        Boolean(v.receiverStoreId)
     );
     if (cleanList.length !== list.length) {
       localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify(cleanList));
-    }
-    if (receiverStoreId) {
-      return cleanList.filter(
-        (v) =>
-          v.receiverStoreId === receiverStoreId ||
-          v.receiverStoreId === 'my_store' ||
-          !v.receiverStoreId
-      );
     }
     return cleanList;
   } catch (e) {
     return [];
   }
+}
+
+export function fetchStoredVouchers(receiverStoreId?: string, _receiverStoreName?: string): IssuedVoucher[] {
+  // 🔒 미로그인 사용자이거나 매장 ID가 없으면 절대 교환권이 노출되지 않도록 엄격 격리
+  if (!receiverStoreId || receiverStoreId === 'my_store') {
+    return [];
+  }
+  const cleanList = getAllStoredVouchers();
+  return cleanList.filter((v) => v.receiverStoreId === receiverStoreId);
 }
 
 export function saveStoredVouchers(vouchers: IssuedVoucher[]): void {
@@ -2675,7 +2681,7 @@ export function saveStoredVouchers(vouchers: IssuedVoucher[]): void {
 }
 
 export function redeemVoucherInStorage(voucherId: string): { success: boolean; voucher?: IssuedVoucher; error?: string } {
-  const vouchers = fetchStoredVouchers();
+  const vouchers = getAllStoredVouchers();
   const idx = vouchers.findIndex(v => v.id === voucherId);
   if (idx === -1) return { success: false, error: '교환권을 찾을 수 없습니다.' };
   
@@ -2688,7 +2694,7 @@ export function redeemVoucherInStorage(voucherId: string): { success: boolean; v
 }
 
 export function restoreVoucherInStorage(voucherId: string): { success: boolean; voucher?: IssuedVoucher; error?: string } {
-  const vouchers = fetchStoredVouchers();
+  const vouchers = getAllStoredVouchers();
   const idx = vouchers.findIndex(v => v.id === voucherId);
   if (idx === -1) return { success: false, error: '교환권을 찾을 수 없습니다.' };
   
@@ -2701,8 +2707,8 @@ export function restoreVoucherInStorage(voucherId: string): { success: boolean; 
 }
 
 export function addIssuedVoucherToStorage(voucher: IssuedVoucher): { success: boolean; error?: string } {
-  const vouchers = fetchStoredVouchers();
-  const activeCount = vouchers.filter(v => v.status === 'AVAILABLE').length;
+  const vouchers = getAllStoredVouchers();
+  const activeCount = vouchers.filter(v => v.receiverStoreId === voucher.receiverStoreId && v.status === 'AVAILABLE').length;
   if (activeCount >= 5) {
     return { success: false, error: '보관함 한도(최대 5장)를 초과하여 새 교환권을 보관할 수 없습니다.' };
   }
@@ -2714,7 +2720,7 @@ export function addIssuedVoucherToStorage(voucher: IssuedVoucher): { success: bo
 }
 
 export function deleteVoucherFromStorage(voucherId: string): { success: boolean; error?: string } {
-  const vouchers = fetchStoredVouchers();
+  const vouchers = getAllStoredVouchers();
   const filtered = vouchers.filter((v) => v.id !== voucherId);
   saveStoredVouchers(filtered);
   try {
@@ -2761,15 +2767,19 @@ export async function syncVoucherToSupabase(voucher: IssuedVoucher): Promise<voi
 }
 
 export async function fetchVouchersFromSupabase(receiverStoreId?: string): Promise<IssuedVoucher[]> {
+  // 🔒 수신 매장 ID가 없거나 유효하지 않은 경우 무조건 빈 배열 반환
+  if (!receiverStoreId || receiverStoreId === 'my_store') {
+    return [];
+  }
+
   try {
-    let query = supabase.from('issued_vouchers').select('*');
-    if (receiverStoreId) {
-      query = query.or(`receiver_store_id.eq.${receiverStoreId},receiver_store_id.eq.my_store`);
-    }
+    const { data, error } = await supabase
+      .from('issued_vouchers')
+      .select('*')
+      .eq('receiver_store_id', receiverStoreId)
+      .order('issued_at', { ascending: false });
 
-    const { data, error } = await query.order('issued_at', { ascending: false });
-
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       const dbVouchers: IssuedVoucher[] = data
         .filter((row: any) => !row.id.startsWith('voucher-seed-') && !row.trade_id?.startsWith('trade-demo-'))
         .map((row: any) => ({
@@ -2792,22 +2802,13 @@ export async function fetchVouchersFromSupabase(receiverStoreId?: string): Promi
           usedAt: row.used_at || undefined,
         }));
 
-      const local = fetchStoredVouchers();
-      const mergedMap = new Map<string, IssuedVoucher>();
-      local.forEach((v) => mergedMap.set(v.id, v));
-      dbVouchers.forEach((v) => mergedMap.set(v.id, v));
-      const merged = Array.from(mergedMap.values());
+      // 클라우드와 로컬 스토리지 동기화 (현재 매장의 교환권 목록 갱신)
+      const local = getAllStoredVouchers();
+      const otherStoresVouchers = local.filter((v) => v.receiverStoreId !== receiverStoreId);
+      const merged = [...dbVouchers, ...otherStoresVouchers];
       saveStoredVouchers(merged);
 
-      if (receiverStoreId) {
-        return merged.filter(
-          (v) =>
-            v.receiverStoreId === receiverStoreId ||
-            v.receiverStoreId === 'my_store' ||
-            !v.receiverStoreId
-        );
-      }
-      return merged;
+      return dbVouchers;
     }
   } catch (err) {
     console.warn('[Supabase Notice] fetchVouchersFromSupabase fallback:', err);
@@ -2822,14 +2823,14 @@ export function issueBilateralVouchersForTrade(
   proposal: TradeProposal,
   currentStoreId?: string
 ): { success: boolean; error?: string; vouchers?: IssuedVoucher[] } {
-  const vouchers = fetchStoredVouchers();
-  const activeCount = vouchers.filter((v) => v.status === 'AVAILABLE').length;
-
-  if (activeCount >= 5) {
-    return {
-      success: false,
-      error: '현재 사장님의 교환권 보관함이 가득 찼습니다 (최대 5장). 기존 교환권을 사용 완료하신 후 수락해 주세요.',
-    };
+  if (currentStoreId) {
+    const activeCount = fetchStoredVouchers(currentStoreId).filter((v) => v.status === 'AVAILABLE').length;
+    if (activeCount >= 5) {
+      return {
+        success: false,
+        error: '현재 사장님의 교환권 보관함이 가득 찼습니다 (최대 5장). 기존 교환권을 사용 완료하신 후 수락해 주세요.',
+      };
+    }
   }
 
   const now = new Date();
@@ -2907,16 +2908,17 @@ export function issueBilateralVouchersForTrade(
     status: 'AVAILABLE',
   };
 
+  const allVouchers = getAllStoredVouchers();
   // The voucher meant for the current store is placed at top so it is immediately prominent
   if (currentStoreId === storeAId) {
-    vouchers.unshift(voucherForB);
-    vouchers.unshift(voucherForA);
+    allVouchers.unshift(voucherForB);
+    allVouchers.unshift(voucherForA);
   } else {
-    vouchers.unshift(voucherForA);
-    vouchers.unshift(voucherForB);
+    allVouchers.unshift(voucherForA);
+    allVouchers.unshift(voucherForB);
   }
 
-  saveStoredVouchers(vouchers);
+  saveStoredVouchers(allVouchers);
 
   // Non-blocking background sync for both vouchers
   syncVoucherToSupabase(voucherForB);

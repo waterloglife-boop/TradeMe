@@ -24,19 +24,21 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      if (!myStore?.id || myStore.id === 'my_store') {
+        setVouchers([]);
+        return;
+      }
       const list = fetchStoredVouchers(myStore.id, myStore.storeName);
       setVouchers(list);
       setToastMessage(null);
 
       // ☁️ Synchronize latest vouchers from Supabase cloud in real-time
       fetchVouchersFromSupabase(myStore.id).then((cloudList) => {
-        if (cloudList && cloudList.length > 0) {
-          setVouchers(cloudList);
-          onWalletUpdate?.();
-        }
+        setVouchers(cloudList || []);
+        onWalletUpdate?.();
       });
     }
-  }, [isOpen, myStore.id, myStore.storeName]);
+  }, [isOpen, myStore?.id, myStore?.storeName]);
 
   if (!isOpen) return null;
 
