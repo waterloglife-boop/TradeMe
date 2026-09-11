@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Store, ExchangeItem, TradeProposal, ChatMessage, ChatConversationSummary, MenuTestApplication, MenuTestCampaign, CommunityPost, CommunityComment, CommunityCategory, FulfillmentType, IssuedVoucher } from '../types/trade';
+import { Store, ExchangeItem, TradeProposal, ChatMessage, ChatConversationSummary, MenuTestApplication, MenuTestCampaign, CommunityPost, CommunityComment, CommunityCategory, FulfillmentType, IssuedVoucher, CustomerInquiry, InquiryType, AdBannerStat, AdBannerKey } from '../types/trade';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-trade-me.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-anon-key-12345';
@@ -1031,18 +1031,6 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
 
     if (!storeData) return null;
 
-    if (error) {
-      console.error('[Supabase Error] fetchUserStoreFromSupabase failed:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-      });
-      return null;
-    }
-
-    if (!storeData) return null;
-
     // Fetch items for this store from items table
     const { data: itemsData, error: itemErr } = await supabase
       .from('items')
@@ -1450,14 +1438,38 @@ export async function updateStoreStatusInSupabase(storeId: string, isActive: boo
 /**
  * 4. Supabase Realtime 1:1 Chat Message Handlers
  */
+export function parseSystemAction(text?: string): 'PROPOSAL' | 'ACCEPT' | 'REJECT' | undefined {
+  if (!text) return undefined;
+  if (text.includes('[1:1 물물교환') || text.includes('TRADE_DATA:')) return 'PROPOSAL';
+  if (text.includes('1:1 물물교환을 수락') || (text.includes('수락') && text.includes('교환권'))) return 'ACCEPT';
+  if (text.includes('사양하겠습니다') || text.includes('정중히 사양') || text.includes('거절')) return 'REJECT';
+  return undefined;
+}
+
 export async function sendChatMessageToSupabase(
   tradeId: string,
   senderStoreId: string,
   senderName: string,
   message: string
 ) {
+  const msgId = `msg-${Date.now()}`;
   try {
-    const msgId = `msg-${Date.now()}`;
+    const localKey = 'trademe_local_chats';
+    const raw = localStorage.getItem(localKey);
+    const list = raw ? JSON.parse(raw) : [];
+    list.push({
+      id: msgId,
+      trade_id: tradeId,
+      sender_store_id: senderStoreId,
+      sender_name: senderName,
+      message: message,
+      is_me: true,
+      created_at: new Date().toISOString(),
+    });
+    localStorage.setItem(localKey, JSON.stringify(list.slice(-300)));
+  } catch (e) {}
+
+  try {
     const { error } = await supabase.from('chat_messages').insert({
       id: msgId,
       trade_id: tradeId,
@@ -1473,7 +1485,7 @@ export async function sendChatMessageToSupabase(
     return { success: true, msgId };
   } catch (err) {
     console.warn('Chat send notice (fallback mode):', err);
-    return { success: true, msgId: `msg-${Date.now()}` };
+    return { success: true, msgId };
   }
 }
 
@@ -1503,6 +1515,7 @@ export function subscribeToTradeChat(
             minute: '2-digit',
           }),
           isMe: false,
+          systemAction: parseSystemAction(newMsg.message),
         });
       }
     )
@@ -1719,20 +1732,39 @@ export async function fetchChatHistory(
       return [];
     }
 
-    if (!data || data.length === 0) {
-      return [];
+    let localData: any[] = [];
+    try {
+      const raw = localStorage.getItem('trademe_local_chats');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        localData = parsed.filter(
+          (msg: any) =>
+            (msg.trade_id === targetStoreId && msg.sender_store_id === myStoreId) ||
+            (msg.trade_id === myStoreId && msg.sender_store_id === targetStoreId) ||
+            msg.trade_id === targetStoreId ||
+            msg.sender_store_id === targetStoreId
+        );
+      }
+    } catch (e) {}
+
+    const allData = [...(data || [])];
+    for (const lm of localData) {
+      if (!allData.some((d) => d.id === lm.id)) {
+        allData.push(lm);
+      }
     }
+    allData.sort((a, b) => new Date(a.created_at || Date.now()).getTime() - new Date(b.created_at || Date.now()).getTime());
 
     // JS-side filter to ensure messages belong to this pair
     const filtered = myStoreId
-      ? data.filter(
+      ? allData.filter(
           (msg: any) =>
             (msg.trade_id === targetStoreId && msg.sender_store_id === myStoreId) ||
             (msg.trade_id === myStoreId && msg.sender_store_id === targetStoreId) ||
             msg.trade_id === targetStoreId ||
             msg.sender_store_id === targetStoreId
         )
-      : data;
+      : allData;
 
     return filtered.map((msg: any) => ({
       id: msg.id,
@@ -1744,6 +1776,7 @@ export async function fetchChatHistory(
         minute: '2-digit',
       }),
       isMe: myStoreId ? msg.sender_store_id === myStoreId : false,
+      systemAction: parseSystemAction(msg.message),
     }));
   } catch (err) {
     console.error('[Supabase Error] fetchChatHistory exception:', err);
@@ -1856,6 +1889,7 @@ export function subscribeToIncomingChats(
               minute: '2-digit',
             }),
             isMe: false,
+            systemAction: parseSystemAction(newMsg.message),
           },
         });
       }
@@ -2389,12 +2423,11 @@ export function fetchStoredVouchers(receiverStoreId?: string, receiverStoreName?
       return [];
     }
     const list: IssuedVoucher[] = JSON.parse(raw);
-    // 💡 가짜 더미 정보(seed) 제거: 실제 물물교환 체결로 발행된 교환권만 유지
+    // 💡 가짜 더미 정보(seed/demo)만 제거하고, 실제 1:1 물물교환 체결로 발행된 모든 교환권은 정상 유지
     const cleanList = list.filter(
       (v) =>
         !v.id.startsWith('voucher-seed-') &&
-        !v.tradeId?.startsWith('trade-demo-') &&
-        !['소담 한정식', '헤어살롱 유', '달콤 베이커리'].includes(v.senderStoreName)
+        !v.tradeId?.startsWith('trade-demo-')
     );
     if (cleanList.length !== list.length) {
       localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify(cleanList));

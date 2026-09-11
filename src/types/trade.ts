@@ -109,8 +109,8 @@ export interface TradeProposal {
   id: string;
   myStoreId: string;
   targetStoreId: string;
-  myExchangeItemId: string;
-  targetExchangeItemId: string;
+  myExchangeItemId?: string;
+  targetExchangeItemId?: string;
   myStoreName?: string;
   myOwnerName?: string;
   myItemTitle?: string;
@@ -138,7 +138,7 @@ export interface ChatMessage {
   message: string;
   timestamp: string;
   isMe: boolean;
-  systemAction?: 'PROPOSAL' | 'ACCEPT' | 'COMPLETED';
+  systemAction?: 'PROPOSAL' | 'ACCEPT' | 'REJECT' | 'COMPLETED';
 }
 
 export interface ChatConversationSummary {

@@ -79,7 +79,9 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
         WALLET_FOOTER: '',
       };
       stats.forEach((s) => {
-        urlMap[s.key] = s.coupangUrl;
+        if (s.key && s.key in urlMap) {
+          urlMap[s.key as AdBannerKey] = s.coupangUrl;
+        }
       });
       setCoupangUrls(urlMap);
 

@@ -9,7 +9,8 @@ interface ChatDrawerProps {
   myStore: StoreType;
   messages: ChatMessage[];
   onSendMessage: (text: string) => void;
-  onAcceptTrade?: () => void;
+  onAcceptTrade?: (tradeData?: any) => void;
+  onRejectTrade?: (tradeData?: any) => void;
   onOpenCouponWallet?: () => void;
 }
 
@@ -21,6 +22,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   messages,
   onSendMessage,
   onAcceptTrade,
+  onRejectTrade,
   onOpenCouponWallet,
 }) => {
   const [inputText, setInputText] = useState('');
@@ -32,6 +34,59 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     if (!inputText.trim()) return;
     onSendMessage(inputText);
     setInputText('');
+  };
+
+  const parseProposalData = (msgText: string) => {
+    const match = msgText.match(/<!--TRADE_DATA:(.*?)-->/);
+    if (match) {
+      try {
+        return JSON.parse(match[1]);
+      } catch (e) {}
+    }
+    const myItemMatch = msgText.match(/(?:제공 품목|제공):\s*([^\n(]+)(?:\(([^)]+)\))?/);
+    const targetItemMatch = msgText.match(/(?:희망 품목|희망):\s*([^\n(]+)(?:\(([^)]+)\))?/);
+    const diffMatch = msgText.match(/정산(?:\s*조건)?:\s*([^\n]+)/);
+    const methodMatch = msgText.match(/(?:교환|이용)\s*방식:\s*([^\n]+)/);
+    const timeMatch = msgText.match(/희망\s*시각:\s*([^\n]+)/);
+    const memoMatch = msgText.match(/(?:메모|사장님 메모):\s*([^\n]+)/);
+
+    return {
+      tradeId: undefined,
+      myItemTitle: myItemMatch ? myItemMatch[1].trim() : '상생 교환 품목',
+      myItemPriceText: myItemMatch && myItemMatch[2] ? myItemMatch[2].trim() : '',
+      targetItemTitle: targetItemMatch ? targetItemMatch[1].trim() : '상생 교환 대상 품목',
+      targetItemPriceText: targetItemMatch && targetItemMatch[2] ? targetItemMatch[2].trim() : '',
+      diffText: diffMatch ? diffMatch[1].trim() : '차액 0원 (동일가 맞교환)',
+      tradeFulfillment: methodMatch ? methodMatch[1].trim() : '🎟️ 상생 교환권(모바일 쿠폰) 즉시 맞발행',
+      pickupTime: timeMatch ? timeMatch[1].trim() : '브레이크 타임',
+      memoMessage: memoMatch ? memoMatch[1].trim() : '',
+    };
+  };
+
+  const getProposalStatus = (msgIndex: number, tradeData: any): 'PENDING' | 'ACCEPTED' | 'REJECTED' => {
+    const subsequent = messages.slice(msgIndex + 1);
+    const hasAccept = subsequent.some(
+      (m) => m.systemAction === 'ACCEPT' || (m.message && m.message.includes('수락하셨습니다'))
+    );
+    if (hasAccept) return 'ACCEPTED';
+
+    const hasReject = subsequent.some(
+      (m) => m.systemAction === 'REJECT' || (m.message && (m.message.includes('사양하겠습니다') || m.message.includes('거절')))
+    );
+    if (hasReject) return 'REJECTED';
+
+    if (tradeData?.tradeId) {
+      try {
+        const raw = localStorage.getItem('trademe_trade_proposals');
+        if (raw) {
+          const list = JSON.parse(raw);
+          const found = list.find((p: any) => p.id === tradeData.tradeId);
+          if (found?.status === 'ACCEPTED') return 'ACCEPTED';
+          if (found?.status === 'REJECTED') return 'REJECTED';
+        }
+      } catch (e) {}
+    }
+    return 'PENDING';
   };
 
   return (
@@ -121,15 +176,35 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           </span>
         </div>
 
-        {messages.map((msg) => {
-          const avatarUrl = msg.isMe
+        {messages.map((msg, idx) => {
+          const isProposalMsg =
+            msg.systemAction === 'PROPOSAL' ||
+            msg.message?.includes('[1:1 물물교환') ||
+            msg.message?.includes('TRADE_DATA:');
+
+          const isAcceptMsg =
+            msg.systemAction === 'ACCEPT' ||
+            (msg.message?.includes('수락하셨습니다') && msg.message?.includes('교환권'));
+
+          const isRejectMsg =
+            msg.systemAction === 'REJECT' ||
+            msg.message?.includes('사양하겠습니다') ||
+            msg.message?.includes('거절');
+
+          const tradeData = isProposalMsg ? parseProposalData(msg.message) : null;
+          const status = isProposalMsg ? getProposalStatus(idx, tradeData) : 'PENDING';
+          const cleanText = msg.message.replace(/<!--TRADE_DATA:.*?-->/g, '').trim();
+
+          const isSender = Boolean(msg.isMe || (myStore?.id && msg.senderId === myStore.id));
+
+          const avatarUrl = isSender
             ? myStore.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
             : targetStore.storeImageUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80';
 
           return (
             <div
               key={msg.id}
-              className={`flex items-end gap-2 ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}
+              className={`flex items-end gap-2 ${isSender ? 'flex-row-reverse' : 'flex-row'}`}
             >
               {/* Sender Store Thumbnail Avatar */}
               <img
@@ -142,57 +217,177 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                 title={msg.senderName}
               />
 
-              <div className={`flex flex-col max-w-[80%] ${msg.isMe ? 'items-end' : 'items-start'}`}>
+              <div className={`flex flex-col ${isProposalMsg ? 'w-[90%] max-w-md' : 'max-w-[80%]'} ${isSender ? 'items-end' : 'items-start'}`}>
                 <span className="text-[10px] text-gray-400 mb-0.5 px-1">{msg.senderName}</span>
-                <div
-                  className={`rounded-2xl px-3.5 py-2.5 text-xs shadow-sm ${
-                    msg.isMe
-                      ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-none'
-                      : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none'
-                  }`}
-                >
-                  {/* If Proposal System Action */}
-                  {msg.systemAction === 'PROPOSAL' && (
-                    <div className="mb-2 p-2 bg-white/20 rounded-lg backdrop-blur border border-white/30 text-white">
-                      <div className="font-extrabold flex items-center gap-1 mb-1">
-                        <ArrowRightLeft className="w-3.5 h-3.5" /> 1:1 물물교환 제안서
+                
+                {/* 1) 🤝 1:1 물물교환 정식 제안서 Interactive Card */}
+                {isProposalMsg && tradeData ? (
+                  <div className="w-full my-1 p-3.5 bg-white rounded-2xl border-2 border-orange-300 shadow-md text-gray-900 space-y-2.5">
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-2 border-b border-orange-100">
+                      <div className="flex items-center gap-1.5 font-black text-xs text-orange-950">
+                        <ArrowRightLeft className="w-4 h-4 text-orange-600" />
+                        <span>1:1 물물교환 정식 제안서</span>
                       </div>
-                      <p className="text-[11px] opacity-90 whitespace-pre-line">{msg.message}</p>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black shadow-2xs ${
+                        status === 'ACCEPTED'
+                          ? 'bg-emerald-600 text-white'
+                          : status === 'REJECTED'
+                          ? 'bg-gray-400 text-white'
+                          : 'bg-orange-500 text-white animate-pulse'
+                      }`}>
+                        {status === 'ACCEPTED' ? '🎉 체결 완료' : status === 'REJECTED' ? '✋ 정중히 사양됨' : '⏳ 수락 대기 중'}
+                      </span>
                     </div>
-                  )}
 
-                  {/* If Accept System Action with Voucher Auto-issuance */}
-                  {msg.systemAction === 'ACCEPT' && (
-                    <div className="space-y-2">
-                      <div className="p-2.5 bg-gradient-to-br from-emerald-600 to-teal-700 rounded-xl text-white shadow-sm border border-emerald-300/40">
-                        <div className="font-black text-xs flex items-center gap-1.5 mb-1 text-emerald-100">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                          <span>1:1 물물교환 체결 완료 & 상호 교환권 발급</span>
+                    {/* Items Comparison Grid */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-orange-50/70 p-2.5 rounded-xl border border-orange-200/80">
+                        <span className="text-[10px] font-bold text-orange-700">제안 매장 품목 (제공)</span>
+                        <div className="font-extrabold text-gray-900 truncate mt-0.5" title={tradeData.myItemTitle}>
+                          {tradeData.myItemTitle}
                         </div>
-                        <p className="text-[11px] leading-relaxed opacity-95 whitespace-pre-line">
-                          {msg.message}
+                        <div className="text-[11px] font-black text-orange-600 mt-0.5">
+                          {tradeData.myItemPrice ? `${tradeData.myItemPrice.toLocaleString()}원` : tradeData.myItemPriceText}
+                        </div>
+                      </div>
+
+                      <div className="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200/80">
+                        <span className="text-[10px] font-bold text-amber-800">희망 대상 품목 (요청)</span>
+                        <div className="font-extrabold text-gray-900 truncate mt-0.5" title={tradeData.targetItemTitle}>
+                          {tradeData.targetItemTitle}
+                        </div>
+                        <div className="text-[11px] font-black text-amber-700 mt-0.5">
+                          {tradeData.targetItemPrice ? `${tradeData.targetItemPrice.toLocaleString()}원` : tradeData.targetItemPriceText}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Conditions Pill */}
+                    <div className="bg-gray-50 rounded-xl p-2.5 text-[11px] text-gray-700 space-y-1 border border-gray-200/70">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500 font-medium">정산 차액:</span>
+                        <span className="font-extrabold text-orange-950">{tradeData.diffText || '차액 0원 (동일가 교환)'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500 font-medium">교환 방식:</span>
+                        <span className="font-bold text-gray-800">{tradeData.tradeFulfillment || '🎟️ 상생 교환권 맞발행'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500 font-medium">희망 시각:</span>
+                        <span className="font-bold text-gray-800">{tradeData.pickupTime || '브레이크 타임'}</span>
+                      </div>
+                      {tradeData.memoMessage && (
+                        <div className="pt-1 border-t border-gray-200 text-gray-700 text-[10px]">
+                          💬 사장님 메모: "{tradeData.memoMessage}"
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Interactive Action Area */}
+                    {!isSender && status === 'PENDING' && (
+                      <div className="pt-1 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onAcceptTrade && onAcceptTrade(tradeData)}
+                            className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>제안 수락하기 (교환권 즉시 발행)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onRejectTrade && onRejectTrade(tradeData)}
+                            className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition-all active:scale-95"
+                          >
+                            거절
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-gray-500 text-center">
+                          💡 수락 전 아래 대화창에서 시간이나 품목을 먼저 조율하실 수 있습니다.
                         </p>
+                      </div>
+                    )}
+
+                    {isSender && status === 'PENDING' && (
+                      <div className="pt-1 text-center text-[11px] font-bold text-amber-900 bg-amber-50 py-2 rounded-xl border border-amber-200">
+                        ⏳ 상대 사장님의 수락을 기다리는 중입니다. 아래 대화창에서 자유롭게 조율하세요!
+                      </div>
+                    )}
+
+                    {status === 'ACCEPTED' && (
+                      <div className="pt-1 space-y-1.5">
+                        <div className="text-center text-[11px] font-black text-emerald-800 bg-emerald-50 py-2 rounded-xl border border-emerald-300 flex items-center justify-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>1:1 물물교환 체결 완료! 상호 교환권이 보관함에 자동 발급되었습니다.</span>
+                        </div>
                         {onOpenCouponWallet && (
                           <button
                             type="button"
                             onClick={onOpenCouponWallet}
-                            className="mt-2.5 w-full py-1.5 bg-white text-emerald-800 hover:bg-emerald-50 font-black text-xs rounded-lg shadow-sm flex items-center justify-center gap-1 transition-all active:scale-95"
+                            className="w-full py-2 bg-white text-emerald-800 hover:bg-emerald-50 font-black text-xs rounded-xl shadow-xs border border-emerald-300 flex items-center justify-center gap-1.5 transition-all active:scale-95"
                           >
-                            <span>🎟️</span>
-                            <span>내 교환권 보관함에서 확인하기</span>
+                            <span>🎟️ 내 교환권 보관함에서 확인하기</span>
+                            <span>&rarr;</span>
                           </button>
                         )}
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {msg.systemAction !== 'PROPOSAL' && msg.systemAction !== 'ACCEPT' && (
-                    <p className="whitespace-pre-line">{msg.message}</p>
-                  )}
-                  <span className={`block text-[9px] mt-1 text-right ${msg.isMe ? 'text-orange-100' : 'text-gray-400'}`}>
-                    {msg.timestamp}
-                  </span>
-                </div>
+                    {status === 'REJECTED' && (
+                      <div className="pt-1 text-center text-[11px] font-bold text-gray-600 bg-gray-100 py-2 rounded-xl border border-gray-200">
+                        ✋ 이번 제안은 사양되었습니다. 다른 품목이나 조건으로 다시 제안해 보세요.
+                      </div>
+                    )}
+                  </div>
+                ) : isAcceptMsg ? (
+                  /* 2) 🎉 체결 완료 축하 카드 */
+                  <div className="p-3 bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl text-white shadow-md border border-emerald-300/40 space-y-2">
+                    <div className="font-black text-xs flex items-center gap-1.5 text-emerald-100">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                      <span>1:1 물물교환 체결 완료 & 상호 교환권 발급</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed opacity-95 whitespace-pre-line">
+                      {cleanText}
+                    </p>
+                    {onOpenCouponWallet && (
+                      <button
+                        type="button"
+                        onClick={onOpenCouponWallet}
+                        className="mt-1.5 w-full py-2 bg-white text-emerald-800 hover:bg-emerald-50 font-black text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                      >
+                        <span>🎟️</span>
+                        <span>내 교환권 보관함에서 확인하기</span>
+                      </button>
+                    )}
+                  </div>
+                ) : isRejectMsg ? (
+                  /* 3) ✋ 사양 안내 카드 */
+                  <div className="p-3 bg-gray-100 rounded-2xl text-gray-700 shadow-xs border border-gray-300 space-y-1">
+                    <div className="font-black text-xs text-gray-800 flex items-center gap-1">
+                      <span>✋</span>
+                      <span>제안 사양 안내</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed whitespace-pre-line">
+                      {cleanText}
+                    </p>
+                  </div>
+                ) : (
+                  /* 4) 일반 대화 말풍선 */
+                  <div
+                    className={`rounded-2xl px-3.5 py-2.5 text-xs shadow-sm ${
+                      msg.isMe
+                        ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-none'
+                        : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none'
+                    }`}
+                  >
+                    <p className="whitespace-pre-line leading-relaxed">{cleanText}</p>
+                    <span className={`block text-[9px] mt-1 text-right ${msg.isMe ? 'text-orange-100' : 'text-gray-400'}`}>
+                      {msg.timestamp}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           );

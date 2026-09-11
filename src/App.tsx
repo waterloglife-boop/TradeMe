@@ -30,6 +30,8 @@ import {
   sendChatMessageToSupabase,
   sendTradeProposalToSupabase,
   fetchTradeProposalsFromSupabase,
+  updateTradeProposalStatus,
+  issueBilateralVouchersForTrade,
   fetchMenuTestApplications,
   fetchChatHistory,
   fetchMyChatConversations,
@@ -468,6 +470,13 @@ export const App: React.FC = () => {
     return () => unsubscribe();
   }, [myStore.id, chatTargetStore?.id, stores]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__testSetSelectedStore = setSelectedStore;
+      (window as any).__testOpenChat = handleOpenChat;
+    }
+  }, []);
+
   const handleLoginSuccess = async (ownerName: string, storeName: string, registeredStore?: Store) => {
     setIsLoggedIn(true);
     setUserOwnerName(ownerName);
@@ -554,7 +563,7 @@ export const App: React.FC = () => {
     setIsProposalModalOpen(true);
   };
 
-  const handleSendProposal = (
+  const handleSendProposal = async (
     myMenu: ExchangeItem,
     targetMenu: ExchangeItem,
     diffPrice: number,
@@ -576,7 +585,7 @@ export const App: React.FC = () => {
     const storeId = selectedStore.id;
 
     // Send proposal record to Supabase DB trades table & LocalStorage
-    sendTradeProposalToSupabase(
+    const res = await sendTradeProposalToSupabase(
       myStore.id,
       storeId,
       myMenu.id,
@@ -601,38 +610,174 @@ export const App: React.FC = () => {
       }
     );
 
-    // If it's a REALTIME exchange proposal (!isPoke), open chat and send proposal bubble
-    // If it's a POKE (isPoke === true), send asynchronously without intrusive chat popup
-    if (!isPoke) {
-      const proposalMsgText = `[1:1 물물교환 제안]\n제공 품목: ${myMenu.title} (${myMenu.estimatedPrice.toLocaleString()}원)\n희망 품목: ${targetMenu.title} (${targetMenu.estimatedPrice.toLocaleString()}원)\n이용 방식: ${tradeFulfillment}\n정산: ${diffText}\n희망 시각: ${pickupTime}${memoMessage ? `\n메모: ${memoMessage}` : ''}`;
+    const tradeId = res?.tradeId || `trade-${Date.now()}`;
 
-      const newMsg: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        senderId: myStore.id,
-        senderName: myStore.ownerName,
-        message: proposalMsgText,
-        timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-        isMe: true,
-        systemAction: 'PROPOSAL',
-      };
+    // Invisible structured data for ChatDrawer parsing & state management
+    const tradeDataPayload = {
+      tradeId,
+      myStoreId: myStore.id,
+      targetStoreId: storeId,
+      myStoreName: myStore.storeName,
+      myOwnerName: myStore.ownerName,
+      targetStoreName: selectedStore.storeName,
+      targetOwnerName: selectedStore.ownerName,
+      myItemTitle: myMenu.title,
+      myItemPrice: myMenu.estimatedPrice,
+      myItemImageUrl: myMenu.imageUrl,
+      targetItemTitle: targetMenu.title,
+      targetItemPrice: targetMenu.estimatedPrice,
+      targetItemImageUrl: targetMenu.imageUrl,
+      diffText,
+      tradeFulfillment,
+      pickupTime,
+      memoMessage,
+      tradeType,
+      isPoke,
+    };
 
-      // Send proposal chat message to Supabase DB chat_messages table
-      sendChatMessageToSupabase(storeId, myStore.id, myStore.ownerName, proposalMsgText);
+    const proposalMsgText = `<!--TRADE_DATA:${JSON.stringify(tradeDataPayload)}-->[1:1 물물교환 제안]\n제공 품목: ${myMenu.title} (${myMenu.estimatedPrice.toLocaleString()}원)\n희망 품목: ${targetMenu.title} (${targetMenu.estimatedPrice.toLocaleString()}원)\n이용 방식: ${tradeFulfillment}\n정산: ${diffText}\n희망 시각: ${pickupTime}${memoMessage ? `\n메모: ${memoMessage}` : ''}`;
 
-      setMessagesMap((prev) => ({
-        ...prev,
-        [storeId]: [...(prev[storeId] || []), newMsg],
-      }));
+    const newMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      senderId: myStore.id,
+      senderName: myStore.ownerName,
+      message: proposalMsgText,
+      timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
+      systemAction: 'PROPOSAL',
+    };
 
-      setChatTargetStore(selectedStore);
-      setIsChatDrawerOpen(true);
-    } else {
-      alert(`👉 [${selectedStore.storeName}] 사장님께 조용히 '비동기 찔러보기' 제안서를 전달했습니다!\n상대 사장님이 여유가 되실 때 제안함에서 확인 및 수락하실 수 있습니다.`);
-    }
+    // Send proposal chat message to Supabase DB chat_messages table & LocalStorage
+    await sendChatMessageToSupabase(storeId, myStore.id, myStore.ownerName, proposalMsgText);
+
+    setMessagesMap((prev) => ({
+      ...prev,
+      [storeId]: [...(prev[storeId] || []), newMsg],
+    }));
+
+    setChatTargetStore(selectedStore);
+    setIsChatDrawerOpen(true);
+    refreshPendingAlertCounts();
   };
 
-  const handleAcceptTradeProposalAndOpenChat = (proposal: TradeProposal) => {
+  const handleAcceptTradeFromChat = async (tradeData?: any) => {
+    if (!chatTargetStore) return;
+    const counterpartStore = chatTargetStore;
+
+    // 1. Build or retrieve proposal object
+    let foundProposal: TradeProposal | undefined;
+    if (tradeData?.tradeId) {
+      const proposals = await fetchTradeProposalsFromSupabase(myStore.id);
+      foundProposal = proposals.find((p) => p.id === tradeData.tradeId);
+    }
+
+    const tradeId = tradeData?.tradeId || `trade-${Date.now()}`;
+    const finalProposal: TradeProposal = foundProposal || {
+      id: tradeId,
+      myStoreId: tradeData?.myStoreId || counterpartStore.id,
+      targetStoreId: tradeData?.targetStoreId || myStore.id,
+      myExchangeItemId: tradeData?.myExchangeItemId || 'item-mine',
+      targetExchangeItemId: tradeData?.targetExchangeItemId || 'item-target',
+      myStoreName: tradeData?.myStoreName || counterpartStore.storeName,
+      myOwnerName: tradeData?.myOwnerName || counterpartStore.ownerName,
+      myItemTitle: tradeData?.myItemTitle || '상생 교환 품목',
+      myItemPrice: tradeData?.myItemPrice || 0,
+      myItemImageUrl: tradeData?.myItemImageUrl,
+      targetStoreName: tradeData?.targetStoreName || myStore.storeName,
+      targetOwnerName: tradeData?.targetOwnerName || myStore.ownerName,
+      targetItemTitle: tradeData?.targetItemTitle || '상생 교환 대상 품목',
+      targetItemPrice: tradeData?.targetItemPrice || 0,
+      targetItemImageUrl: tradeData?.targetItemImageUrl,
+      tradeType: tradeData?.tradeType || 'VOUCHER',
+      tradeFulfillment: tradeData?.tradeFulfillment || '🎟️ 상생 교환권 맞발행',
+      priceDifference: 0,
+      proposedTime: tradeData?.pickupTime || '브레이크 타임',
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+    };
+
+    // 2. Issue bilateral vouchers (mutual issuance into both stores' wallets)
+    const res = issueBilateralVouchersForTrade(finalProposal, myStore.id);
+    if (!res.success) {
+      alert(res.error || '교환권 보관함 한도(최대 5장) 초과 또는 오류가 발생했습니다.');
+      return;
+    }
+
+    // 3. Update proposal status in DB & LocalStorage
+    if (finalProposal.id) {
+      await updateTradeProposalStatus(finalProposal.id, 'ACCEPTED');
+    }
+
     refreshVoucherWalletCount();
+    refreshPendingAlertCounts();
+
+    // 4. Send celebratory accept message to chat
+    const myItemTitle = finalProposal.targetItemTitle || tradeData?.targetItemTitle || '상생 교환 품목';
+    const counterpartItemTitle = finalProposal.myItemTitle || tradeData?.myItemTitle || '상생 교환 품목';
+
+    const acceptText = `🤝 [${myStore.storeName}] 사장님께서 제안하신 1:1 물물교환을 수락하셨습니다!\n🎟️ 양측 매장의 상생 교환권이 보관함으로 상호 자동 발급되었습니다.\n• [${myStore.storeName}] 제공: ${myItemTitle}\n• [${counterpartStore.storeName}] 제공: ${counterpartItemTitle}\n📅 유효기간: 오늘부터 30일간 (내 교환권 보관함에서 슬라이드하여 사용 가능)`;
+
+    const newMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      senderId: myStore.id,
+      senderName: myStore.ownerName,
+      message: acceptText,
+      timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
+      systemAction: 'ACCEPT',
+    };
+
+    setMessagesMap((prev) => ({
+      ...prev,
+      [counterpartStore.id]: [...(prev[counterpartStore.id] || []), newMsg],
+    }));
+
+    await sendChatMessageToSupabase(counterpartStore.id, myStore.id, myStore.ownerName, acceptText);
+  };
+
+  const handleRejectTradeFromChat = async (tradeData?: any) => {
+    if (!chatTargetStore) return;
+    const counterpartStore = chatTargetStore;
+
+    if (tradeData?.tradeId) {
+      await updateTradeProposalStatus(tradeData.tradeId, 'REJECTED');
+    }
+
+    refreshPendingAlertCounts();
+
+    const rejectText = `✋ [${myStore.storeName}] 사장님께서 현재 매장 사정으로 제안을 정중히 사양하셨습니다.\n다음에 더 좋은 기회에 다시 제안해 주세요!`;
+
+    const newMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      senderId: myStore.id,
+      senderName: myStore.ownerName,
+      message: rejectText,
+      timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
+      systemAction: 'REJECT',
+    };
+
+    setMessagesMap((prev) => ({
+      ...prev,
+      [counterpartStore.id]: [...(prev[counterpartStore.id] || []), newMsg],
+    }));
+
+    await sendChatMessageToSupabase(counterpartStore.id, myStore.id, myStore.ownerName, rejectText);
+  };
+
+  const handleAcceptTradeProposalAndOpenChat = async (proposal: TradeProposal) => {
+    // 1. Issue bilateral vouchers into both stores' wallets
+    const issueRes = issueBilateralVouchersForTrade(proposal, myStore.id);
+    if (!issueRes.success) {
+      alert(issueRes.error || '교환권 보관함 한도(최대 5장) 초과 또는 오류가 발생했습니다.');
+      return;
+    }
+
+    // 2. Update status in DB & LocalStorage
+    await updateTradeProposalStatus(proposal.id, 'ACCEPTED');
+
+    refreshVoucherWalletCount();
+    refreshPendingAlertCounts();
 
     const counterpartStoreId = proposal.myStoreId === myStore.id ? proposal.targetStoreId : proposal.myStoreId;
     const counterpartStore = stores.find((s) => s.id === counterpartStoreId) || {
@@ -1200,6 +1345,8 @@ export const App: React.FC = () => {
         myStore={myStore}
         messages={chatTargetStore ? messagesMap[chatTargetStore.id] || [] : []}
         onSendMessage={handleSendChatMessage}
+        onAcceptTrade={handleAcceptTradeFromChat}
+        onRejectTrade={handleRejectTradeFromChat}
         onOpenCouponWallet={() => setIsCouponWalletOpen(true)}
       />
 
@@ -1252,12 +1399,20 @@ export const App: React.FC = () => {
           className="fixed top-20 right-4 z-50 bg-gray-950/95 text-white p-4 rounded-3xl shadow-2xl border border-orange-400/90 backdrop-blur-md flex items-start gap-3.5 animate-in slide-in-from-top-4 max-w-sm"
         >
           <div className="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-xl flex-shrink-0 border border-orange-500/30 shadow-xs">
-            💬
+            {incomingChatAlert.message.includes('물물교환 제안') ? '🤝' : '💬'}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-orange-500 text-white">
-                새 1:1 대화 도착
+              <span
+                className={`text-[10px] font-black px-1.5 py-0.5 rounded text-white ${
+                  incomingChatAlert.message.includes('물물교환 제안')
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500'
+                    : 'bg-orange-500'
+                }`}
+              >
+                {incomingChatAlert.message.includes('물물교환 제안')
+                  ? '🤝 새 물물교환 제안서 도착'
+                  : '새 1:1 대화 도착'}
               </span>
               <button
                 type="button"
@@ -1271,7 +1426,7 @@ export const App: React.FC = () => {
               [{incomingChatAlert.counterpartStore.storeName}] {incomingChatAlert.senderName} 사장님
             </p>
             <p className="text-xs text-gray-300 line-clamp-2 mt-0.5 leading-relaxed font-normal">
-              "{incomingChatAlert.message}"
+              "{incomingChatAlert.message.replace(/<!--TRADE_DATA:.*?-->/g, '').trim()}"
             </p>
             <button
               type="button"
@@ -1282,7 +1437,11 @@ export const App: React.FC = () => {
               }}
               className="mt-2.5 w-full py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-extrabold rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5"
             >
-              <span>대화창 열기 및 답장하기</span>
+              <span>
+                {incomingChatAlert.message.includes('물물교환 제안')
+                  ? '제안서 확인 및 수락/대화하기'
+                  : '대화창 열기 및 답장하기'}
+              </span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

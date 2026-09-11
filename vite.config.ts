@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    sourcemap: false,
+    chunkSizeWarningLimit: 2000,
+  },
   server: {
     proxy: {
       // Naver Geocoding REST API CORS 우회 프록시 (개발서버 전용)

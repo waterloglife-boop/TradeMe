@@ -65,7 +65,7 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
   const [pickupTime, setPickupTime] = useState('브레이크 타임 (15:00 ~ 16:00)');
   const [message, setMessage] = useState('');
 
-  // Check wallet capacity (Safety limit: 3 vouchers)
+  // Check wallet capacity (Safety limit: 5 vouchers)
   const [walletAvailableCount, setWalletAvailableCount] = useState(0);
 
   useEffect(() => {
@@ -381,7 +381,7 @@ export const TradeProposalModal: React.FC<TradeProposalModalProps> = ({
           {/* Submit Action */}
           <button
             onClick={handleProposalSubmit}
-            disabled={!selectedMyItem || walletAvailableCount >= 3}
+            disabled={!selectedMyItem || walletAvailableCount >= 5}
             className={`w-full py-3 text-white font-bold text-sm rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 ${
               isPoke
                 ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-500/25'
