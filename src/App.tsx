@@ -23,6 +23,7 @@ import { InquiryModal } from './components/InquiryModal';
 import { TermsOfServiceModal, PrivacyPolicyModal } from './components/LegalModals';
 import { TopMainSlimBanner } from './components/CoupangAffiliateBanner';
 import { StoreListModal } from './components/StoreListModal';
+import { AlarmGuideModal } from './components/AlarmGuideModal';
 import { InquiryType } from './types/trade';
 import { playNotificationChime } from './lib/sound';
 import {
@@ -95,35 +96,65 @@ export const App: React.FC = () => {
   const [pendingTradeCount, setPendingTradeCount] = useState(0);
   const [pendingMenuTestCount, setPendingMenuTestCount] = useState(0);
 
-  // 🔔 실시간 알람 사운드 & 수동 새로고침 State
+  // 🔔 실시간 알람 사운드 & 수동 새로고침 State (기본값: OFF / 사전 허용 안내 모달 연동)
   const [alarmEnabled, setAlarmEnabled] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('trademe_alarm_enabled');
-      return saved !== null ? saved === 'true' : true; // 기본값: 알람 켜짐
+      return saved === 'true'; // 기본값: 알람 OFF
     } catch (e) {
-      return true;
+      return false;
     }
   });
+  const [isAlarmModalOpen, setIsAlarmModalOpen] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [syncToastMessage, setSyncToastMessage] = useState<string | null>(null);
 
   const handleToggleAlarm = () => {
-    const next = !alarmEnabled;
-    setAlarmEnabled(next);
+    if (!alarmEnabled) {
+      // 알람이 꺼져 있을 때 누르면: 사전 동의 및 브라우저 권한 안내 모달 표시
+      setIsAlarmModalOpen(true);
+    } else {
+      // 알람이 켜져 있을 때 누르면: 즉시 무음 모드로 전환
+      setAlarmEnabled(false);
+      try {
+        localStorage.setItem('trademe_alarm_enabled', 'false');
+      } catch (e) {}
+      setSyncToastMessage('🔕 실시간 알람이 꺼졌습니다 (무음 모드).');
+      setTimeout(() => setSyncToastMessage(null), 2500);
+    }
+  };
+
+  const handleConfirmEnableAlarm = async () => {
+    setIsAlarmModalOpen(false);
+
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'denied') {
+        alert('⚠️ 브라우저 설정에서 알림 권한이 "차단"되어 있습니다.\n\n주소창 좌측의 🔒(자물쇠) 또는 사이트 설정 아이콘을 눌러 "알림"을 "허용"으로 변경해주세요.');
+        return;
+      }
+
+      if (Notification.permission === 'default') {
+        try {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            setSyncToastMessage('⚠️ 알림 권한이 허용되지 않아 알람이 켜지지 않았습니다.');
+            setTimeout(() => setSyncToastMessage(null), 3000);
+            return;
+          }
+        } catch (err) {
+          console.warn('Notification permission request error:', err);
+        }
+      }
+    }
+
+    setAlarmEnabled(true);
     try {
-      localStorage.setItem('trademe_alarm_enabled', String(next));
+      localStorage.setItem('trademe_alarm_enabled', 'true');
     } catch (e) {}
 
-    if (next) {
-      playNotificationChime();
-      setSyncToastMessage('🔔 실시간 거래 & 대화 알람이 켜졌습니다.');
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-    } else {
-      setSyncToastMessage('🔕 실시간 알람이 꺼졌습니다 (무음 모드).');
-    }
-    setTimeout(() => setSyncToastMessage(null), 2500);
+    playNotificationChime();
+    setSyncToastMessage('🔔 실시간 거래 & 대화 알람이 켜졌습니다!');
+    setTimeout(() => setSyncToastMessage(null), 3000);
   };
 
   const handleRefreshAllData = async () => {
@@ -1807,6 +1838,13 @@ export const App: React.FC = () => {
           setTargetMenuTestCampaign(campaign || null);
           setIsMenuTestModalOpen(true);
         }}
+      />
+
+      {/* 🔔 실시간 거래 & 대화 알림 허용 안내 모달 */}
+      <AlarmGuideModal
+        isOpen={isAlarmModalOpen}
+        onClose={() => setIsAlarmModalOpen(false)}
+        onConfirmEnable={handleConfirmEnableAlarm}
       />
     </div>
   );
