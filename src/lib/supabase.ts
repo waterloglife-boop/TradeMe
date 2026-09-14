@@ -1115,7 +1115,7 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
         storeImageUrl: s.store_image_url || '',
         rating: s.rating || 5.0,
         reviewCount: s.review_count || 0,
-        tradeCount: s.trade_count ?? tradeCountByStore[s.id] ?? 0,
+        tradeCount: Math.max(Number(s.trade_count || 0), tradeCountByStore[s.id] || 0),
         isMenuTesting: s.is_menu_testing ?? false,
         menuTestTitle: s.menu_test_title ?? '',
         menuTestReward: s.menu_test_reward ?? '',
@@ -1842,6 +1842,32 @@ export async function updateTradeProposalStatus(
         }
       } catch (upsertErr) {
         console.warn('Trades fallback upsert note:', upsertErr);
+      }
+    }
+
+    // 🤝 교환 수락 완료 시 양측 매장의 trade_count 컬럼 자동 1 증가
+    if (status === 'ACCEPTED') {
+      try {
+        const raw = localStorage.getItem('trademe_trade_proposals');
+        const list: TradeProposal[] = raw ? JSON.parse(raw) : [];
+        const found = list.find((p) => p.id === proposalId);
+        const reqId = found?.myStoreId || data?.[0]?.requester_store_id;
+        const tgtId = found?.targetStoreId || data?.[0]?.target_store_id;
+
+        if (reqId) {
+          supabase.from('stores').select('trade_count').eq('id', reqId).maybeSingle().then(({ data: s1 }) => {
+            const cur1 = Number(s1?.trade_count || 0);
+            supabase.from('stores').update({ trade_count: cur1 + 1 }).eq('id', reqId).then(() => {});
+          });
+        }
+        if (tgtId) {
+          supabase.from('stores').select('trade_count').eq('id', tgtId).maybeSingle().then(({ data: s2 }) => {
+            const cur2 = Number(s2?.trade_count || 0);
+            supabase.from('stores').update({ trade_count: cur2 + 1 }).eq('id', tgtId).then(() => {});
+          });
+        }
+      } catch (errCount) {
+        console.warn('Increment trade_count notice:', errCount);
       }
     }
 
