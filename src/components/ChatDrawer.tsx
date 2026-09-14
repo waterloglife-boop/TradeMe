@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Send, Phone, ArrowRightLeft, CheckCircle2, Store, Clock, Trash2 } from 'lucide-react';
+import { X, Send, ArrowRightLeft, CheckCircle2, Store, Clock, Trash2 } from 'lucide-react';
 import { Store as StoreType, ChatMessage } from '../types/trade';
 import { getAllStoredVouchers } from '../lib/supabase';
 
@@ -133,13 +133,6 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <a
-            href={`tel:${targetStore.phone}`}
-            className="p-2 rounded-lg bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 transition"
-            title="전화걸기"
-          >
-            <Phone className="w-4 h-4" />
-          </a>
           {onDeleteChat && (
             <button
               type="button"

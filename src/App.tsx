@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { MobileBottomNav, MobileTab } from './components/MobileBottomNav';
 import { MapView } from './components/MapView';
@@ -473,9 +473,14 @@ export const App: React.FC = () => {
   }, [chatTargetStore, myStore.id]);
 
   // 💬 [1:1 대화함] 내 매장의 모든 대화방 목록 동기화
+  const storesRef = useRef<Store[]>(stores);
+  useEffect(() => {
+    storesRef.current = stores;
+  }, [stores]);
+
   const refreshConversations = async () => {
     if (!myStore.id) return;
-    const list = await fetchMyChatConversations(myStore.id, stores);
+    const list = await fetchMyChatConversations(myStore.id, storesRef.current);
     setConversations(list);
   };
 

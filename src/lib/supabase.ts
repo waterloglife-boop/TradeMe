@@ -1984,6 +1984,59 @@ export async function fetchMyChatConversations(
       return [];
     }
 
+    // Identify any counterpart stores missing from allStores
+    const missingIds = Array.from(
+      new Set(
+        data
+          .map((r: any) => (r.sender_store_id === myStoreId ? r.trade_id : r.sender_store_id))
+          .filter((id: string) => id && id !== myStoreId && !allStores.some((s) => s.id === id))
+      )
+    );
+
+    let fetchedMissingStores: Store[] = [];
+    if (missingIds.length > 0) {
+      try {
+        const { data: missingData } = await supabase
+          .from('stores')
+          .select('*')
+          .in('id', missingIds);
+        if (missingData) {
+          fetchedMissingStores = missingData.map((s: any) => ({
+            id: s.id,
+            userId: s.user_id,
+            ownerName: s.owner_name,
+            storeName: s.store_name,
+            category: s.category || 'FOOD',
+            categoryName: s.category_name || s.category || '외식업',
+            address: s.address || '',
+            lat: s.lat || 35.3594,
+            lng: s.lng || 129.0418,
+            phone: s.phone || '',
+            isVerified: s.is_verified ?? true,
+            breakTimeActive: s.is_exchange_active ?? s.break_time_active ?? false,
+            breakTimeHours: s.operating_hours ?? s.break_time_hours ?? '10:00 - 22:00',
+            storeImageUrl: s.store_image_url || '',
+            rating: s.rating || 5.0,
+            reviewCount: s.review_count || 0,
+            isMenuTesting: s.is_menu_testing ?? false,
+            menuTestTitle: s.menu_test_title ?? '',
+            menuTestReward: s.menu_test_reward ?? '',
+            menuTestQuota: s.menu_test_quota ?? 5,
+            menuTestApplicantCount: s.menu_test_applicant_count ?? 0,
+            menuTestFeedbackType: s.menu_test_feedback_type ?? 'BOTH',
+            menuTestDescription: s.menu_test_description ?? '',
+            menuTestImageUrl: s.menu_test_image_url ?? '',
+            voucherActive: false,
+            voucherAmount: 20000,
+            voucherMaxIssue: 3,
+            voucherFulfillmentTypes: ['PICKUP', 'ON_SITE'],
+            exchangeItems: [],
+          }));
+        }
+      } catch (e) {}
+    }
+
+    const mergedStores = [...allStores, ...fetchedMissingStores];
     const map = new Map<string, ChatConversationSummary>();
 
     for (const row of data) {
@@ -1993,21 +2046,54 @@ export async function fetchMyChatConversations(
       if (!counterpartId || counterpartId === myStoreId) continue;
 
       if (!map.has(counterpartId)) {
-        const matchingStore = allStores.find((s) => s.id === counterpartId);
+        const matchingStore = mergedStores.find((s) => s.id === counterpartId);
+
+        // Fallback trade metadata parsing
+        let parsedStoreName = '';
+        let parsedOwnerName = '';
+        if (row.message && row.message.includes('TRADE_DATA:')) {
+          try {
+            const match = row.message.match(/<!--TRADE_DATA:(.*?)-->/);
+            if (match && match[1]) {
+              const meta = JSON.parse(match[1]);
+              if (meta.myStoreId === counterpartId) {
+                parsedStoreName = meta.myStoreName;
+                parsedOwnerName = meta.myOwnerName;
+              } else if (meta.targetStoreId === counterpartId) {
+                parsedStoreName = meta.targetStoreName;
+                parsedOwnerName = meta.targetOwnerName;
+              }
+            }
+          } catch (e) {}
+        }
+
+        const storeName =
+          matchingStore?.storeName ||
+          parsedStoreName ||
+          (row.sender_store_id !== myStoreId && row.sender_name && !row.sender_name.includes('익명')
+            ? `${row.sender_name} 사장님 매장`
+            : '이웃 매장');
+
+        const ownerName =
+          matchingStore?.ownerName ||
+          parsedOwnerName ||
+          (row.sender_store_id !== myStoreId ? row.sender_name : '사장님');
+
+        // Clean last message (strip internal trade JSON markers)
+        const cleanMsg = (row.message || '')
+          .replace(/<!--TRADE_DATA:.*?-->/s, '')
+          .trim() || '💌 1:1 물물교환 제안서';
+
         map.set(counterpartId, {
           counterpartStoreId: counterpartId,
-          counterpartStoreName:
-            matchingStore?.storeName ||
-            (row.sender_store_id !== myStoreId ? row.sender_name : '이웃 매장'),
-          counterpartOwnerName:
-            matchingStore?.ownerName ||
-            (row.sender_store_id !== myStoreId ? row.sender_name : '사장님'),
+          counterpartStoreName: storeName,
+          counterpartOwnerName: ownerName,
           counterpartStoreImageUrl: matchingStore?.storeImageUrl,
           counterpartCategory: matchingStore?.category,
           counterpartCategoryName: matchingStore?.categoryName,
           counterpartPhone: matchingStore?.phone,
           counterpartBreakTimeActive: matchingStore?.breakTimeActive,
-          lastMessage: row.message,
+          lastMessage: cleanMsg,
           lastMessageAt: new Date(row.created_at || Date.now()).toLocaleString('ko-KR', {
             month: 'numeric',
             day: 'numeric',
@@ -2575,21 +2661,40 @@ export async function fetchCommunityPosts(category?: string): Promise<CommunityP
     const { data, error } = await query;
 
     if (!error && data) {
-      const dbPosts = data.map((row: any) => ({
-        id: row.id,
-        storeId: row.store_id || '',
-        authorName: row.author_name || '익명 사장님',
-        storeName: row.store_name || '이웃 매장',
-        isAnonymous: !!row.is_anonymous,
-        category: row.category as CommunityCategory,
-        title: row.title,
-        content: row.content,
-        imageUrl: row.image_url || undefined,
-        urgentExchangeItem: row.urgent_exchange_item || undefined,
-        likesCount: row.likes_count || 0,
-        commentsCount: row.comments_count || 0,
-        createdAt: row.created_at,
-      }));
+      // Query comments to compute exact, up-to-date comment counts per post
+      const commentCountMap = new Map<string, number>();
+      try {
+        const { data: commentsData } = await supabase
+          .from('community_comments')
+          .select('post_id');
+        (commentsData || []).forEach((c: any) => {
+          if (c.post_id) {
+            commentCountMap.set(c.post_id, (commentCountMap.get(c.post_id) || 0) + 1);
+          }
+        });
+      } catch (e) {}
+
+      const dbPosts = data.map((row: any) => {
+        const calculatedComments = commentCountMap.has(row.id)
+          ? commentCountMap.get(row.id)!
+          : (row.comments_count || 0);
+
+        return {
+          id: row.id,
+          storeId: row.store_id || '',
+          authorName: row.author_name || '익명 사장님',
+          storeName: row.store_name || '이웃 매장',
+          isAnonymous: !!row.is_anonymous,
+          category: row.category as CommunityCategory,
+          title: row.title,
+          content: row.content,
+          imageUrl: row.image_url || undefined,
+          urgentExchangeItem: row.urgent_exchange_item || undefined,
+          likesCount: row.likes_count || 0,
+          commentsCount: calculatedComments,
+          createdAt: row.created_at,
+        };
+      });
       try {
         localStorage.setItem(LOCAL_POSTS_KEY, JSON.stringify(dbPosts));
       } catch (e) {}
@@ -2774,6 +2879,18 @@ export async function createPostComment(
       content: comment.content,
     };
     await supabase.from('community_comments').insert(payload);
+
+    // Sync comments_count in community_posts
+    const { data: currentPost } = await supabase
+      .from('community_posts')
+      .select('comments_count')
+      .eq('id', comment.postId)
+      .single();
+    const newCount = (currentPost?.comments_count || 0) + 1;
+    await supabase
+      .from('community_posts')
+      .update({ comments_count: newCount })
+      .eq('id', comment.postId);
   } catch (e) {}
 
   return { success: true, data: createdComment };
@@ -2797,16 +2914,28 @@ export async function deleteCommunityComment(
   } catch (e) {}
 
   try {
-    const { data: post } = await supabase
-      .from('community_posts')
-      .select('comments_count')
-      .eq('id', postId)
-      .single();
-    if (post && post.comments_count > 0) {
+    const { count } = await supabase
+      .from('community_comments')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postId);
+
+    if (typeof count === 'number') {
       await supabase
         .from('community_posts')
-        .update({ comments_count: post.comments_count - 1 })
+        .update({ comments_count: count })
         .eq('id', postId);
+    } else {
+      const { data: post } = await supabase
+        .from('community_posts')
+        .select('comments_count')
+        .eq('id', postId)
+        .single();
+      if (post && post.comments_count > 0) {
+        await supabase
+          .from('community_posts')
+          .update({ comments_count: post.comments_count - 1 })
+          .eq('id', postId);
+      }
     }
   } catch (e) {}
 

@@ -611,7 +611,7 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
                         className="flex items-center gap-1.5 font-bold hover:text-orange-600 transition"
                       >
                         <MessageSquare className="w-4 h-4 text-gray-400" />
-                        <span>댓글 {post.commentsCount}</span>
+                        <span>댓글 {commentsMap[post.id] ? comments.length : post.commentsCount}</span>
                       </button>
                     </div>
 

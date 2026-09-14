@@ -103,19 +103,21 @@ export const ChatListModal: React.FC<ChatListModalProps> = ({
                   </div>
 
                   {/* Text Details */}
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-extrabold text-sm text-gray-900 truncate">
-                        {conv.counterpartStoreName}
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      <h4 className="font-extrabold text-sm sm:text-base text-gray-900 leading-snug break-keep">
+                        {conv.counterpartStoreName || '이웃 매장'}
                       </h4>
                       {conv.counterpartCategoryName && (
-                        <span className="px-1.5 py-0.2 rounded bg-orange-100 text-orange-700 text-[10px] font-black flex-shrink-0">
+                        <span className="px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-700 text-[10px] font-black shrink-0">
                           {conv.counterpartCategoryName}
                         </span>
                       )}
-                      <span className="text-[11px] text-gray-400 font-medium truncate">
-                        ({conv.counterpartOwnerName})
-                      </span>
+                      {conv.counterpartOwnerName && (
+                        <span className="text-[11px] text-gray-500 font-medium shrink-0">
+                          ({conv.counterpartOwnerName} 사장님)
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-xs text-gray-600 truncate font-normal leading-relaxed">
@@ -130,13 +132,13 @@ export const ChatListModal: React.FC<ChatListModalProps> = ({
                 </div>
 
                 {/* Right Action Button */}
-                <div className="flex items-center gap-1.5 flex-shrink-0 pl-2">
+                <div className="flex items-center gap-1 flex-shrink-0 pl-1">
                   {onDeleteConversation && (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`'${conv.counterpartStoreName}' 사장님과의 대화 내역을 모두 삭제하고 나가시겠습니까?`)) {
+                        if (confirm(`'${conv.counterpartStoreName || '이웃 매장'}' 사장님과의 대화 내역을 모두 삭제하고 나가시겠습니까?`)) {
                           onDeleteConversation(conv.counterpartStoreId);
                         }
                       }}
@@ -146,13 +148,18 @@ export const ChatListModal: React.FC<ChatListModalProps> = ({
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
+                  {/* Desktop: button with text */}
                   <button
                     type="button"
-                    className="px-3 py-2 rounded-xl bg-orange-50 group-hover:bg-orange-600 group-hover:text-white text-orange-600 text-xs font-extrabold transition-all flex items-center gap-1"
+                    className="hidden sm:flex items-center gap-1 px-3 py-2 rounded-xl bg-orange-50 group-hover:bg-orange-600 group-hover:text-white text-orange-600 text-xs font-extrabold transition-all"
                   >
                     <span>대화창 열기</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
+                  {/* Mobile: compact chevron arrow icon */}
+                  <div className="sm:hidden p-1.5 text-gray-400 group-hover:text-orange-600 transition-colors">
+                    <ChevronRight className="w-5 h-5" />
+                  </div>
                 </div>
               </div>
             ))
