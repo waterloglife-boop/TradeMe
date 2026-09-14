@@ -300,24 +300,22 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
           </div>
         )}
 
-        {/* Separate voucher item from regular signature items */}
+        {/* Separate voucher item from regular signature items (사장님이 직접 등록/활성화한 경우에만 노출) */}
         {(() => {
-          const defaultVoucherItem: ExchangeItem = {
+          const voucherItem = (items || []).find(
+            (it) => it.isVoucher || it.type === 'VOUCHER' || it.id.startsWith('voucher-')
+          ) || (store.voucherActive ? {
             id: `voucher-${store.id}`,
             storeId: store.id,
             title: `${store.storeName} ${(store.voucherAmount || 30000).toLocaleString()}원 상생 이용권`,
             estimatedPrice: store.voucherAmount || 30000,
             description: '전 메뉴 및 서비스 자유 선택 이용 (초과 금액 차액 결제 가능)',
-            type: 'VOUCHER',
+            type: 'VOUCHER' as const,
             imageUrl: store.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
             isAvailable: true,
-            fulfillmentTypes: store.voucherFulfillmentTypes && store.voucherFulfillmentTypes.length > 0 ? store.voucherFulfillmentTypes : ['PICKUP', 'ON_SITE'],
+            fulfillmentTypes: store.voucherFulfillmentTypes || ['PICKUP', 'ON_SITE'],
             isVoucher: true,
-          };
-
-          const voucherItem = (items || []).find(
-            (it) => it.isVoucher || it.type === 'VOUCHER' || it.id.startsWith('voucher-')
-          ) || defaultVoucherItem;
+          } : null);
 
           const regularItems = (items || []).filter(
             (it) => !it.isVoucher && it.type !== 'VOUCHER' && !it.id.startsWith('voucher-')
@@ -325,7 +323,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
 
           return (
             <div className="space-y-4">
-              {/* 🎟️ VIP Golden Ticket Voucher Card (항상 확실하게 보장 노출) */}
+              {/* 🎟️ VIP Golden Ticket Voucher Card (사장님이 직접 등록/발행한 경우에만 노출) */}
               {voucherItem && (
                 <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 text-white p-4 shadow-xl border-2 border-amber-300/40 space-y-3">
                   {/* Decorative ambient glow */}
@@ -421,29 +419,37 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                   <span className="text-xs">교환 품목 실시간 로딩 중...</span>
                 </div>
               ) : regularItems.length === 0 ? (
-                <div className="p-4 bg-gradient-to-br from-amber-50/60 to-orange-50/40 rounded-2xl border border-amber-200/80 text-center space-y-2.5 shadow-2xs">
-                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center mx-auto text-amber-700 text-lg shadow-xs">
-                    🍽️
-                  </div>
-                  <div>
-                    <h4 className="font-extrabold text-sm text-gray-900">대표 단품 메뉴 등록 준비 중</h4>
-                    <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                      현재 사장님이 단품 메뉴 사진을 등록하고 있습니다.<br />
-                      상단의 <strong>[{voucherItem.title}]</strong>으로 즉시 맞교환 제안하시거나,<br />
-                      아래 1:1 대화하기로 자유롭게 물물교환을 협의하실 수 있습니다!
+                voucherItem ? (
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center space-y-1.5">
+                    <h4 className="font-bold text-xs text-gray-700">단품 메뉴 준비 중</h4>
+                    <p className="text-[11px] text-gray-500 leading-relaxed">
+                      상단의 발행된 <strong>[{voucherItem.title}]</strong>으로 맞교환을 제안하시거나, 1:1 대화로 문의해 보세요!
                     </p>
                   </div>
-                  {!isMyStore && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenChat(store)}
-                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white border border-amber-300 text-amber-950 font-extrabold text-xs rounded-xl shadow-xs hover:bg-amber-100/50 transition-all active:scale-95"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5 text-amber-700" />
-                      <span>{store.storeName} 사장님과 1:1 대화하기</span>
-                    </button>
-                  )}
-                </div>
+                ) : (
+                  <div className="p-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center space-y-3">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto text-gray-400 text-xl border border-gray-200 shadow-2xs">
+                      ☕
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-gray-800">아직 등록된 교환 품목이 없습니다</h4>
+                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                        사장님이 가입 후 매장 분위기를 둘러보고 계십니다.<br />
+                        궁금한 점이나 교환 희망 사항이 있다면 1:1 대화로 먼저 편하게 소통해 보세요!
+                      </p>
+                    </div>
+                    {!isMyStore && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenChat(store)}
+                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gray-900 text-white font-bold text-xs rounded-xl shadow-xs hover:bg-gray-800 transition-all active:scale-95"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-orange-400" />
+                        <span>{store.storeName} 사장님과 1:1 대화하기</span>
+                      </button>
+                    )}
+                  </div>
+                )
               ) : (
                 regularItems.map((item) => (
                   <div
