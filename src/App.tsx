@@ -1270,8 +1270,8 @@ export const App: React.FC = () => {
           isMyStore={selectedStore?.id === myStore.id}
         />
 
-        {/* 🌟 비로그인 첫 방문 상생 웰컴 플로팅 카드 */}
-        {!isLoggedIn && showWelcomeCard && (
+        {/* 🌟 비로그인 첫 방문 상생 웰컴 플로팅 카드 (매장 상세 창 오픈 시에는 미노출하여 터치 및 시안성 극대화) */}
+        {!isLoggedIn && showWelcomeCard && !selectedStore && (
           <aside aria-label="Welcome Card" className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-lg bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-orange-200/90 p-4 sm:p-5 animate-in fade-in slide-in-from-bottom-5 transition-all">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2.5">

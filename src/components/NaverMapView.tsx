@@ -80,6 +80,29 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
     return () => clearInterval(timer);
   }, [clientId]);
 
+  // 1-1. 전역 마커 터치/클릭 브릿지 핸들러 등록 (모바일 브라우저 터치 이벤트 완벽 지원)
+  useEffect(() => {
+    let lastHandledTime = 0;
+    (window as any).__onSelectStoreFromMap = (storeId: string) => {
+      const now = Date.now();
+      if (now - lastHandledTime < 250) return; // 탭/클릭 중복 이벤트 디바운스
+      lastHandledTime = now;
+
+      if (myStore && (myStore.id === storeId || storeId === 'my-store')) {
+        onSelectStore(myStore);
+        return;
+      }
+      const target = stores.find((s) => s.id === storeId);
+      if (target) {
+        onSelectStore(target);
+      }
+    };
+
+    return () => {
+      delete (window as any).__onSelectStoreFromMap;
+    };
+  }, [stores, myStore, onSelectStore]);
+
   // 2. Initialize Pure Naver Map Instance & Custom Store Pins
   useEffect(() => {
     if (!scriptLoaded || !window.naver || !window.naver.maps || !mapContainerRef.current) {
@@ -88,10 +111,16 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
 
     try {
       if (!naverMapInstanceRef.current) {
-        const initialLat = pickedLocation?.lat || 37.5665;
-        const initialLng = pickedLocation?.lng || 126.9780;
+        // 실제 등록된 가맹점이 존재하고 기본 좌표가 서울일 경우, 가맹점 밀집 지역(양산)으로 스마트 중심 설정
+        let initialLat = pickedLocation?.lat || 37.5665;
+        let initialLng = pickedLocation?.lng || 126.9780;
+        if (initialLat === 37.5665 && stores.length > 0 && stores[0]?.lat) {
+          initialLat = stores[0].lat;
+          initialLng = stores[0].lng;
+        }
+
         const mapOptions = {
-          center: new window.naver.maps.LatLng(initialLat, initialLng), // 대한민국 표준 서울 중심 좌표
+          center: new window.naver.maps.LatLng(initialLat, initialLng),
           zoom: 14,
           mapTypeControl: true,
           mapTypeControlOptions: {
@@ -129,6 +158,8 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
         if (store.category === 'JAPANESE') iconEmoji = '🍣';
         if (store.category === 'WESTERN') iconEmoji = '🍝';
         if (store.category === 'CAFE') iconEmoji = '☕';
+        if (store.category === 'BEAUTY') iconEmoji = '💅';
+        if (store.category === 'PUB') iconEmoji = '🍺';
         if (isMyStore) iconEmoji = '👑';
 
         if (isBreakTime) {
@@ -143,7 +174,12 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
         }
 
         return `
-          <div style="position: relative; cursor: pointer; transform: ${isSelected ? 'scale(1.2)' : 'scale(1)'}; transition: transform 0.2s;">
+          <div 
+            data-store-id="${store.id}"
+            onclick="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
+            ontouchend="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
+            style="position: relative; cursor: pointer; transform: ${isSelected ? 'scale(1.2)' : 'scale(1)'}; transition: transform 0.2s; pointer-events: auto; touch-action: manipulation; -webkit-tap-highlight-color: transparent;"
+          >
             ${
               store.isMenuTesting
                 ? `<div style="position: absolute; top: -22px; left: -14px; background: #6d28d9; color: white; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; box-shadow: 0 2px 8px rgba(109,40,217,0.5); border: 1px solid #ddd6fe;">
@@ -173,7 +209,14 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
           title: myStore.storeName || '내 매장',
           icon: { content: createMarkerHtml(myStore, true), anchor: new window.naver.maps.Point(20, 45) },
         });
-        window.naver.maps.Event.addListener(myMarker, 'click', () => onSelectStore(myStore));
+        const handleMyStoreSelect = (e?: any) => {
+          if (e?.domEvent) {
+            e.domEvent.stopPropagation?.();
+          }
+          onSelectStore(myStore);
+        };
+        window.naver.maps.Event.addListener(myMarker, 'click', handleMyStoreSelect);
+        window.naver.maps.Event.addListener(myMarker, 'tap', handleMyStoreSelect);
         markersRef.current[myStore.id || 'my-store'] = myMarker;
       }
 
@@ -187,7 +230,14 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
           title: store.storeName,
           icon: { content: createMarkerHtml(store, false), anchor: new window.naver.maps.Point(20, 45) },
         });
-        window.naver.maps.Event.addListener(marker, 'click', () => onSelectStore(store));
+        const handleStoreSelect = (e?: any) => {
+          if (e?.domEvent) {
+            e.domEvent.stopPropagation?.();
+          }
+          onSelectStore(store);
+        };
+        window.naver.maps.Event.addListener(marker, 'click', handleStoreSelect);
+        window.naver.maps.Event.addListener(marker, 'tap', handleStoreSelect);
         markersRef.current[store.id] = marker;
       });
     } catch (err) {
@@ -195,7 +245,18 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
     }
   }, [scriptLoaded, stores, selectedStore, myStore, onSelectStore, onMapClickPinLocation]);
 
-  // 2. [상태 동기화 및 핀 이동 로직 구현] Naver Geocoding 좌표 변경 시 지도 핀 및 중심점 자동 이동
+  // 2-1. 매장 선택 시 해당 매장 위치로 지도 부드럽게 중심 이동
+  useEffect(() => {
+    if (!scriptLoaded || !window.naver || !window.naver.maps || !naverMapInstanceRef.current || !selectedStore) return;
+    try {
+      if (typeof selectedStore.lat === 'number' && typeof selectedStore.lng === 'number') {
+        const targetPos = new window.naver.maps.LatLng(selectedStore.lat, selectedStore.lng);
+        naverMapInstanceRef.current.panTo(targetPos);
+      }
+    } catch (e) {}
+  }, [scriptLoaded, selectedStore]);
+
+  // 2-2. [상태 동기화 및 핀 이동 로직 구현] Naver Geocoding 좌표 변경 시 지도 핀 및 중심점 자동 이동
   useEffect(() => {
     if (!scriptLoaded || !window.naver || !window.naver.maps || !naverMapInstanceRef.current || !pickedLocation) return;
     try {

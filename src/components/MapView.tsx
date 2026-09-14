@@ -81,6 +81,8 @@ export const MapView: React.FC<MapViewProps> = ({
       if (store.category === 'JAPANESE') iconEmoji = '🍣';
       if (store.category === 'WESTERN') iconEmoji = '🍝';
       if (store.category === 'CAFE') iconEmoji = '☕';
+      if (store.category === 'BEAUTY') iconEmoji = '💅';
+      if (store.category === 'PUB') iconEmoji = '🍺';
       if (isMyStore) iconEmoji = '👑';
 
       if (isBreakTime) {
@@ -100,7 +102,12 @@ export const MapView: React.FC<MapViewProps> = ({
       }
 
       const html = `
-        <div class="relative group cursor-pointer transition-transform transform ${isSelected ? 'scale-125 z-50' : 'hover:scale-110'}">
+        <div 
+          data-store-id="${store.id}"
+          onclick="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
+          ontouchend="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
+          class="relative group cursor-pointer transition-transform transform ${isSelected ? 'scale-125 z-50' : 'hover:scale-110'} select-none"
+        >
           ${
             store.isMenuTesting
               ? `<div class="absolute -top-6 -left-6 bg-purple-700 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full shadow-lg border border-purple-300 flex items-center gap-0.5 whitespace-nowrap animate-bounce">

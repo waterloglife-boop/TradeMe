@@ -28,6 +28,7 @@ import {
   FileText
 } from 'lucide-react';
 import { signUpUser, signInUser, verifyNtsBusinessStatus, verifyNtsBusinessValidate, fetchUserProfileFromSupabase, uploadStoreImageToSupabase } from '../lib/supabase';
+import { OperatingHoursPicker } from './OperatingHoursPicker';
 import { Store } from '../types/trade';
 import { geocodeKoreanAddress } from '../utils/location';
 import { Camera, Image as ImageIcon } from 'lucide-react';
@@ -909,22 +910,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 )}
               </div>
 
-              {/* Operating / Exchange Hours */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-0.5">매장 영업시간 (교환 가능 시간)</label>
-                <p className="text-[11px] text-gray-500 font-normal mb-1">💡 이웃 사장님들이 물물교환 또는 픽업 가능한 시간대</p>
-                <div className="relative">
-                  <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    required
-                    value={breakTimeHours}
-                    onChange={(e) => setBreakTimeHours(e.target.value)}
-                    placeholder="예: 10:00 - 22:00 또는 15:00 - 17:00"
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-orange-500 outline-none font-bold"
-                  />
-                </div>
-              </div>
+              {/* Operating / Exchange Hours Standard Picker */}
+              <OperatingHoursPicker
+                value={breakTimeHours}
+                onChange={(val) => setBreakTimeHours(val)}
+                label="매장 영업시간 설정 (물물교환 및 픽업 가능 시간)"
+                subLabel="모든 매장에 표준 규격으로 일괄 적용됩니다. 오픈/마감 시간을 선택해 주세요."
+              />
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-0.5">연락처 (휴대폰 번호)</label>

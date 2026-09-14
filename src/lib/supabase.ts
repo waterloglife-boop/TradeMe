@@ -1114,6 +1114,51 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
 }
 
 /**
+ * 2-1. 특정 매장의 등록 품목 및 상생 금액 교환권 실시간 조회
+ */
+export async function fetchItemsByStoreId(storeId: string): Promise<ExchangeItem[]> {
+  try {
+    if (!storeId) return [];
+
+    const { data: itemsData, error } = await supabase
+      .from('items')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[Supabase Error] fetchItemsByStoreId failed:', error);
+      return [];
+    }
+
+    if (!itemsData || itemsData.length === 0) return [];
+
+    return itemsData.map((i: any) => {
+      const isVoucher =
+        i.item_type === 'VOUCHER' ||
+        i.id?.startsWith('voucher-') ||
+        (i.title && i.title.includes('상생') && i.title.includes('이용권'));
+
+      return {
+        id: i.id,
+        storeId: i.store_id || storeId,
+        type: i.item_type || (isVoucher ? 'VOUCHER' : 'FOOD'),
+        title: i.title,
+        description: (i.description || '').replace(/<!--fm:[A-Z_,]+-->/g, '').trim(),
+        estimatedPrice: i.estimated_price || 10000,
+        imageUrl: i.image_url || '',
+        isAvailable: i.is_available ?? true,
+        fulfillmentTypes: parseFulfillmentTypes(i.description, i.fulfillment_types),
+        isVoucher,
+      };
+    });
+  } catch (err) {
+    console.error('[Supabase Error] fetchItemsByStoreId exception:', err);
+    return [];
+  }
+}
+
+/**
  * 3. Insert or Update Store & Exchange Items linked to Owner user_id and Profiles
  */
 export async function insertStoreAndItems(

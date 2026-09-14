@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Store as StoreIcon, Utensils, Bed, Check, ArrowRight, ArrowLeft, Image as ImageIcon, Clock, Phone, MapPin, Upload, CheckCircle2 } from 'lucide-react';
 import { Store, ExchangeItem, StoreCategory, ItemType } from '../types/trade';
 import { insertStoreAndItems, fetchUserStoreFromSupabase } from '../lib/supabase';
+import { OperatingHoursPicker } from './OperatingHoursPicker';
 
 interface RegisterStoreAndItemsModalProps {
   isOpen: boolean;
@@ -579,12 +580,11 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                     <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
                   </label>
                 </div>
-                <input
-                  type="text"
-                  placeholder="예: 10:00 - 22:00 (연중무휴)"
+                <OperatingHoursPicker
                   value={operatingHours}
-                  onChange={(e) => setOperatingHours(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-xs font-bold outline-none"
+                  onChange={setOperatingHours}
+                  label=""
+                  subLabel="오픈/마감 시간 및 휴무일을 선택해 주세요 (표준 규격 적용)"
                 />
               </div>
 

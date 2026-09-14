@@ -369,13 +369,9 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
                     <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 flex-wrap">
                       <div className="text-[11px] text-gray-500">
                         {targetStore?.phone && (
-                          <a
-                            href={`tel:${targetStore.phone}`}
-                            className="hover:text-purple-700 flex items-center gap-1 font-medium whitespace-nowrap"
-                          >
-                            <Phone className="w-3 h-3 text-gray-400" />
-                            <span>매장 문의 ({targetStore.phone})</span>
-                          </a>
+                          <span className="text-gray-500 font-medium whitespace-nowrap">
+                            매장 연락처: {targetStore.phone}
+                          </span>
                         )}
                       </div>
 

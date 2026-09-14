@@ -400,13 +400,9 @@ export const MenuTestDashboardModal: React.FC<MenuTestDashboardModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 text-[11px] text-gray-500 flex-wrap pt-0.5">
-                      <a
-                        href={`tel:${app.applicantPhone}`}
-                        className="flex items-center gap-1 text-gray-700 hover:text-purple-600 font-medium whitespace-nowrap"
-                      >
-                        <Phone className="w-3 h-3 text-gray-400" />
-                        {app.applicantPhone}
-                      </a>
+                      <span className="text-gray-700 font-medium whitespace-nowrap">
+                        연락처: {app.applicantPhone}
+                      </span>
                       <span>·</span>
                       <span className="whitespace-nowrap">
                         {new Date(app.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 접수

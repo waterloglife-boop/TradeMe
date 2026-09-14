@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Store, ExchangeItem, MenuTestCampaign } from '../types/trade';
-import { fetchMenuTestCampaigns } from '../lib/supabase';
+import { fetchMenuTestCampaigns, fetchItemsByStoreId } from '../lib/supabase';
 import {
   X,
-  Phone,
   Clock,
   MapPin,
   Star,
@@ -13,7 +12,8 @@ import {
   MessageSquare,
   ShieldCheck,
   Tag,
-  Sparkles
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 
 interface StoreDetailDrawerProps {
@@ -36,6 +36,8 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
   isMyStore,
 }) => {
   const [campaigns, setCampaigns] = useState<MenuTestCampaign[]>([]);
+  const [items, setItems] = useState<ExchangeItem[]>(store?.exchangeItems || []);
+  const [loadingItems, setLoadingItems] = useState(false);
 
   useEffect(() => {
     if (store?.id && store.isMenuTesting) {
@@ -46,6 +48,29 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
       setCampaigns([]);
     }
   }, [store?.id, store?.isMenuTesting]);
+
+  // Supabase items 테이블 실시간 동기화 (화면에 품목이 비어 보이는 문제 완벽 차단)
+  useEffect(() => {
+    let isCancelled = false;
+    setItems(store?.exchangeItems || []);
+
+    if (store?.id) {
+      setLoadingItems(true);
+      fetchItemsByStoreId(store.id)
+        .then((fetched) => {
+          if (!isCancelled && fetched && fetched.length > 0) {
+            setItems(fetched);
+          }
+        })
+        .finally(() => {
+          if (!isCancelled) setLoadingItems(false);
+        });
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [store?.id, store?.exchangeItems]);
 
   if (!store) return null;
 
@@ -277,29 +302,31 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
 
         {/* Separate voucher item from regular signature items */}
         {(() => {
-          const voucherItem = (store.exchangeItems || []).find(
-            (it) => it.isVoucher || it.type === 'VOUCHER' || it.id.startsWith('voucher-')
-          ) || (store.voucherActive ? {
+          const defaultVoucherItem: ExchangeItem = {
             id: `voucher-${store.id}`,
             storeId: store.id,
-            title: `${store.storeName} ${(store.voucherAmount || 20000).toLocaleString()}원 상생 이용권`,
-            estimatedPrice: store.voucherAmount || 20000,
-            description: '전 메뉴 및 서비스 자유 선택 이용 (초과 금액 차액 결제)',
-            type: 'VOUCHER' as const,
+            title: `${store.storeName} ${(store.voucherAmount || 30000).toLocaleString()}원 상생 이용권`,
+            estimatedPrice: store.voucherAmount || 30000,
+            description: '전 메뉴 및 서비스 자유 선택 이용 (초과 금액 차액 결제 가능)',
+            type: 'VOUCHER',
             imageUrl: store.storeImageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
             isAvailable: true,
-            fulfillmentTypes: store.voucherFulfillmentTypes || ['PICKUP', 'ON_SITE'],
+            fulfillmentTypes: store.voucherFulfillmentTypes && store.voucherFulfillmentTypes.length > 0 ? store.voucherFulfillmentTypes : ['PICKUP', 'ON_SITE'],
             isVoucher: true,
-          } : null);
+          };
 
-          const regularItems = (store.exchangeItems || []).filter(
+          const voucherItem = (items || []).find(
+            (it) => it.isVoucher || it.type === 'VOUCHER' || it.id.startsWith('voucher-')
+          ) || defaultVoucherItem;
+
+          const regularItems = (items || []).filter(
             (it) => !it.isVoucher && it.type !== 'VOUCHER' && !it.id.startsWith('voucher-')
           );
 
           return (
             <div className="space-y-4">
-              {/* 🎟️ VIP Golden Ticket Voucher Card */}
-              {(store.voucherActive || voucherItem) && voucherItem && (
+              {/* 🎟️ VIP Golden Ticket Voucher Card (항상 확실하게 보장 노출) */}
+              {voucherItem && (
                 <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 text-white p-4 shadow-xl border-2 border-amber-300/40 space-y-3">
                   {/* Decorative ambient glow */}
                   <div className="absolute -top-10 -right-10 w-32 h-32 bg-yellow-300/20 rounded-full blur-2xl pointer-events-none" />
@@ -370,7 +397,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
                   {!isMyStore ? (
                     <button
                       onClick={() => onOpenProposal(voucherItem)}
-                      className={`w-full py-2.5 font-extrabold text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] text-gray-950 bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-400 hover:from-yellow-200 hover:to-yellow-300`}
+                      className="w-full py-2.5 font-extrabold text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] text-gray-950 bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-400 hover:from-yellow-200 hover:to-yellow-300"
                     >
                       <span>🎟️</span>
                       <span>
@@ -388,10 +415,34 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
               )}
 
               {/* 📦 Regular Exchange Items Section */}
-              {regularItems.length === 0 && !store.voucherActive && !voucherItem ? (
-                <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-4">
-                  <Utensils className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500 font-medium">등록된 교환 품목이 없습니다.</p>
+              {loadingItems && regularItems.length === 0 ? (
+                <div className="py-6 flex flex-col items-center justify-center gap-2 text-gray-400">
+                  <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                  <span className="text-xs">교환 품목 실시간 로딩 중...</span>
+                </div>
+              ) : regularItems.length === 0 ? (
+                <div className="p-4 bg-gradient-to-br from-amber-50/60 to-orange-50/40 rounded-2xl border border-amber-200/80 text-center space-y-2.5 shadow-2xs">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center mx-auto text-amber-700 text-lg shadow-xs">
+                    🍽️
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-gray-900">대표 단품 메뉴 등록 준비 중</h4>
+                    <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                      현재 사장님이 단품 메뉴 사진을 등록하고 있습니다.<br />
+                      상단의 <strong>[{voucherItem.title}]</strong>으로 즉시 맞교환 제안하시거나,<br />
+                      아래 1:1 대화하기로 자유롭게 물물교환을 협의하실 수 있습니다!
+                    </p>
+                  </div>
+                  {!isMyStore && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenChat(store)}
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white border border-amber-300 text-amber-950 font-extrabold text-xs rounded-xl shadow-xs hover:bg-amber-100/50 transition-all active:scale-95"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-amber-700" />
+                      <span>{store.storeName} 사장님과 1:1 대화하기</span>
+                    </button>
+                  )}
                 </div>
               ) : (
                 regularItems.map((item) => (
@@ -490,10 +541,10 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
         <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] md:pb-3 bg-white border-t border-gray-200 flex items-center gap-2">
           <button
             onClick={() => onOpenChat(store)}
-            className="flex-1 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-1.5 transition-all"
+            className="flex-1 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-1.5 transition-all active:scale-[0.99]"
           >
             <MessageSquare className="w-4 h-4 text-orange-400" />
-            {store.ownerName}과 1:1 대화하기
+            <span>{store.storeName} ({store.ownerName} 사장님)과 1:1 대화하기</span>
           </button>
         </div>
       )}
