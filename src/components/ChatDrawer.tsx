@@ -100,7 +100,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white shadow-2xl border-l border-gray-200 flex flex-col transition-transform animate-in slide-in-from-right">
+    <div className="fixed inset-y-0 right-0 z-[70] w-full sm:w-96 bg-white shadow-2xl border-l border-gray-200 flex flex-col transition-transform animate-in slide-in-from-right">
       
       {/* Chat Header */}
       <div className="p-4 bg-gray-900 text-white flex items-center justify-between flex-shrink-0">

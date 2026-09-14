@@ -837,6 +837,7 @@ export const App: React.FC = () => {
   };
 
   const handleOpenProposal = (targetItem: ExchangeItem) => {
+    setIsStoreListModalOpen(false);
     if (!isLoggedIn) {
       setAuthModalNotice('💡 1:1 물물교환 제안은 사장님 로그인이 필요한 서비스입니다. 지금 로그인하거나 3초 만에 회원가입해 보세요!');
       setIsAuthModalOpen(true);
@@ -1113,6 +1114,7 @@ export const App: React.FC = () => {
   };
 
   const handleOpenChat = (store: Store) => {
+    setIsStoreListModalOpen(false);
     if (!isLoggedIn) {
       setAuthModalNotice(`💡 [${store.storeName}] 사장님과의 1:1 대화는 로그인이 필요한 서비스입니다. 지금 로그인하거나 3초 만에 회원가입해 보세요!`);
       setIsAuthModalOpen(true);
@@ -1869,14 +1871,21 @@ export const App: React.FC = () => {
           setSelectedStore(store);
           setIsStoreListModalOpen(false);
         }}
-        onOpenProposal={(item) => handleOpenProposal(item)}
-        onOpenChat={(store) => handleOpenChat(store)}
+        onOpenProposal={(item) => {
+          setIsStoreListModalOpen(false);
+          handleOpenProposal(item);
+        }}
+        onOpenChat={(store) => {
+          setIsStoreListModalOpen(false);
+          handleOpenChat(store);
+        }}
         onOpenMenuTestApply={(store, campaign) => {
           if (!isLoggedIn) {
             setAuthModalNotice(`💡 [${store.storeName}] 신메뉴 시식단 신청은 로그인이 필요한 서비스입니다. 지금 로그인하거나 3초 만에 회원가입해 보세요!`);
             setIsAuthModalOpen(true);
             return;
           }
+          setIsStoreListModalOpen(false);
           setTargetMenuTestStore(store);
           setTargetMenuTestCampaign(campaign || null);
           setIsMenuTestModalOpen(true);
