@@ -26,6 +26,7 @@ import { StoreListModal } from './components/StoreListModal';
 import { AlarmGuideModal } from './components/AlarmGuideModal';
 import { InquiryType } from './types/trade';
 import { playNotificationChime } from './lib/sound';
+import { showDeviceNotification } from './lib/notification';
 import {
   fetchStoresFromSupabase,
   subscribeToTradeChat,
@@ -151,9 +152,38 @@ export const App: React.FC = () => {
     playNotificationChime();
 
     if (isPermissionGranted) {
-      setSyncToastMessage('🔔 실시간 거래 & 대화 알림이 켜졌습니다!');
+      setSyncToastMessage('🔔 스마트폰 상단바 실시간 알림이 켜졌습니다!');
+      showDeviceNotification('🔔 트레이드미 알림 켜짐', {
+        body: '스마트폰 상단바 실시간 알림이 성공적으로 연결되었습니다!',
+        tag: 'trademe-welcome',
+      });
     } else {
       setSyncToastMessage('🔊 앱 내 소리 알람이 켜졌습니다! (잠금화면 푸시는 주소창 🔒에서 허용 필요)');
+    }
+    setTimeout(() => setSyncToastMessage(null), 3500);
+  };
+
+  const handleSendTestNotification = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
+      try {
+        const res = await Notification.requestPermission();
+        if (res !== 'granted') {
+          setSyncToastMessage('⚠️ 브라우저 알림 권한을 먼저 허용해 주세요!');
+          setTimeout(() => setSyncToastMessage(null), 3000);
+          return;
+        }
+      } catch (e) {}
+    }
+
+    const sent = await showDeviceNotification('🔔 트레이드미 알림 테스트', {
+      body: '스마트폰 상단바 배너와 진동이 정상 작동합니다! 🎉',
+      tag: 'trademe-test-' + Date.now(),
+    });
+
+    if (sent) {
+      setSyncToastMessage('🚀 스마트폰 상단바로 테스트 알림을 발송했습니다!');
+    } else {
+      setSyncToastMessage('🔔 알림음이 울렸습니다.');
     }
     setTimeout(() => setSyncToastMessage(null), 3500);
   };
@@ -613,7 +643,11 @@ export const App: React.FC = () => {
       refreshConversations();
 
       if (alarmEnabled) {
-        playNotificationChime();
+        showDeviceNotification(`💬 [${data.senderName}] 새 메시지`, {
+          body: data.message,
+          tag: `chat-${data.counterpartStoreId}`,
+          url: '/',
+        });
       }
 
       // 🎟️ 상대방이 물물교환 제안을 수락한 경우 실시간으로 내 보관함 및 제안 상태 즉각 동기화
@@ -685,7 +719,11 @@ export const App: React.FC = () => {
     // 실시간 제안 상태 변경(수락/거절) 감지
     const unsubProposals = subscribeToTradeProposals(myStore.id, () => {
       if (alarmEnabled) {
-        playNotificationChime();
+        showDeviceNotification('🤝 새로운 물물교환 제안 도착!', {
+          body: '이웃 사장님으로부터 맞교환 제안 또는 상태 변경이 도착했습니다.',
+          tag: 'trademe-proposal',
+          url: '/',
+        });
       }
       fetchTradeProposalsFromSupabase(myStore.id).then(() => {
         refreshPendingAlertCounts();
@@ -698,7 +736,11 @@ export const App: React.FC = () => {
     // 실시간 교환권 발행 감지
     const unsubVouchers = subscribeToVouchers(myStore.id, () => {
       if (alarmEnabled) {
-        playNotificationChime();
+        showDeviceNotification('🎟️ 상생 교환권 도착!', {
+          body: '새로운 1:1 모바일 교환권이 보관함에 발행되었습니다.',
+          tag: 'trademe-voucher',
+          url: '/',
+        });
       }
       fetchVouchersFromSupabase(myStore.id).then(() => {
         refreshVoucherWalletCount();
@@ -709,7 +751,7 @@ export const App: React.FC = () => {
       unsubProposals();
       unsubVouchers();
     };
-  }, [myStore.id]);
+  }, [myStore.id, alarmEnabled]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1846,6 +1888,7 @@ export const App: React.FC = () => {
         isOpen={isAlarmModalOpen}
         onClose={() => setIsAlarmModalOpen(false)}
         onConfirmEnable={handleConfirmEnableAlarm}
+        onSendTestNotification={handleSendTestNotification}
       />
     </div>
   );

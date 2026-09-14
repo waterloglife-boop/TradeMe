@@ -5,17 +5,20 @@ interface AlarmGuideModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirmEnable: () => void;
+  onSendTestNotification?: () => void;
 }
 
 export const AlarmGuideModal: React.FC<AlarmGuideModalProps> = ({
   isOpen,
   onClose,
   onConfirmEnable,
+  onSendTestNotification,
 }) => {
   if (!isOpen) return null;
 
   const isSupported = typeof window !== 'undefined' && 'Notification' in window;
   const isPermissionDenied = isSupported && Notification.permission === 'denied';
+  const isPermissionGranted = isSupported && Notification.permission === 'granted';
 
   return (
     <div className="fixed inset-0 z-[170] bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
@@ -71,16 +74,38 @@ export const AlarmGuideModal: React.FC<AlarmGuideModalProps> = ({
             </div>
             <div>
               <h4 className="font-bold text-emerald-950 text-xs mb-0.5">
-                즉시 도착 알림 (소리 & 팝업)
+                즉시 도착 알림 (상단바 배너 · 진동 · 소리)
               </h4>
               <p className="text-[11px] text-emerald-800 leading-normal">
-                이웃 사장님의 <strong>새로운 물물교환 제안</strong>이나 <strong>1:1 채팅 메시지</strong>가 오면 맑은 알림음과 함께 바로 알려드립니다.
+                이웃 사장님의 <strong>새로운 물물교환 제안</strong>이나 <strong>1:1 채팅 메시지</strong>가 오면 스마트폰 상단바 배너와 진동, 알림음으로 즉시 알려드립니다.
               </p>
             </div>
           </div>
 
+          {/* Test Push Section (Available if granted or for instant testing) */}
+          {onSendTestNotification && (
+            <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-2xl flex items-center justify-between gap-2">
+              <div>
+                <h4 className="font-bold text-blue-950 text-xs mb-0.5 flex items-center gap-1.5">
+                  <span>🧪</span>
+                  <span>상단바 알림 즉시 테스트</span>
+                </h4>
+                <p className="text-[11px] text-blue-700">
+                  내 폰 상단바에 알림이 제대로 뜨는지 지금 바로 확인해 보세요!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onSendTestNotification}
+                className="px-3 py-1.5 rounded-xl font-black text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+              >
+                테스트 발송
+              </button>
+            </div>
+          )}
+
           {/* Important Permission Notice (if not blocked) */}
-          {!isPermissionDenied && (
+          {!isPermissionDenied && !isPermissionGranted && (
             <div className="flex items-start gap-3 p-3 bg-amber-50/90 border border-amber-200 rounded-2xl">
               <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs">
                 <ShieldCheck className="w-4 h-4" />
@@ -124,6 +149,11 @@ export const AlarmGuideModal: React.FC<AlarmGuideModalProps> = ({
                 <Volume2 className="w-4 h-4" />
                 <span>앱 내 소리 알람 켜기</span>
               </>
+            ) : isPermissionGranted ? (
+              <>
+                <Bell className="w-4 h-4" />
+                <span>알림 설정 완료 (켜짐 유지)</span>
+              </>
             ) : (
               <>
                 <Bell className="w-4 h-4" />
@@ -136,7 +166,7 @@ export const AlarmGuideModal: React.FC<AlarmGuideModalProps> = ({
             onClick={onClose}
             className="py-2.5 sm:py-3 px-4 rounded-xl font-bold text-xs text-gray-600 hover:bg-gray-200 bg-gray-100 active:scale-95 transition-all cursor-pointer"
           >
-            다음에 할게요 (무음 유지)
+            닫기
           </button>
         </div>
 
