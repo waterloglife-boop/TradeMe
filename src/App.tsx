@@ -127,34 +127,35 @@ export const App: React.FC = () => {
   const handleConfirmEnableAlarm = async () => {
     setIsAlarmModalOpen(false);
 
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'denied') {
-        alert('⚠️ 브라우저 설정에서 알림 권한이 "차단"되어 있습니다.\n\n주소창 좌측의 🔒(자물쇠) 또는 사이트 설정 아이콘을 눌러 "알림"을 "허용"으로 변경해주세요.');
-        return;
-      }
+    let isPermissionGranted = false;
 
-      if (Notification.permission === 'default') {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        isPermissionGranted = true;
+      } else if (Notification.permission === 'default') {
         try {
           const permission = await Notification.requestPermission();
-          if (permission !== 'granted') {
-            setSyncToastMessage('⚠️ 알림 권한이 허용되지 않아 알람이 켜지지 않았습니다.');
-            setTimeout(() => setSyncToastMessage(null), 3000);
-            return;
-          }
+          isPermissionGranted = permission === 'granted';
         } catch (err) {
           console.warn('Notification permission request error:', err);
         }
       }
     }
 
+    // 소리 알람 활성화 (푸시 권한이 차단되어 있어도 앱 내 Web Audio 알람은 100% 정상 작동)
     setAlarmEnabled(true);
     try {
       localStorage.setItem('trademe_alarm_enabled', 'true');
     } catch (e) {}
 
     playNotificationChime();
-    setSyncToastMessage('🔔 실시간 거래 & 대화 알람이 켜졌습니다!');
-    setTimeout(() => setSyncToastMessage(null), 3000);
+
+    if (isPermissionGranted) {
+      setSyncToastMessage('🔔 실시간 거래 & 대화 알림이 켜졌습니다!');
+    } else {
+      setSyncToastMessage('🔊 앱 내 소리 알람이 켜졌습니다! (잠금화면 푸시는 주소창 🔒에서 허용 필요)');
+    }
+    setTimeout(() => setSyncToastMessage(null), 3500);
   };
 
   const handleRefreshAllData = async () => {
