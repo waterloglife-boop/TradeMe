@@ -24,6 +24,7 @@ import { TermsOfServiceModal, PrivacyPolicyModal } from './components/LegalModal
 import { TopMainSlimBanner } from './components/CoupangAffiliateBanner';
 import { StoreListModal } from './components/StoreListModal';
 import { InquiryType } from './types/trade';
+import { playNotificationChime } from './lib/sound';
 import {
   fetchStoresFromSupabase,
   subscribeToTradeChat,
@@ -94,6 +95,71 @@ export const App: React.FC = () => {
   const [pendingTradeCount, setPendingTradeCount] = useState(0);
   const [pendingMenuTestCount, setPendingMenuTestCount] = useState(0);
 
+  // 🔔 실시간 알람 사운드 & 수동 새로고침 State
+  const [alarmEnabled, setAlarmEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('trademe_alarm_enabled');
+      return saved !== null ? saved === 'true' : true; // 기본값: 알람 켜짐
+    } catch (e) {
+      return true;
+    }
+  });
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [syncToastMessage, setSyncToastMessage] = useState<string | null>(null);
+
+  const handleToggleAlarm = () => {
+    const next = !alarmEnabled;
+    setAlarmEnabled(next);
+    try {
+      localStorage.setItem('trademe_alarm_enabled', String(next));
+    } catch (e) {}
+
+    if (next) {
+      playNotificationChime();
+      setSyncToastMessage('🔔 실시간 거래 & 대화 알람이 켜졌습니다.');
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    } else {
+      setSyncToastMessage('🔕 실시간 알람이 꺼졌습니다 (무음 모드).');
+    }
+    setTimeout(() => setSyncToastMessage(null), 2500);
+  };
+
+  const handleRefreshAllData = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      // 1. 전체 매장 목록 최신화
+      const freshStores = await fetchStoresFromSupabase();
+      if (freshStores && freshStores.length > 0) {
+        setStores(freshStores);
+      }
+
+      // 2. 내 매장 관련 거래 제안, 교환권, 대화함 최신화
+      if (myStore?.id && myStore.id !== 'my_store') {
+        await Promise.all([
+          fetchTradeProposalsFromSupabase(myStore.id),
+          fetchVouchersFromSupabase(myStore.id),
+          fetchMenuTestApplications(),
+        ]);
+        refreshVoucherWalletCount();
+        refreshPendingAlertCounts();
+        refreshConversations();
+      }
+
+      setSyncToastMessage('✅ 최신 데이터가 성공적으로 동기화되었습니다!');
+      setTimeout(() => setSyncToastMessage(null), 2500);
+    } catch (e) {
+      console.warn('Sync error:', e);
+      setSyncToastMessage('✅ 데이터 새로고침 완료');
+      setTimeout(() => setSyncToastMessage(null), 2000);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
+
+
   // ☕ 사장님 사랑방 커뮤니티 State
   const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
 
@@ -160,6 +226,7 @@ export const App: React.FC = () => {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isManageItemsModalOpen, setIsManageItemsModalOpen] = useState(false);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [targetProposalItem, setTargetProposalItem] = useState<ExchangeItem | null>(null);
   const [isTradeDashboardOpen, setIsTradeDashboardOpen] = useState(false);
   const [tradeDashboardTab, setTradeDashboardTab] = useState<'RECEIVED' | 'SENT' | 'MY_APPLICATIONS'>('RECEIVED');
 
@@ -513,6 +580,10 @@ export const App: React.FC = () => {
     const unsubscribe = subscribeToIncomingChats(myStore.id, (data) => {
       refreshConversations();
 
+      if (alarmEnabled) {
+        playNotificationChime();
+      }
+
       // 🎟️ 상대방이 물물교환 제안을 수락한 경우 실시간으로 내 보관함 및 제안 상태 즉각 동기화
       if (data.rawMsg.systemAction === 'ACCEPT' || (data.message && data.message.includes('수락하셨습니다'))) {
         fetchVouchersFromSupabase(myStore.id).then(() => {
@@ -563,7 +634,7 @@ export const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [myStore.id, chatTargetStore?.id, stores]);
+  }, [myStore.id, chatTargetStore?.id, stores, alarmEnabled]);
 
   // 🤝 [실시간 물물교환 제안 & 상생 교환권 클라우드 동기화 리스너]
   useEffect(() => {
@@ -581,6 +652,9 @@ export const App: React.FC = () => {
 
     // 실시간 제안 상태 변경(수락/거절) 감지
     const unsubProposals = subscribeToTradeProposals(myStore.id, () => {
+      if (alarmEnabled) {
+        playNotificationChime();
+      }
       fetchTradeProposalsFromSupabase(myStore.id).then(() => {
         refreshPendingAlertCounts();
       });
@@ -591,6 +665,9 @@ export const App: React.FC = () => {
 
     // 실시간 교환권 발행 감지
     const unsubVouchers = subscribeToVouchers(myStore.id, () => {
+      if (alarmEnabled) {
+        playNotificationChime();
+      }
       fetchVouchersFromSupabase(myStore.id).then(() => {
         refreshVoucherWalletCount();
       });
@@ -1239,7 +1316,20 @@ export const App: React.FC = () => {
         }}
         voucherCount={voucherWalletCount}
         onOpenStoreListModal={() => setIsStoreListModalOpen(true)}
+        alarmEnabled={alarmEnabled}
+        onToggleAlarm={handleToggleAlarm}
+        isRefreshing={isRefreshing}
+        onRefreshAll={handleRefreshAllData}
       />
+
+      {/* 🔔 실시간 알람 & 데이터 동기화 플로팅 토스트 */}
+      {syncToastMessage && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto max-w-[92vw]">
+          <div className="px-4 py-2 rounded-2xl shadow-xl flex items-center gap-2 text-xs sm:text-sm font-bold bg-gray-950/95 text-white border border-orange-400/60 backdrop-blur-md shadow-orange-500/20">
+            <span>{syncToastMessage}</span>
+          </div>
+        </div>
+      )}
 
       {/* 🏆 쿠팡 파트너스 홈 상단 슬림 기획전 띠배너 (식자재/도매) */}
       <TopMainSlimBanner />

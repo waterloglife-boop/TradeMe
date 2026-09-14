@@ -52,18 +52,18 @@ export const TradeDashboardModal: React.FC<TradeDashboardModalProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen) {
-      if (initialTab) {
-        setActiveTab(initialTab);
-      }
-      loadData();
-      const unsubscribe = subscribeToTradeProposals(myStore.id, () => {
-        loadData();
-      });
-      return () => {
-        unsubscribe();
-      };
+    if (!isOpen) return;
+
+    if (initialTab) {
+      setActiveTab(initialTab);
     }
+    loadData();
+    const unsubscribe = subscribeToTradeProposals(myStore.id, () => {
+      loadData();
+    });
+    return () => {
+      unsubscribe();
+    };
   }, [isOpen, myStore.id, initialTab]);
 
   if (!isOpen) return null;

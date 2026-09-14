@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, User, LogIn, Edit3, List } from 'lucide-react';
+import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, User, LogIn, Edit3, List, Bell, BellOff } from 'lucide-react';
 
 interface NavbarProps {
   myBreakTimeActive: boolean;
@@ -27,6 +27,10 @@ interface NavbarProps {
   onOpenCouponWallet?: () => void;
   voucherCount?: number;
   onOpenStoreListModal?: () => void;
+  alarmEnabled?: boolean;
+  onToggleAlarm?: () => void;
+  isRefreshing?: boolean;
+  onRefreshAll?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -52,6 +56,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCouponWallet,
   voucherCount = 0,
   onOpenStoreListModal,
+  alarmEnabled = true,
+  onToggleAlarm,
+  isRefreshing = false,
+  onRefreshAll,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
@@ -79,19 +87,59 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Mobile Right Controls: Compact BreakTime toggle & Store status (md:hidden) */}
+          {/* Mobile Right Controls: Refresh, Alarm toggle, and BreakTime toggle (md:hidden) */}
           <div className="flex items-center gap-1.5 md:hidden flex-shrink-0">
+            {/* 🔄 모바일 새로고침 버튼 */}
+            {onRefreshAll && (
+              <button
+                type="button"
+                onClick={onRefreshAll}
+                disabled={isRefreshing}
+                title="데이터 새로고침"
+                className="p-1.5 rounded-full bg-gray-100 border border-gray-200 text-gray-700 hover:text-orange-600 active:scale-95 transition cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-orange-600' : ''}`} />
+              </button>
+            )}
+
+            {/* 🔔 모바일 알람 ON/OFF 버튼 */}
+            {onToggleAlarm && (
+              <button
+                type="button"
+                onClick={onToggleAlarm}
+                title={alarmEnabled ? "실시간 알람 소리 켜짐 (터치 시 끄기)" : "실시간 알람 소리 꺼짐 (터치 시 켜기)"}
+                className={`flex items-center gap-1 px-2 py-1 rounded-full border cursor-pointer select-none transition-all active:scale-95 ${
+                  alarmEnabled
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
+                    : 'bg-gray-100 border-gray-200 text-gray-500'
+                }`}
+              >
+                {alarmEnabled ? (
+                  <>
+                    <Bell className="w-3 h-3 text-emerald-600 animate-pulse" />
+                    <span className="text-[10px] font-black">알람 ON</span>
+                  </>
+                ) : (
+                  <>
+                    <BellOff className="w-3 h-3 text-gray-400" />
+                    <span className="text-[10px] font-black">알람 OFF</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* 교환 ON / OFF */}
             <button
               type="button"
               onClick={onToggleBreakTime}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border cursor-pointer select-none transition-all active:scale-95 ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full border cursor-pointer select-none transition-all active:scale-95 ${
                 myBreakTimeActive
                   ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-2xs'
                   : 'bg-gray-100 border-gray-200 text-gray-600'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${myBreakTimeActive ? 'bg-amber-500 animate-pulse' : 'bg-gray-400'}`} />
-              <span className="text-xs font-extrabold">
+              <span className={`w-1.5 h-1.5 rounded-full ${myBreakTimeActive ? 'bg-amber-500 animate-pulse' : 'bg-gray-400'}`} />
+              <span className="text-[10px] font-black">
                 {myBreakTimeActive ? '교환 ON' : '교환 OFF'}
               </span>
             </button>
@@ -184,6 +232,46 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {myBreakTimeActive ? 'ON' : 'OFF'}
               </span>
             </div>
+
+            {/* 🔄 데스크톱 새로고침 버튼 */}
+            {onRefreshAll && (
+              <button
+                type="button"
+                onClick={onRefreshAll}
+                disabled={isRefreshing}
+                title="최신 매장 및 거래 데이터 새로고침"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold transition active:scale-95 cursor-pointer shadow-2xs"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-orange-600' : 'text-gray-500'}`} />
+                <span className="hidden lg:inline">{isRefreshing ? '동기화 중...' : '새로고침'}</span>
+              </button>
+            )}
+
+            {/* 🔔 데스크톱 알람 ON/OFF 버튼 */}
+            {onToggleAlarm && (
+              <button
+                type="button"
+                onClick={onToggleAlarm}
+                title={alarmEnabled ? "실시간 거래 및 대화 알람 소리 켜짐 (클릭 시 끄기)" : "알람 소리 꺼짐 (클릭 시 켜기)"}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl transition shadow-2xs active:scale-95 border cursor-pointer ${
+                  alarmEnabled
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                    : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                {alarmEnabled ? (
+                  <>
+                    <Bell className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                    <span className="hidden lg:inline">알람 ON</span>
+                  </>
+                ) : (
+                  <>
+                    <BellOff className="w-3.5 h-3.5 text-gray-400" />
+                    <span className="hidden lg:inline">알람 OFF</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {/* 🏬 Store Management / Auth Button with Global Notification Badge */}
             <button
