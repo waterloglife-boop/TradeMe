@@ -70,6 +70,7 @@ export interface Store {
   exchangeItems: ExchangeItem[];
   rating: number;
   reviewCount: number;
+  tradeCount?: number; // 🤝 거래 성사 횟수 (활동 지수)
 
   // 🧪 [신메뉴/신규서비스 체험단 & 리뷰 품앗이] (최대 2개 동시 모집 지원)
   isMenuTesting?: boolean; // 신메뉴 테스트 모집 진행 여부

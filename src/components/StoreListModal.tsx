@@ -68,7 +68,7 @@ function estimateWalkTime(km: number): string {
 type StatusFilterType = 'ALL' | 'MENU_TEST' | 'EXCHANGE_READY';
 type CategoryFilterType = 'ALL' | 'FOOD' | 'RETAIL' | 'BEAUTY' | 'OTHER';
 type DistanceFilterType = 'ALL' | 1 | 3 | 5 | 10;
-type SortType = 'DISTANCE' | 'RATING' | 'NAME';
+type SortType = 'DISTANCE' | 'TRADES' | 'NAME';
 
 export const StoreListModal: React.FC<StoreListModalProps> = ({
   isOpen,
@@ -200,8 +200,15 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
           if (b.distKm < 0) return -1;
           return a.distKm - b.distKm;
         }
-        if (sortBy === 'RATING') {
-          return (b.rating || 5.0) - (a.rating || 5.0);
+        if (sortBy === 'TRADES') {
+          const countA = a.tradeCount || 0;
+          const countB = b.tradeCount || 0;
+          if (countB !== countA) return countB - countA;
+          // 성사 건수가 같을 때 활동 지수: 물물교환 활성(10점) + 신메뉴 모집(5점) + 등록 품목 수
+          const actA = (a.breakTimeActive ? 10 : 0) + (a.isMenuTesting ? 5 : 0) + (a.exchangeItems?.length || 0);
+          const actB = (b.breakTimeActive ? 10 : 0) + (b.isMenuTesting ? 5 : 0) + (b.exchangeItems?.length || 0);
+          if (actB !== actA) return actB - actA;
+          return (a.distKm >= 0 ? a.distKm : 9999) - (b.distKm >= 0 ? b.distKm : 9999);
         }
         return (a.storeName || '').localeCompare(b.storeName || '', 'ko-KR');
       });
@@ -353,7 +360,7 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
             </button>
           </div>
 
-          {/* 카테고리 칩: 가로 스크롤로 글자 쪼개짐(요식/업) 완벽 방지 */}
+          {/* 카테고리 칩: 가로 스크롤로 글자 쪼개짐 방지 */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-touch py-1">
             <button
               type="button"
@@ -416,7 +423,7 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
             </button>
           </div>
 
-          {/* 거리 및 정렬 서브 툴바 */}
+          {/* 거리 및 정렬 서브 툴바 (거래 많은 순 도입) */}
           <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-200/60 text-xs">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 text-xs font-bold text-gray-700 bg-white border border-gray-200 px-2 py-1 rounded-lg">
@@ -443,10 +450,10 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortType)}
-                className="bg-white border border-gray-200 text-gray-700 px-2 py-1 rounded-lg text-xs font-bold outline-none cursor-pointer"
+                className="bg-white border border-gray-200 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-extrabold outline-none cursor-pointer shadow-2xs"
               >
                 <option value="DISTANCE">가까운 순</option>
-                <option value="RATING">평점 높은 순</option>
+                <option value="TRADES">🔥 거래 많은 순</option>
                 <option value="NAME">매장명 순</option>
               </select>
             </div>
@@ -464,7 +471,7 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
           </div>
         </div>
 
-        {/* 3. 매장 카드 스트림 (가독성 및 모바일 친화적 글씨 배치) */}
+        {/* 3. 매장 카드 스트림 */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 bg-gray-100/70">
           {filteredStores.length === 0 ? (
             <div className="py-16 text-center space-y-3 bg-white rounded-3xl border border-gray-200 p-6">
@@ -499,7 +506,7 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
                   key={store.id}
                   className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200/90 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col break-keep"
                 >
-                  {/* 카드 상단 정보: 썸네일 + 기본 정보 (단일 유연한 흐름으로 줄바꿈 깨짐 완전 해결) */}
+                  {/* 카드 상단 정보: 썸네일 + 기본 정보 + 거래 성사 횟수 뱃지 */}
                   <div className="p-4 sm:p-5 flex items-start gap-3.5 border-b border-gray-100">
                     {/* 매장 썸네일 */}
                     <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200/80 flex-shrink-0 shadow-2xs">
@@ -521,7 +528,7 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
 
                     {/* 매장 텍스트 정보 */}
                     <div className="flex-1 min-w-0">
-                      {/* 1행: 상태 및 인증 배지 모음 */}
+                      {/* 1행: 상태 및 거래 성사 배지 모음 */}
                       <div className="flex items-center gap-1.5 flex-wrap mb-1">
                         <span className="px-2 py-0.5 text-[10px] font-black bg-orange-100 text-orange-800 rounded-md whitespace-nowrap">
                           {store.categoryName || '소상공인'}
@@ -532,6 +539,10 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
                             <span>사장님 인증</span>
                           </span>
                         )}
+                        {/* 🤝 거래 성사 횟수 표기 (신뢰도 핵심 뱃지) */}
+                        <span className="px-2 py-0.5 text-[10px] font-black bg-emerald-50 text-emerald-800 rounded-md border border-emerald-200 whitespace-nowrap flex items-center gap-0.5">
+                          🤝 성사 {store.tradeCount || 0}회
+                        </span>
                         {store.isMenuTesting && (
                           <span className="px-2 py-0.5 text-[10px] font-black bg-purple-600 text-white rounded-md whitespace-nowrap flex items-center gap-0.5 shadow-2xs">
                             <span>🧪</span>
@@ -622,7 +633,7 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
                       </div>
                     )}
 
-                    {/* 🤝 교환 가능 품목 목록 */}
+                    {/* 🤝 교환 가능 품목 목록 (이미지 크기 소형화 & 가로 컴팩트 배치 적용) */}
                     {regularItems.length > 0 ? (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs font-extrabold text-gray-800">
@@ -630,19 +641,25 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
                             <span>📦</span> 등록된 교환 가능 품목 ({regularItems.length}개)
                           </span>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {regularItems.map((item) => (
                             <div
                               key={item.id}
-                              className="p-2.5 sm:p-3 bg-gray-50/90 rounded-2xl border border-gray-200 flex items-center justify-between gap-3 hover:border-orange-300 transition-colors"
+                              className="p-2.5 bg-gray-50/90 rounded-2xl border border-gray-200 flex items-center justify-between gap-2.5 hover:border-orange-300 transition-colors"
                             >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <img
-                                  src={item.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=150&q=80'}
-                                  alt={item.title}
-                                  className="w-13 h-13 sm:w-14 sm:h-14 rounded-xl object-cover bg-gray-200 flex-shrink-0 border border-gray-200/80 shadow-2xs"
-                                />
-                                <div className="min-w-0 space-y-0.5">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                {/* 고정 크기 52px x 52px 소형 썸네일 (화면 전체 차지 방지) */}
+                                <div className="w-13 h-13 min-w-[52px] min-h-[52px] max-w-[52px] max-h-[52px] rounded-xl overflow-hidden bg-gray-100 border border-gray-200/80 flex-shrink-0 shadow-2xs">
+                                  <img
+                                    src={item.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=150&q=80'}
+                                    alt={item.title}
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=150&q=80';
+                                    }}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1 space-y-0.5">
                                   <h5 className="font-extrabold text-xs sm:text-sm text-gray-900 truncate break-keep">
                                     {item.title}
                                   </h5>

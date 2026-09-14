@@ -166,17 +166,22 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
       </div>
 
       {/* Store Sub-Info */}
-      <div className="p-4 bg-gray-50 border-b border-gray-200 text-xs flex items-center justify-between">
+      <div className="p-3.5 sm:p-4 bg-gray-50 border-b border-gray-200 text-xs flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-gray-700">
-          <Clock className="w-4 h-4 text-amber-600" />
-          <span>매장 영업시간: <strong>{store.breakTimeHours}</strong></span>
+          <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <span>영업시간: <strong>{store.breakTimeHours || '10:00 - 22:00'}</strong></span>
         </div>
-        <div className={`px-2.5 py-1 rounded-full font-bold text-[11px] ${
-          store.breakTimeActive
-            ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-            : 'bg-gray-200 text-gray-700'
-        }`}>
-          {store.breakTimeActive ? '☕ 지금 1:1 물물교환 가능!' : '영업 중'}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+            🤝 교환 성사 {store.tradeCount || 0}회
+          </span>
+          <div className={`px-2.5 py-1 rounded-full font-bold text-[11px] whitespace-nowrap ${
+            store.breakTimeActive
+              ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+              : 'bg-gray-200 text-gray-700'
+          }`}>
+            {store.breakTimeActive ? '☕ 지금 1:1 물물교환 가능!' : '영업 중'}
+          </div>
         </div>
       </div>
 

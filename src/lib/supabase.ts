@@ -1069,6 +1069,32 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
       });
     });
 
+    // Fetch completed trades count per store
+    const tradeCountByStore: { [storeId: string]: number } = {};
+    try {
+      const { data: tradesData } = await supabase
+        .from('trades')
+        .select('requester_store_id, target_store_id, status');
+      (tradesData || []).forEach((t: any) => {
+        if (t.status === 'ACCEPTED') {
+          if (t.requester_store_id) tradeCountByStore[t.requester_store_id] = (tradeCountByStore[t.requester_store_id] || 0) + 1;
+          if (t.target_store_id) tradeCountByStore[t.target_store_id] = (tradeCountByStore[t.target_store_id] || 0) + 1;
+        }
+      });
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const localRaw = localStorage.getItem('trademe_trade_proposals');
+        if (localRaw) {
+          const localList = JSON.parse(localRaw);
+          localList.forEach((lp: any) => {
+            if (lp.status === 'ACCEPTED') {
+              if (lp.myStoreId) tradeCountByStore[lp.myStoreId] = Math.max(tradeCountByStore[lp.myStoreId] || 0, 1);
+              if (lp.targetStoreId) tradeCountByStore[lp.targetStoreId] = Math.max(tradeCountByStore[lp.targetStoreId] || 0, 1);
+            }
+          });
+        }
+      }
+    } catch (te) {}
+
     const dbStores: Store[] = storesData.map((s: any) => {
       const storeItems = itemsByStore[s.id] || [];
       const voucherItem = storeItems.find((i) => i.isVoucher);
@@ -1089,6 +1115,7 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
         storeImageUrl: s.store_image_url || '',
         rating: s.rating || 5.0,
         reviewCount: s.review_count || 0,
+        tradeCount: s.trade_count ?? tradeCountByStore[s.id] ?? 0,
         isMenuTesting: s.is_menu_testing ?? false,
         menuTestTitle: s.menu_test_title ?? '',
         menuTestReward: s.menu_test_reward ?? '',
