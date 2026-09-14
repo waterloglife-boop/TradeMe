@@ -1,0 +1,401 @@
+{
+  "timestamp": "2026-09-14T08:53:08.735Z",
+  "tables": {
+    "stores": [
+      {
+        "id": "store-1789105430382",
+        "owner_name": "권영민",
+        "store_name": "돈돈돈",
+        "category": "PUB",
+        "category_name": "소상공인",
+        "address": "백호로54",
+        "lat": 35.31886,
+        "lng": 129.0008849,
+        "phone": "01012345678",
+        "is_verified": true,
+        "is_exchange_active": true,
+        "operating_hours": "17:00 - 익일 01:00",
+        "store_image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789105463292_g572u7.jpg",
+        "rating": 5,
+        "review_count": 0,
+        "created_at": "2026-09-11T05:43:50.102999+00:00",
+        "user_id": "5fa383c4-c87d-4ca3-b1ac-912061179f83",
+        "is_menu_testing": true,
+        "menu_test_title": "4만원 이용권",
+        "menu_test_reward": "4만원권사용 가능하면 남은 금액은 현금으로 돌려드리지않습니다",
+        "menu_test_quota": 5,
+        "menu_test_applicant_count": 1,
+        "menu_test_feedback_type": "BLOG_SNS",
+        "menu_test_description": null,
+        "break_time_hours": "17:00 - 익일 01:00",
+        "menu_test_image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789105463292_g572u7.jpg",
+        "trade_count": 0
+      },
+      {
+        "id": "store-1789047644774",
+        "owner_name": "김영인",
+        "store_name": "지안뷰티",
+        "category": "BEAUTY",
+        "category_name": "소상공인",
+        "address": "양산시 물금읍 백호로 60",
+        "lat": 35.3184631,
+        "lng": 129.0013583,
+        "phone": "01093978773",
+        "is_verified": true,
+        "is_exchange_active": true,
+        "operating_hours": "10:00 - 22:00",
+        "store_image_url": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80",
+        "rating": 5,
+        "review_count": 0,
+        "created_at": "2026-09-10T13:40:44.947777+00:00",
+        "user_id": "ba2edd88-2867-4d9d-bb9b-ebcb3681acc2",
+        "is_menu_testing": false,
+        "menu_test_title": null,
+        "menu_test_reward": null,
+        "menu_test_quota": 3,
+        "menu_test_applicant_count": 0,
+        "menu_test_feedback_type": "BOTH",
+        "menu_test_description": null,
+        "break_time_hours": "10:00 - 22:00",
+        "menu_test_image_url": null,
+        "trade_count": 0
+      },
+      {
+        "id": "store-1788929684138",
+        "owner_name": "김동욱",
+        "store_name": "마라위크",
+        "category": "FOOD",
+        "category_name": "외식업",
+        "address": "북정서길25 101호",
+        "lat": 35.3594181,
+        "lng": 129.0418871,
+        "phone": "01048548777",
+        "is_verified": true,
+        "is_exchange_active": true,
+        "operating_hours": "11:00 - 23:00",
+        "store_image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1788932170131_qrizzi.jpg",
+        "rating": 5,
+        "review_count": 0,
+        "created_at": "2026-09-09T04:54:42.499269+00:00",
+        "user_id": "2ed96d41-75f8-4033-8f0a-447d5c5d0171",
+        "is_menu_testing": true,
+        "menu_test_title": "마라소고기국밥",
+        "menu_test_reward": "신메뉴 2인 무료 시식 (음료 포함)",
+        "menu_test_quota": 5,
+        "menu_test_applicant_count": 0,
+        "menu_test_feedback_type": "BLOG_SNS",
+        "menu_test_description": null,
+        "break_time_hours": "11:00 - 23:00",
+        "menu_test_image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789346953194_arl76r.jpg",
+        "trade_count": 0
+      }
+    ],
+    "items": [
+      {
+        "id": "item-1788956160242-r4yt",
+        "store_id": "store-1788929684138",
+        "title": "마라탕& 꿔바로우 1인세트",
+        "estimated_price": 18000,
+        "description": "<!--fm:PICKUP,DELIVERY,ON_SITE-->사장님들도 혜택 누리자구요!",
+        "image_url": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "item_type": "FOOD",
+        "is_available": true,
+        "created_at": "2026-09-10T23:53:56.351673+00:00"
+      },
+      {
+        "id": "voucher-store-1788929684138",
+        "store_id": "store-1788929684138",
+        "title": "마라위크 30,000원 상생 이용권",
+        "estimated_price": 30000,
+        "description": "<!--fm:PICKUP,ON_SITE-->전 메뉴 및 서비스 자유 선택 이용 (차액 결제 가능)",
+        "image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1788932170131_qrizzi.jpg",
+        "item_type": "VOUCHER",
+        "is_available": true,
+        "created_at": "2026-09-10T23:53:56.351673+00:00"
+      },
+      {
+        "id": "item-1789105962007-3zp2",
+        "store_id": "store-1789105430382",
+        "title": "새우튀김",
+        "estimated_price": 35000,
+        "description": "<!--fm:PICKUP,ON_SITE-->생새우튀김",
+        "image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789105925467_uyamtb.jpg",
+        "item_type": "FOOD",
+        "is_available": true,
+        "created_at": "2026-09-11T05:54:11.377742+00:00"
+      },
+      {
+        "id": "item-1789106039652-rt4e",
+        "store_id": "store-1789105430382",
+        "title": "육전",
+        "estimated_price": 30000,
+        "description": "<!--fm:PICKUP,ON_SITE-->육전",
+        "image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789106012585_zocm1i.jpg",
+        "item_type": "FOOD",
+        "is_available": true,
+        "created_at": "2026-09-11T05:54:11.377742+00:00"
+      },
+      {
+        "id": "voucher-store-1789105430382",
+        "store_id": "store-1789105430382",
+        "title": "돈돈돈 30,000원 상생 이용권",
+        "estimated_price": 30000,
+        "description": "<!--fm:PICKUP,ON_SITE,DELIVERY-->전 메뉴 및 서비스 자유 선택 이용 (차액 결제 가능)",
+        "image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789105463292_g572u7.jpg",
+        "item_type": "VOUCHER",
+        "is_available": true,
+        "created_at": "2026-09-11T05:54:11.377742+00:00"
+      }
+    ],
+    "trades": [
+      {
+        "id": "trade-1789107786490",
+        "requester_store_id": "store-1788929684138",
+        "target_store_id": "store-1789105430382",
+        "requester_item_id": "voucher-store-1788929684138",
+        "target_item_id": "voucher-store-1789105430382",
+        "price_difference": 0,
+        "pickup_time": "언제든 여유 생기실 때 (찔러보기 맞춤)",
+        "status": "PENDING",
+        "created_at": "2026-09-11T06:23:05.921091+00:00",
+        "is_poke": true,
+        "message": "사장님 생각있으시면 거래해요~~",
+        "trade_type": "VOUCHER",
+        "trade_fulfillment": "🛍️ 직접 방문 픽업 교환",
+        "requester_store_name": "마라위크",
+        "requester_owner_name": "김동욱",
+        "requester_item_title": "마라위크 30,000원 상생 이용권",
+        "requester_item_image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1788932170131_qrizzi.jpg",
+        "requester_item_price": 30000,
+        "target_store_name": "돈돈돈",
+        "target_owner_name": "권영민",
+        "target_item_title": "돈돈돈 30,000원 상생 이용권",
+        "target_item_image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789105463292_g572u7.jpg",
+        "target_item_price": 30000,
+        "updated_at": "2026-09-11T06:23:05.921091+00:00"
+      }
+    ],
+    "profiles": [
+      {
+        "id": "2ed96d41-75f8-4033-8f0a-447d5c5d0171",
+        "email": "hanmaner@naver.com",
+        "owner_name": "김동욱",
+        "store_name": "마라위크",
+        "business_number": "4074913710",
+        "phone": "01048548777",
+        "created_at": "2026-09-09T04:54:41.220758+00:00",
+        "store_image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1788932170131_qrizzi.jpg",
+        "address": "북정서길25 101호"
+      },
+      {
+        "id": "ba2edd88-2867-4d9d-bb9b-ebcb3681acc2",
+        "email": "t01093978773@gmail.com",
+        "owner_name": "김영인",
+        "store_name": "지안뷰티",
+        "business_number": "7527200277",
+        "phone": "01093978773",
+        "created_at": "2026-09-10T13:40:43.637073+00:00",
+        "store_image_url": null,
+        "address": null
+      },
+      {
+        "id": "5fa383c4-c87d-4ca3-b1ac-912061179f83",
+        "email": "hanmaners@gmail.com",
+        "owner_name": "권영민",
+        "store_name": "돈돈돈",
+        "business_number": "1088178306",
+        "phone": "01012345678",
+        "created_at": "2026-09-11T05:43:48.727482+00:00",
+        "store_image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789105463292_g572u7.jpg",
+        "address": "백호로54"
+      }
+    ],
+    "menu_test_campaigns": [
+      {
+        "id": "campaign-1789106260869-uu0r",
+        "store_id": "store-1789105430382",
+        "title": "4만원 이용권",
+        "reward": "4만원권사용 가능하면 남은 금액은 현금으로 돌려드리지않습니다",
+        "quota": 5,
+        "feedback_type": "BLOG_SNS",
+        "image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789105463292_g572u7.jpg",
+        "description": "",
+        "status": "RECRUITING",
+        "created_at": "2026-09-11T05:57:40.572549+00:00"
+      },
+      {
+        "id": "campaign-1789346982067-sic1",
+        "store_id": "store-1788929684138",
+        "title": "마라소고기국밥",
+        "reward": "신메뉴 2인 무료 시식 (음료 포함)",
+        "quota": 5,
+        "feedback_type": "BLOG_SNS",
+        "image_url": "https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789346953194_arl76r.jpg",
+        "description": "",
+        "status": "RECRUITING",
+        "created_at": "2026-09-14T00:49:42.061611+00:00"
+      }
+    ],
+    "menu_test_applications": [
+      {
+        "id": "app-1789106399626",
+        "store_id": "store-1789105430382",
+        "applicant_user_id": null,
+        "applicant_store_name": "마라위크",
+        "applicant_owner_name": "김동욱",
+        "applicant_phone": "01048548777",
+        "sns_url": "https://blog/naver.com/waterlife",
+        "message": "체험 후 빠른 후기 올리겠습니다!!",
+        "feedback_type": "BLOG_SNS",
+        "status": "ACCEPTED",
+        "created_at": "2026-09-11T05:59:59.048216+00:00",
+        "campaign_id": "campaign-1789106260869-uu0r",
+        "campaign_title": "4만원 이용권"
+      }
+    ],
+    "issued_vouchers": [],
+    "chat_messages": [
+      {
+        "id": "msg-1789048432354",
+        "trade_id": "store-1789047644774",
+        "sender_store_id": "store-1788929684138",
+        "sender_name": "김동욱",
+        "message": "cp===채팅오나?",
+        "is_me": true,
+        "created_at": "2026-09-10T13:53:53.754732+00:00"
+      },
+      {
+        "id": "msg-1789048504177",
+        "trade_id": "store-1788929684138",
+        "sender_store_id": "store-1789047644774",
+        "sender_name": "김영인",
+        "message": "오네 ㅋㅋ",
+        "is_me": true,
+        "created_at": "2026-09-10T13:55:04.393424+00:00"
+      },
+      {
+        "id": "msg-1789048516262",
+        "trade_id": "store-1789047644774",
+        "sender_store_id": "store-1788929684138",
+        "sender_name": "김동욱",
+        "message": "오 이건 잘되네",
+        "is_me": true,
+        "created_at": "2026-09-10T13:55:17.654456+00:00"
+      },
+      {
+        "id": "msg-1789048534710",
+        "trade_id": "store-1788929684138",
+        "sender_store_id": "store-1789047644774",
+        "sender_name": "김영인",
+        "message": "ㅋㅋㅋ 우째 만드노",
+        "is_me": true,
+        "created_at": "2026-09-10T13:55:34.829907+00:00"
+      },
+      {
+        "id": "msg-1789048540103",
+        "trade_id": "store-1788929684138",
+        "sender_store_id": "store-1789047644774",
+        "sender_name": "김영인",
+        "message": "재주도 젛다",
+        "is_me": true,
+        "created_at": "2026-09-10T13:55:40.214049+00:00"
+      },
+      {
+        "id": "msg-1789048550626",
+        "trade_id": "store-1789047644774",
+        "sender_store_id": "store-1788929684138",
+        "sender_name": "김동욱",
+        "message": "바이브코딩",
+        "is_me": true,
+        "created_at": "2026-09-10T13:55:52.015328+00:00"
+      },
+      {
+        "id": "msg-1789048554325",
+        "trade_id": "store-1789047644774",
+        "sender_store_id": "store-1788929684138",
+        "sender_name": "김동욱",
+        "message": "어제 얘기한거지",
+        "is_me": true,
+        "created_at": "2026-09-10T13:55:55.708422+00:00"
+      },
+      {
+        "id": "msg-1789048629454",
+        "trade_id": "store-1789047644774",
+        "sender_store_id": "store-1788929684138",
+        "sender_name": "김동욱",
+        "message": "누나도 서비스물품 등록 해놔라",
+        "is_me": true,
+        "created_at": "2026-09-10T13:57:10.84565+00:00"
+      },
+      {
+        "id": "msg-1789048647254",
+        "trade_id": "store-1788929684138",
+        "sender_store_id": "store-1789047644774",
+        "sender_name": "김영인",
+        "message": "웅 알게따",
+        "is_me": true,
+        "created_at": "2026-09-10T13:57:27.382219+00:00"
+      },
+      {
+        "id": "msg-1789107786596",
+        "trade_id": "store-1789105430382",
+        "sender_store_id": "store-1788929684138",
+        "sender_name": "김동욱",
+        "message": "<!--TRADE_DATA:{\"tradeId\":\"trade-1789107786490\",\"myStoreId\":\"store-1788929684138\",\"targetStoreId\":\"store-1789105430382\",\"myStoreName\":\"마라위크\",\"myOwnerName\":\"김동욱\",\"targetStoreName\":\"돈돈돈\",\"targetOwnerName\":\"권영민\",\"myItemTitle\":\"마라위크 30,000원 상생 이용권\",\"myItemPrice\":30000,\"myItemImageUrl\":\"https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1788932170131_qrizzi.jpg\",\"targetItemTitle\":\"돈돈돈 30,000원 상생 이용권\",\"targetItemPrice\":30000,\"targetItemImageUrl\":\"https://ekpitdijyfnsjhdpaqde.supabase.co/storage/v1/object/public/store-images/stores/store_1789105463292_g572u7.jpg\",\"diffText\":\"차액 0원 (동일가 교환)\",\"tradeFulfillment\":\"🛍️ 직접 방문 픽업 교환\",\"pickupTime\":\"언제든 여유 생기실 때 (찔러보기 맞춤)\",\"memoMessage\":\"사장님 생각있으시면 거래해요~~\",\"tradeType\":\"VOUCHER\",\"isPoke\":true}-->[1:1 물물교환 제안]\n제공 품목: 마라위크 30,000원 상생 이용권 (30,000원)\n희망 품목: 돈돈돈 30,000원 상생 이용권 (30,000원)\n이용 방식: 🛍️ 직접 방문 픽업 교환\n정산: 차액 0원 (동일가 교환)\n희망 시각: 언제든 여유 생기실 때 (찔러보기 맞춤)\n메모: 사장님 생각있으시면 거래해요~~",
+        "is_me": true,
+        "created_at": "2026-09-11T06:23:06.008548+00:00"
+      },
+      {
+        "id": "msg-1789108003951",
+        "trade_id": "store-1788929684138",
+        "sender_store_id": "store-1789105430382",
+        "sender_name": "권영민",
+        "message": "🎉 축하합니다! [4만원 이용권] 1호 시식단으로 최종 선정되셨습니다! 편하신 방문 일시와 동반 인원을 조율해 주세요.",
+        "is_me": true,
+        "created_at": "2026-09-11T06:26:43.639391+00:00"
+      }
+    ],
+    "community_posts": [
+      {
+        "id": "post_1789047547360_xtyjx",
+        "store_id": "store-1788929684138",
+        "author_name": "김동욱 사장님",
+        "store_name": "마라위크",
+        "is_anonymous": false,
+        "category": "DAILY_TALK",
+        "title": "대목전인가요?",
+        "content": "오늘은 많이 조용하네요",
+        "image_url": null,
+        "urgent_exchange_item": null,
+        "likes_count": 2,
+        "comments_count": 2,
+        "created_at": "2026-09-10T13:39:08.78977+00:00"
+      }
+    ],
+    "community_comments": [
+      {
+        "id": "cmt_1789047627988_z2u1j",
+        "post_id": "post_1789047547360_xtyjx",
+        "store_id": "store-1788929684138",
+        "author_name": "김동욱 사장님",
+        "store_name": "마라위크",
+        "is_anonymous": false,
+        "content": "흠..",
+        "created_at": "2026-09-10T13:40:29.407431+00:00"
+      },
+      {
+        "id": "cmt_1789339279175_1a6za",
+        "post_id": "post_1789047547360_xtyjx",
+        "store_id": "store-1789105430382",
+        "author_name": "권영민 사장님",
+        "store_name": "돈돈돈",
+        "is_anonymous": false,
+        "content": "좀 빠른듯해요",
+        "created_at": "2026-09-13T22:41:19.420791+00:00"
+      }
+    ],
+    "customer_inquiries": {
+      "error": "Could not find the table 'public.customer_inquiries' in the schema cache"
+    }
+  }
+}
