@@ -22,6 +22,7 @@ import { WebmasterDashboardModal } from './components/WebmasterDashboardModal';
 import { InquiryModal } from './components/InquiryModal';
 import { TermsOfServiceModal, PrivacyPolicyModal } from './components/LegalModals';
 import { TopMainSlimBanner } from './components/CoupangAffiliateBanner';
+import { StoreListModal } from './components/StoreListModal';
 import { InquiryType } from './types/trade';
 import {
   fetchStoresFromSupabase,
@@ -50,7 +51,7 @@ import {
   supabase,
 } from './lib/supabase';
 import { Store, ExchangeItem, TradeProposal, ChatMessage, ChatConversationSummary, MenuTestApplication, MenuTestCampaign } from './types/trade';
-import { MapPin, X, ArrowRight, Sparkles } from 'lucide-react';
+import { MapPin, X, ArrowRight, Sparkles, List } from 'lucide-react';
 
 const INITIAL_EMPTY_STORE_STATE: Store = {
   id: '',
@@ -95,6 +96,9 @@ export const App: React.FC = () => {
 
   // ☕ 사장님 사랑방 커뮤니티 State
   const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
+
+  // 📋 사장님 상생 가맹점 및 물물교환 리스트 모달 State
+  const [isStoreListModalOpen, setIsStoreListModalOpen] = useState(false);
 
   // 🎟️ 내 교환권 보관함 State (Phase 3)
   const [isCouponWalletOpen, setIsCouponWalletOpen] = useState(false);
@@ -209,6 +213,7 @@ export const App: React.FC = () => {
   // 🧪 Automation Test Hooks for Browser Verification
   useEffect(() => {
     (window as any).__testSetSelectedStore = (s: Store | null) => setSelectedStore(s);
+    (window as any).__testOpenStoreListModal = () => setIsStoreListModalOpen(true);
     (window as any).__testOpenTradeDashboard = () => setIsTradeDashboardOpen(true);
     (window as any).__testOpenCouponWallet = () => { setIsCouponWalletOpen(true); setMobileActiveTab('WALLET'); };
     (window as any).__testOpenChatListModal = () => { setIsChatListModalOpen(true); setMobileActiveTab('CHAT'); };
@@ -219,6 +224,7 @@ export const App: React.FC = () => {
       setIsCommunityModalOpen(false);
       setIsCouponWalletOpen(false);
       setIsAuthModalOpen(false);
+      setIsStoreListModalOpen(false);
       setSelectedStore(null);
       setMobileActiveTab('MAP');
     };
@@ -684,6 +690,10 @@ export const App: React.FC = () => {
       setAuthModalNotice('💡 1:1 물물교환 제안은 사장님 로그인이 필요한 서비스입니다. 지금 로그인하거나 3초 만에 회원가입해 보세요!');
       setIsAuthModalOpen(true);
       return;
+    }
+    const targetStore = stores.find((s) => s.id === targetItem.storeId);
+    if (targetStore) {
+      setSelectedStore(targetStore);
     }
     setTargetProposalItem(targetItem);
     setIsProposalModalOpen(true);
@@ -1228,6 +1238,7 @@ export const App: React.FC = () => {
           setIsCouponWalletOpen(true);
         }}
         voucherCount={voucherWalletCount}
+        onOpenStoreListModal={() => setIsStoreListModalOpen(true)}
       />
 
       {/* 🏆 쿠팡 파트너스 홈 상단 슬림 기획전 띠배너 (식자재/도매) */}
@@ -1243,6 +1254,19 @@ export const App: React.FC = () => {
           pickedLocation={pickedLocation}
           onMapClickPinLocation={handleMapClickPinLocation}
         />
+
+        {/* 📋 사장님 상생 가맹점 모아보기 플로팅 버튼 */}
+        <button
+          type="button"
+          onClick={() => setIsStoreListModalOpen(true)}
+          className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 bg-gray-900/95 hover:bg-black text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-xl border border-gray-700/80 backdrop-blur-md transition-all active:scale-95 group cursor-pointer"
+        >
+          <List className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+          <span>목록으로 모아보기</span>
+          <span className="px-2 py-0.5 text-[10px] sm:text-[11px] font-black bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full shadow-xs">
+            {filteredStores.length}곳
+          </span>
+        </button>
 
         {/* Map Location Click Hint Pill */}
         <div className="hidden md:flex absolute top-4 right-4 z-20 bg-white/90 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-orange-200 text-xs font-bold text-orange-900 items-center gap-1.5 animate-bounce">
@@ -1670,6 +1694,30 @@ export const App: React.FC = () => {
         myBreakTimeActive={myStore.breakTimeActive}
       />
 
+      {/* 📋 사장님 상생 가맹점 및 물물교환·신메뉴 리스트 모아보기 모달 */}
+      <StoreListModal
+        isOpen={isStoreListModalOpen}
+        onClose={() => setIsStoreListModalOpen(false)}
+        stores={stores}
+        myStore={myStore}
+        isLoggedIn={isLoggedIn}
+        onSelectStoreOnMap={(store) => {
+          setSelectedStore(store);
+          setIsStoreListModalOpen(false);
+        }}
+        onOpenProposal={(item) => handleOpenProposal(item)}
+        onOpenChat={(store) => handleOpenChat(store)}
+        onOpenMenuTestApply={(store, campaign) => {
+          if (!isLoggedIn) {
+            setAuthModalNotice(`💡 [${store.storeName}] 신메뉴 시식단 신청은 로그인이 필요한 서비스입니다. 지금 로그인하거나 3초 만에 회원가입해 보세요!`);
+            setIsAuthModalOpen(true);
+            return;
+          }
+          setTargetMenuTestStore(store);
+          setTargetMenuTestCampaign(campaign || null);
+          setIsMenuTestModalOpen(true);
+        }}
+      />
     </div>
   );
 };

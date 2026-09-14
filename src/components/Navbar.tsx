@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, User, LogIn, Edit3 } from 'lucide-react';
+import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, User, LogIn, Edit3, List } from 'lucide-react';
 
 interface NavbarProps {
   myBreakTimeActive: boolean;
@@ -26,6 +26,7 @@ interface NavbarProps {
   onOpenMenuTestDashboard?: () => void;
   onOpenCouponWallet?: () => void;
   voucherCount?: number;
+  onOpenStoreListModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -50,6 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   unreadChatCount = 0,
   onOpenCouponWallet,
   voucherCount = 0,
+  onOpenStoreListModal,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
@@ -324,6 +326,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Clock className="w-3.5 h-3.5" />
               <span>☕ 물물교환 가능</span>
             </button>
+
+            {/* 📋 목록으로 모아보기 버튼 */}
+            {onOpenStoreListModal && (
+              <button
+                type="button"
+                onClick={onOpenStoreListModal}
+                className="flex-shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-gray-900 text-white hover:bg-black transition-all shadow-xs active:scale-95 cursor-pointer"
+              >
+                <List className="w-3.5 h-3.5 text-amber-400" />
+                <span>목록 모아보기</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
