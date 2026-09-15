@@ -3556,19 +3556,53 @@ export function createCustomerInquiry(data: {
   try {
     localStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify(list));
   } catch (e) {}
+
+  // ☁️ Sync to Supabase customer_inquiries table in background
+  try {
+    supabase
+      .from('customer_inquiries')
+      .insert({
+        id: newInq.id,
+        type: newInq.type,
+        sender_name: newInq.senderName,
+        sender_contact: newInq.senderContact,
+        title: newInq.title,
+        content: newInq.content,
+        status: 'PENDING',
+        created_at: newInq.createdAt,
+      })
+      .then(() => {});
+  } catch (e) {}
+
   return newInq;
 }
 
 export function toggleInquiryStatus(id: string): CustomerInquiry[] {
   const list = fetchCustomerInquiries();
-  const updated = list.map((inq) =>
-    inq.id === id
-      ? { ...inq, status: (inq.status === 'PENDING' ? 'RESOLVED' : 'PENDING') as 'PENDING' | 'RESOLVED' }
-      : inq
-  );
+  let nextStatus: 'PENDING' | 'RESOLVED' = 'PENDING';
+  const updated = list.map((inq) => {
+    if (inq.id === id) {
+      nextStatus = inq.status === 'PENDING' ? 'RESOLVED' : 'PENDING';
+      return { ...inq, status: nextStatus };
+    }
+    return inq;
+  });
   try {
     localStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify(updated));
   } catch (e) {}
+
+  // ☁️ Sync status update to Supabase
+  try {
+    supabase
+      .from('customer_inquiries')
+      .update({
+        status: nextStatus,
+        resolved_at: nextStatus === 'RESOLVED' ? new Date().toISOString() : null,
+      })
+      .eq('id', id)
+      .then(() => {});
+  } catch (e) {}
+
   return updated;
 }
 
