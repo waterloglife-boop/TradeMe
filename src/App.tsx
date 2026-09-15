@@ -24,6 +24,7 @@ import { TermsOfServiceModal, PrivacyPolicyModal } from './components/LegalModal
 import { TopMainSlimBanner } from './components/CoupangAffiliateBanner';
 import { StoreListModal } from './components/StoreListModal';
 import { AlarmGuideModal } from './components/AlarmGuideModal';
+import { NaverPlacePoomasiModal } from './components/NaverPlacePoomasiModal';
 import { InquiryType } from './types/trade';
 import { playNotificationChime } from './lib/sound';
 import { showDeviceNotification } from './lib/notification';
@@ -344,12 +345,15 @@ export const App: React.FC = () => {
   const [isWebmasterDashboardOpen, setIsWebmasterDashboardOpen] = useState(false);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [inquiryDefaultType, setInquiryDefaultType] = useState<InquiryType>('INQUIRY');
+  const [inquiryPrefill, setInquiryPrefill] = useState<{ defaultType?: InquiryType; defaultTitle?: string; defaultContent?: string } | null>(null);
+  const [isPoomasiModalOpen, setIsPoomasiModalOpen] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [bannedStoreIds, setBannedStoreIds] = useState<string[]>([]);
 
-  const handleOpenInquiry = (type: InquiryType) => {
+  const handleOpenInquiry = (type: InquiryType, prefill?: { defaultTitle?: string; defaultContent?: string }) => {
     setInquiryDefaultType(type);
+    setInquiryPrefill(prefill ? { defaultType: type, ...prefill } : null);
     setIsInquiryModalOpen(true);
   };
 
@@ -367,6 +371,7 @@ export const App: React.FC = () => {
     (window as any).__testOpenCouponWallet = () => { setIsCouponWalletOpen(true); setMobileActiveTab('WALLET'); };
     (window as any).__testOpenChatListModal = () => { setIsChatListModalOpen(true); setMobileActiveTab('CHAT'); };
     (window as any).__testOpenCommunityModal = () => { setIsCommunityModalOpen(true); setMobileActiveTab('COMMUNITY'); };
+    (window as any).__testOpenPoomasiModal = () => setIsPoomasiModalOpen(true);
     (window as any).__testOpenAuthModal = () => { setIsAuthModalOpen(true); setMobileActiveTab('MY_STORE'); };
     (window as any).__testCloseAllModals = () => {
       setIsChatListModalOpen(false);
@@ -1511,6 +1516,7 @@ export const App: React.FC = () => {
         }}
         voucherCount={voucherWalletCount}
         onOpenStoreListModal={() => setIsStoreListModalOpen(true)}
+        onOpenPoomasiModal={() => setIsPoomasiModalOpen(true)}
         alarmEnabled={alarmEnabled}
         onToggleAlarm={handleToggleAlarm}
         isRefreshing={isRefreshing}
@@ -1927,6 +1933,10 @@ export const App: React.FC = () => {
           setIsCommunityModalOpen(false);
           handleOpenChat(targetStore);
         }}
+        onOpenPoomasiModal={() => {
+          setIsCommunityModalOpen(false);
+          setIsPoomasiModalOpen(true);
+        }}
       />
 
       {/* 👤🛡️ 웹마스터 모드 보안 인증 팝업 (연속 3회 클릭 이스터에그) */}
@@ -1951,9 +1961,32 @@ export const App: React.FC = () => {
       {/* 🎧 💌 원클릭 고객 지원 & 제휴 접수 모달 */}
       <InquiryModal
         isOpen={isInquiryModalOpen}
-        onClose={() => setIsInquiryModalOpen(false)}
+        onClose={() => {
+          setIsInquiryModalOpen(false);
+          setInquiryPrefill(null);
+        }}
         defaultType={inquiryDefaultType}
         defaultSenderName={myStore?.storeName && myStore.storeName !== '로그인 필요' ? `${myStore.storeName} (${userOwnerName})` : ''}
+        defaultTitle={inquiryPrefill?.defaultTitle || ''}
+        defaultContent={inquiryPrefill?.defaultContent || ''}
+      />
+
+      {/* ⭐ 네이버 플레이스 저장하기 맞품앗이 전용 모달 */}
+      <NaverPlacePoomasiModal
+        isOpen={isPoomasiModalOpen}
+        onClose={() => setIsPoomasiModalOpen(false)}
+        myStore={myStore}
+        isLoggedIn={isLoggedIn}
+        onOpenAuthModal={() => {
+          setAuthModalNotice('💡 네이버 플레이스 품앗이는 사장님 로그인이 필요한 서비스입니다. 지금 로그인하거나 무료 가맹해 보세요!');
+          setIsAuthModalOpen(true);
+        }}
+        onOpenInquiry={(props) => {
+          handleOpenInquiry(props.defaultType, {
+            defaultTitle: props.defaultTitle,
+            defaultContent: props.defaultContent,
+          });
+        }}
       />
 
       {/* 📜 이용약관 모달 */}

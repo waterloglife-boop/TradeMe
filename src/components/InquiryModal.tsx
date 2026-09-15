@@ -8,6 +8,8 @@ interface InquiryModalProps {
   onClose: () => void;
   defaultType?: InquiryType;
   defaultSenderName?: string;
+  defaultTitle?: string;
+  defaultContent?: string;
 }
 
 const TYPE_CONFIG: Record<
@@ -53,21 +55,25 @@ export const InquiryModal: React.FC<InquiryModalProps> = ({
   onClose,
   defaultType = 'INQUIRY',
   defaultSenderName = '',
+  defaultTitle = '',
+  defaultContent = '',
 }) => {
   const [type, setType] = useState<InquiryType>(defaultType);
   const [senderName, setSenderName] = useState(defaultSenderName);
   const [senderContact, setSenderContact] = useState('');
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [title, setTitle] = useState(defaultTitle);
+  const [content, setContent] = useState(defaultContent);
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setType(defaultType);
       if (defaultSenderName) setSenderName(defaultSenderName);
+      if (defaultTitle) setTitle(defaultTitle);
+      if (defaultContent) setContent(defaultContent);
       setSubmitted(false);
     }
-  }, [isOpen, defaultType, defaultSenderName]);
+  }, [isOpen, defaultType, defaultSenderName, defaultTitle, defaultContent]);
 
   if (!isOpen) return null;
 

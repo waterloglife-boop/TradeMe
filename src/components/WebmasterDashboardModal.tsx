@@ -27,7 +27,9 @@ import {
   updateCoupangLinks,
   exportStoresToCsv,
   getAllStoredVouchers,
-  fetchCommunityPosts
+  fetchCommunityPosts,
+  fetchBlockedPoomasiMembers,
+  unblockPoomasiMember
 } from '../lib/supabase';
 
 interface WebmasterDashboardModalProps {
@@ -68,6 +70,9 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
   // Vouchers
   const [allVouchers, setAllVouchers] = useState<any[]>([]);
 
+  // 🚨 네이버 플레이스 품앗이 미저장 신고 3회 제재 회원 목록
+  const [blockedPoomasiMembers, setBlockedPoomasiMembers] = useState<any[]>([]);
+
   useEffect(() => {
     if (isOpen) {
       const stats = fetchAdBannerStats();
@@ -106,6 +111,7 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
           setPosts([]);
         }
       });
+
       try {
         localStorage.removeItem('trademe_community_posts');
       } catch (e) {}
@@ -113,8 +119,22 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
       // Load all vouchers across storage
       const vList = getAllStoredVouchers();
       setAllVouchers(vList);
+
+      // Load blocked poomasi members
+      fetchBlockedPoomasiMembers().then((list) => {
+        setBlockedPoomasiMembers(list || []);
+      });
     }
   }, [isOpen]);
+
+  const handleUnblockPoomasi = async (storeId: string, resetFull: boolean) => {
+    const success = await unblockPoomasiMember(storeId, resetFull);
+    if (success) {
+      alert(resetFull ? '경고가 초기화되고 품앗이 제재가 완전히 해제되었습니다.' : '경고가 1회 차감되어 제재가 해제되었습니다.');
+      const updated = await fetchBlockedPoomasiMembers();
+      setBlockedPoomasiMembers(updated || []);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -710,8 +730,83 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
           {/* TAB 6: 회원 DB 관리 (영구정지 BAN / ACTIVE 스위치)              */}
           {/* ================================================================= */}
           {activeTab === 'MEMBERS' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-5">
+              
+              {/* 🚨 네이버 플레이스 품앗이 미저장 신고 3회 제재 회원 섹션 */}
+              <div className="bg-red-50/70 border-2 border-red-200 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 bg-red-600 text-white rounded-lg text-xs font-black">
+                      🚨
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-black text-red-950 flex items-center gap-1.5">
+                        <span>플레이스 품앗이 경고 3회 누적 제재 회원</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-600 text-white font-black">
+                          {blockedPoomasiMembers.length}명
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-red-700">
+                        미저장 신고가 3회 이상 접수되어 품앗이 기능이 자동 차단된 회원입니다. 소명 검토 후 제재를 해제할 수 있습니다.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {blockedPoomasiMembers.length === 0 ? (
+                  <div className="p-3 bg-white/80 rounded-xl border border-red-100 text-center text-xs text-gray-500 font-medium">
+                    현재 경고 3회 누적으로 차단된 회원이 없습니다. (클린 상태)
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {blockedPoomasiMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="bg-white rounded-xl border border-red-200 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-extrabold text-xs text-gray-900">{member.storeName}</span>
+                            <span className="text-xs text-gray-500">({member.ownerName} 사장님)</span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-800 border border-red-300">
+                              경고 {member.warningCount}회 누적 (차단됨)
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-0.5">
+                            📍 {member.address} · 📞 {member.phone || '연락처 미등록'} · 최근 신고 접수 {member.reports?.length || 0}건
+                          </p>
+                          {member.reports && member.reports.length > 0 && (
+                            <p className="text-[10px] text-red-700 mt-1 bg-red-50 px-2 py-0.5 rounded inline-block">
+                              최근 신고 매장: {member.reports.map((r: any) => r.reporterStoreName).filter(Boolean).slice(0, 3).join(', ') || '익명'}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleUnblockPoomasi(member.id, false)}
+                            className="px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs transition-colors cursor-pointer"
+                            title="경고를 2회로 낮추어 즉시 이용 제재를 해제합니다"
+                          >
+                            경고 1회 차감 (2회로 감면)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUnblockPoomasi(member.id, true)}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-colors shadow-2xs cursor-pointer"
+                            title="경고를 0회로 초기화하고 완전 복구합니다"
+                          >
+                            차단 완전 해제 (경고 초기화)
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
                 <h4 className="text-xs font-extrabold text-gray-700">
                   전체 가맹 사장님 회원 관리 & 악성 계정 차단 ({stores.length}명)
                 </h4>

@@ -46,6 +46,7 @@ interface CommunityModalProps {
   stores: Store[];
   onOpenProposalForStore?: (targetStore: Store, urgentItem?: string) => void;
   onOpenChatForStore?: (targetStore: Store) => void;
+  onOpenPoomasiModal?: () => void;
 }
 
 export const CommunityModal: React.FC<CommunityModalProps> = ({
@@ -56,6 +57,7 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
   stores,
   onOpenProposalForStore,
   onOpenChatForStore,
+  onOpenPoomasiModal,
 }) => {
   const [activeCategory, setActiveCategory] = useState<'ALL' | CommunityCategory>('ALL');
   const [selectedRadius, setSelectedRadius] = useState<RadiusFilter>(10); // 기본 10km (차량 30분 생활권)
@@ -389,6 +391,40 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
 
         {/* Posts Feed Area */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-gray-50/50">
+          
+          {/* ⭐ 네이버 플레이스 품앗이 전용 공간 바로가기 배너 */}
+          {onOpenPoomasiModal && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenPoomasiModal();
+              }}
+              className="w-full p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm flex items-center justify-between gap-2.5 transition-all active:scale-[0.99] text-left cursor-pointer animate-in fade-in"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="p-2 bg-white/20 rounded-xl text-lg flex-shrink-0">⭐</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-xs sm:text-sm tracking-tight truncate">
+                      네이버 플레이스 저장 품앗이 전용 공간
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-white/25 text-white">
+                      HOT
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-100 truncate mt-0.5">
+                    자발적으로 서로 네이버 저장을 눌러주는 사장님들의 상생 공간으로 이동합니다.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-xs font-black text-white whitespace-nowrap pl-2 bg-white/10 px-2.5 py-1.5 rounded-xl flex-shrink-0">
+                <span>입장</span>
+                <span>&gt;</span>
+              </div>
+            </button>
+          )}
+
           {isLoading ? (
             <div className="py-20 flex flex-col items-center justify-center gap-3 text-gray-400">
               <Loader2 className="w-8 h-8 animate-spin text-orange-500" />

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Store, ExchangeItem, TradeProposal, ChatMessage, ChatConversationSummary, MenuTestApplication, MenuTestCampaign, CommunityPost, CommunityComment, CommunityCategory, FulfillmentType, IssuedVoucher, CustomerInquiry, InquiryType, AdBannerStat, AdBannerKey } from '../types/trade';
+import { Store, ExchangeItem, TradeProposal, ChatMessage, ChatConversationSummary, MenuTestApplication, MenuTestCampaign, CommunityPost, CommunityComment, CommunityCategory, FulfillmentType, IssuedVoucher, CustomerInquiry, InquiryType, AdBannerStat, AdBannerKey, NaverPlacePoomasiStore, NaverPlacePoomasiRequest } from '../types/trade';
 import { triggerBackgroundPush } from './push';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-trade-me.supabase.co';
@@ -3744,6 +3744,569 @@ export function exportStoresToCsv(stores: Store[]): void {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * ============================================================================
+ * ⭐ [네이버 플레이스 저장하기 품앗이 DB 및 상태 관리 API]
+ * ============================================================================
+ */
+
+const POOMASI_STORES_KEY = 'trademe_poomasi_stores';
+const POOMASI_REQUESTS_KEY = 'trademe_poomasi_requests';
+const POOMASI_REPORTS_KEY = 'trademe_poomasi_reports';
+
+/**
+ * 1. 참여 중인 네이버 플레이스 품앗이 가맹점 목록 조회 (차단 회원 제외)
+ */
+export async function fetchPoomasiStores(): Promise<NaverPlacePoomasiStore[]> {
+  try {
+    // Try Supabase table first
+    const { data, error } = await supabase
+      .from('naver_poomasi_stores')
+      .select('*')
+      .order('registered_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      return data
+        .map((row: any) => ({
+          id: row.id,
+          storeName: row.store_name,
+          ownerName: row.owner_name,
+          categoryName: row.category_name,
+          address: row.address,
+          phone: row.phone,
+          storeImageUrl: row.store_image_url,
+          placeUrl: row.place_url,
+          message: row.message,
+          registeredAt: row.registered_at,
+          saveCount: Number(row.save_count || 0),
+          warningCount: Number(row.warning_count || 0),
+          isBlocked: Boolean(row.is_blocked || Number(row.warning_count || 0) >= 3),
+        }))
+        .filter((s) => !s.isBlocked && s.warningCount < 3);
+    }
+  } catch (err) {
+    // Fallback to local storage
+  }
+
+  try {
+    const raw = localStorage.getItem(POOMASI_STORES_KEY);
+    if (!raw) return [];
+    const stores: NaverPlacePoomasiStore[] = JSON.parse(raw);
+    return stores.filter((s) => !s.isBlocked && (s.warningCount || 0) < 3);
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * 2. 특정 매장의 품앗이 등록 및 차단 상태 조회
+ */
+export async function fetchMyPoomasiStore(storeId: string): Promise<NaverPlacePoomasiStore | null> {
+  if (!storeId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('naver_poomasi_stores')
+      .select('*')
+      .eq('id', storeId)
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        id: data.id,
+        storeName: data.store_name,
+        ownerName: data.owner_name,
+        categoryName: data.category_name,
+        address: data.address,
+        phone: data.phone,
+        storeImageUrl: data.store_image_url,
+        placeUrl: data.place_url,
+        message: data.message,
+        registeredAt: data.registered_at,
+        saveCount: Number(data.save_count || 0),
+        warningCount: Number(data.warning_count || 0),
+        isBlocked: Boolean(data.is_blocked || Number(data.warning_count || 0) >= 3),
+      };
+    }
+  } catch (e) {}
+
+  try {
+    const raw = localStorage.getItem(POOMASI_STORES_KEY);
+    if (!raw) return null;
+    const list: NaverPlacePoomasiStore[] = JSON.parse(raw);
+    const found = list.find((s) => s.id === storeId);
+    return found || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * 3. 내 매장 품앗이 등록 또는 수정
+ */
+export async function registerPoomasiStore(
+  store: Store,
+  placeUrl: string,
+  message: string
+): Promise<{ success: boolean; data?: NaverPlacePoomasiStore; error?: string }> {
+  try {
+    const cleanUrl = placeUrl.trim();
+    const cleanMsg = message.trim() || '확인 즉시 100% 맞저장 갑니다!';
+
+    // Get current warning/block state if exists
+    const existing = await fetchMyPoomasiStore(store.id);
+    if (existing?.isBlocked || (existing?.warningCount || 0) >= 3) {
+      return {
+        success: false,
+        error: '미저장 신고 3회 누적으로 플레이스 품앗이 이용이 제한된 계정입니다. 관리자 문의를 통해 소명해 주세요.',
+      };
+    }
+
+    const newPoomasiStore: NaverPlacePoomasiStore = {
+      id: store.id,
+      storeName: store.storeName,
+      ownerName: store.ownerName,
+      categoryName: store.categoryName || '외식업',
+      address: store.address || '',
+      phone: store.phone || '',
+      storeImageUrl: store.storeImageUrl || '',
+      placeUrl: cleanUrl,
+      message: cleanMsg,
+      registeredAt: existing?.registeredAt || new Date().toISOString(),
+      saveCount: existing?.saveCount || 0,
+      warningCount: existing?.warningCount || 0,
+      isBlocked: false,
+    };
+
+    // 1) Upsert to Supabase
+    try {
+      await supabase.from('naver_poomasi_stores').upsert({
+        id: newPoomasiStore.id,
+        store_name: newPoomasiStore.storeName,
+        owner_name: newPoomasiStore.ownerName,
+        category_name: newPoomasiStore.categoryName,
+        address: newPoomasiStore.address,
+        phone: newPoomasiStore.phone,
+        store_image_url: newPoomasiStore.storeImageUrl,
+        place_url: newPoomasiStore.placeUrl,
+        message: newPoomasiStore.message,
+        registered_at: newPoomasiStore.registeredAt,
+        save_count: newPoomasiStore.saveCount,
+        warning_count: newPoomasiStore.warningCount,
+        is_blocked: false,
+      });
+    } catch (e) {}
+
+    // 2) Save to LocalStorage fallback
+    try {
+      const raw = localStorage.getItem(POOMASI_STORES_KEY);
+      const list: NaverPlacePoomasiStore[] = raw ? JSON.parse(raw) : [];
+      const updated = [newPoomasiStore, ...list.filter((s) => s.id !== store.id)];
+      localStorage.setItem(POOMASI_STORES_KEY, JSON.stringify(updated));
+    } catch (e) {}
+
+    return { success: true, data: newPoomasiStore };
+  } catch (err: any) {
+    return { success: false, error: err?.message || '등록 중 오류가 발생했습니다.' };
+  }
+}
+
+/**
+ * 4. 내 매장 품앗이 참여 취소/삭제
+ */
+export async function unregisterPoomasiStore(storeId: string): Promise<boolean> {
+  try {
+    try {
+      await supabase.from('naver_poomasi_stores').delete().eq('id', storeId);
+    } catch (e) {}
+
+    try {
+      const raw = localStorage.getItem(POOMASI_STORES_KEY);
+      if (raw) {
+        const list: NaverPlacePoomasiStore[] = JSON.parse(raw);
+        const updated = list.filter((s) => s.id !== storeId);
+        localStorage.setItem(POOMASI_STORES_KEY, JSON.stringify(updated));
+      }
+    } catch (e) {}
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * 5. 상대방 매장 저장 완료 후 맞저장 요청 전송
+ */
+export async function sendPoomasiRequest(
+  fromStore: Store,
+  myPlaceUrl: string,
+  toStore: NaverPlacePoomasiStore
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Check if sender is blocked
+    const senderStatus = await fetchMyPoomasiStore(fromStore.id);
+    if (senderStatus?.isBlocked || (senderStatus?.warningCount || 0) >= 3) {
+      return { success: false, error: '미저장 신고 3회 누적으로 품앗이 기능 이용이 제한되었습니다.' };
+    }
+
+    const newRequest: NaverPlacePoomasiRequest = {
+      id: `poomasi-req-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      fromStoreId: fromStore.id,
+      fromStoreName: fromStore.storeName,
+      fromOwnerName: fromStore.ownerName,
+      fromPlaceUrl: myPlaceUrl.trim(),
+      toStoreId: toStore.id,
+      toStoreName: toStore.storeName,
+      toPlaceUrl: toStore.placeUrl,
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+    };
+
+    // 1) Save to DB
+    try {
+      await supabase.from('naver_poomasi_requests').insert({
+        id: newRequest.id,
+        from_store_id: newRequest.fromStoreId,
+        from_store_name: newRequest.fromStoreName,
+        from_owner_name: newRequest.fromOwnerName,
+        from_place_url: newRequest.fromPlaceUrl,
+        to_store_id: newRequest.toStoreId,
+        to_store_name: newRequest.toStoreName,
+        to_place_url: newRequest.toPlaceUrl,
+        status: 'PENDING',
+        created_at: newRequest.createdAt,
+      });
+
+      // Increment save_count on toStore
+      await supabase.rpc('increment_poomasi_save_count', { target_store_id: toStore.id });
+    } catch (e) {}
+
+    // 2) Save to LocalStorage fallback
+    try {
+      const raw = localStorage.getItem(POOMASI_REQUESTS_KEY);
+      const list: NaverPlacePoomasiRequest[] = raw ? JSON.parse(raw) : [];
+      list.unshift(newRequest);
+      localStorage.setItem(POOMASI_REQUESTS_KEY, JSON.stringify(list));
+
+      // Local increment save count on toStore
+      const storesRaw = localStorage.getItem(POOMASI_STORES_KEY);
+      if (storesRaw) {
+        const storesList: NaverPlacePoomasiStore[] = JSON.parse(storesRaw);
+        const idx = storesList.findIndex((s) => s.id === toStore.id);
+        if (idx !== -1) {
+          storesList[idx].saveCount = (storesList[idx].saveCount || 0) + 1;
+          localStorage.setItem(POOMASI_STORES_KEY, JSON.stringify(storesList));
+        }
+      }
+    } catch (e) {}
+
+    // 3) Trigger Push notification to toStore owner
+    triggerBackgroundPush(
+      toStore.ownerName,
+      `⭐ [네이버 플레이스 저장 품앗이] [${fromStore.storeName}] 사장님이 내 가게를 저장하고 맞저장을 요청했습니다!`,
+      {
+        type: 'POOMASI_REQUEST',
+        requestId: newRequest.id,
+        fromStoreName: fromStore.storeName,
+      }
+    );
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || '요청 전송 실패' };
+  }
+}
+
+/**
+ * 6. 나에게 들어온 맞저장 요청 목록 조회
+ */
+export async function fetchIncomingPoomasiRequests(myStoreId: string): Promise<NaverPlacePoomasiRequest[]> {
+  if (!myStoreId) return [];
+  try {
+    const { data, error } = await supabase
+      .from('naver_poomasi_requests')
+      .select('*')
+      .eq('to_store_id', myStoreId)
+      .order('created_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      return data.map((r: any) => ({
+        id: r.id,
+        fromStoreId: r.from_store_id,
+        fromStoreName: r.from_store_name,
+        fromOwnerName: r.from_owner_name,
+        fromPlaceUrl: r.from_place_url,
+        toStoreId: r.to_store_id,
+        toStoreName: r.to_store_name,
+        toPlaceUrl: r.to_place_url,
+        status: r.status,
+        createdAt: r.created_at,
+        completedAt: r.completed_at,
+        reportedAt: r.reported_at,
+        reportReason: r.report_reason,
+      }));
+    }
+  } catch (e) {}
+
+  try {
+    const raw = localStorage.getItem(POOMASI_REQUESTS_KEY);
+    if (!raw) return [];
+    const list: NaverPlacePoomasiRequest[] = JSON.parse(raw);
+    return list.filter((r) => r.toStoreId === myStoreId);
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * 7. 맞저장 완료 처리
+ */
+export async function completePoomasiRequest(requestId: string, fromStoreId: string): Promise<boolean> {
+  const completedAt = new Date().toISOString();
+  try {
+    try {
+      await supabase
+        .from('naver_poomasi_requests')
+        .update({ status: 'COMPLETED', completed_at: completedAt })
+        .eq('id', requestId);
+    } catch (e) {}
+
+    try {
+      const raw = localStorage.getItem(POOMASI_REQUESTS_KEY);
+      if (raw) {
+        const list: NaverPlacePoomasiRequest[] = JSON.parse(raw);
+        const idx = list.findIndex((r) => r.id === requestId);
+        if (idx !== -1) {
+          list[idx].status = 'COMPLETED';
+          list[idx].completedAt = completedAt;
+          localStorage.setItem(POOMASI_REQUESTS_KEY, JSON.stringify(list));
+        }
+      }
+
+      // Increment saveCount on fromStore
+      const storesRaw = localStorage.getItem(POOMASI_STORES_KEY);
+      if (storesRaw) {
+        const storesList: NaverPlacePoomasiStore[] = JSON.parse(storesRaw);
+        const sIdx = storesList.findIndex((s) => s.id === fromStoreId);
+        if (sIdx !== -1) {
+          storesList[sIdx].saveCount = (storesList[sIdx].saveCount || 0) + 1;
+          localStorage.setItem(POOMASI_STORES_KEY, JSON.stringify(storesList));
+        }
+      }
+    } catch (e) {}
+
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * 8. 미저장 신고 (경고 +1, 3회 도달 시 isBlocked: true 자동 차단)
+ */
+export async function reportPoomasiRequest(
+  requestId: string,
+  reportedStoreId: string,
+  reporterStoreName: string,
+  reason: string = '미저장 의심 신고'
+): Promise<{ success: boolean; newWarningCount: number; isBlocked: boolean }> {
+  const reportedAt = new Date().toISOString();
+  let finalWarningCount = 1;
+  let finalIsBlocked = false;
+
+  try {
+    // 1) Update Request Status to REPORTED
+    try {
+      await supabase
+        .from('naver_poomasi_requests')
+        .update({
+          status: 'REPORTED',
+          reported_at: reportedAt,
+          report_reason: reason,
+        })
+        .eq('id', requestId);
+    } catch (e) {}
+
+    // 2) Update reported store in DB & calculate warning count
+    try {
+      const { data: storeRow } = await supabase
+        .from('naver_poomasi_stores')
+        .select('warning_count')
+        .eq('id', reportedStoreId)
+        .maybeSingle();
+
+      const currentWarn = Number(storeRow?.warning_count || 0);
+      finalWarningCount = currentWarn + 1;
+      finalIsBlocked = finalWarningCount >= 3;
+
+      await supabase
+        .from('naver_poomasi_stores')
+        .update({
+          warning_count: finalWarningCount,
+          is_blocked: finalIsBlocked,
+        })
+        .eq('id', reportedStoreId);
+    } catch (e) {}
+
+    // 3) LocalStorage update and 3-warning blocking
+    try {
+      const raw = localStorage.getItem(POOMASI_REQUESTS_KEY);
+      if (raw) {
+        const list: NaverPlacePoomasiRequest[] = JSON.parse(raw);
+        const idx = list.findIndex((r) => r.id === requestId);
+        if (idx !== -1) {
+          list[idx].status = 'REPORTED';
+          list[idx].reportedAt = reportedAt;
+          list[idx].reportReason = reason;
+          localStorage.setItem(POOMASI_REQUESTS_KEY, JSON.stringify(list));
+        }
+      }
+
+      // Update in stores list
+      const storesRaw = localStorage.getItem(POOMASI_STORES_KEY);
+      const storesList: NaverPlacePoomasiStore[] = storesRaw ? JSON.parse(storesRaw) : [];
+      const sIdx = storesList.findIndex((s) => s.id === reportedStoreId);
+      if (sIdx !== -1) {
+        const updatedWarn = (storesList[sIdx].warningCount || 0) + 1;
+        storesList[sIdx].warningCount = updatedWarn;
+        storesList[sIdx].isBlocked = updatedWarn >= 3;
+        finalWarningCount = updatedWarn;
+        finalIsBlocked = updatedWarn >= 3;
+        localStorage.setItem(POOMASI_STORES_KEY, JSON.stringify(storesList));
+      } else {
+        // Even if not in active list, create a blocked placeholder so they can't re-register
+        finalWarningCount = 1;
+        finalIsBlocked = false;
+      }
+
+      // Save Audit Report log
+      const reportsRaw = localStorage.getItem(POOMASI_REPORTS_KEY);
+      const reportsList = reportsRaw ? JSON.parse(reportsRaw) : [];
+      reportsList.unshift({
+        id: `report-${Date.now()}`,
+        requestId,
+        reportedStoreId,
+        reporterStoreName,
+        reason,
+        reportedAt,
+        resultingWarningCount: finalWarningCount,
+        isBlocked: finalIsBlocked,
+      });
+      localStorage.setItem(POOMASI_REPORTS_KEY, JSON.stringify(reportsList));
+    } catch (e) {}
+
+    return { success: true, newWarningCount: finalWarningCount, isBlocked: finalIsBlocked };
+  } catch (err) {
+    return { success: false, newWarningCount: finalWarningCount, isBlocked: finalIsBlocked };
+  }
+}
+
+/**
+ * 9. 웹마스터용: 경고 3회 누적된 제재 회원 명단 및 신고 내역 조회
+ */
+export async function fetchBlockedPoomasiMembers(): Promise<
+  Array<NaverPlacePoomasiStore & { reports?: any[] }>
+> {
+  const blockedList: Array<NaverPlacePoomasiStore & { reports?: any[] }> = [];
+
+  try {
+    // 1) From Supabase
+    try {
+      const { data } = await supabase
+        .from('naver_poomasi_stores')
+        .select('*')
+        .gte('warning_count', 3);
+
+      if (data && data.length > 0) {
+        data.forEach((row: any) => {
+          blockedList.push({
+            id: row.id,
+            storeName: row.store_name,
+            ownerName: row.owner_name,
+            categoryName: row.category_name,
+            address: row.address,
+            phone: row.phone,
+            storeImageUrl: row.store_image_url,
+            placeUrl: row.place_url,
+            message: row.message,
+            registeredAt: row.registered_at,
+            saveCount: Number(row.save_count || 0),
+            warningCount: Number(row.warning_count || 0),
+            isBlocked: true,
+          });
+        });
+      }
+    } catch (e) {}
+
+    // 2) From LocalStorage
+    try {
+      const raw = localStorage.getItem(POOMASI_STORES_KEY);
+      if (raw) {
+        const list: NaverPlacePoomasiStore[] = JSON.parse(raw);
+        list.filter((s) => s.isBlocked || (s.warningCount || 0) >= 3).forEach((s) => {
+          if (!blockedList.some((b) => b.id === s.id)) {
+            blockedList.push({ ...s, isBlocked: true });
+          }
+        });
+      }
+
+      // Attach report history
+      const reportsRaw = localStorage.getItem(POOMASI_REPORTS_KEY);
+      const reportsList = reportsRaw ? JSON.parse(reportsRaw) : [];
+      blockedList.forEach((b) => {
+        b.reports = reportsList.filter((r: any) => r.reportedStoreId === b.id);
+      });
+    } catch (e) {}
+
+    return blockedList;
+  } catch (err) {
+    return [];
+  }
+}
+
+/**
+ * 10. 웹마스터용: 경고 차감 또는 차단 완전 해제
+ */
+export async function unblockPoomasiMember(
+  storeId: string,
+  resetCount: boolean = true
+): Promise<boolean> {
+  try {
+    let newWarningCount = 0;
+    if (!resetCount) {
+      // 1회 차감 -> 2회로 감면
+      newWarningCount = 2;
+    }
+
+    try {
+      await supabase
+        .from('naver_poomasi_stores')
+        .update({
+          warning_count: newWarningCount,
+          is_blocked: false,
+        })
+        .eq('id', storeId);
+    } catch (e) {}
+
+    try {
+      const raw = localStorage.getItem(POOMASI_STORES_KEY);
+      if (raw) {
+        const list: NaverPlacePoomasiStore[] = JSON.parse(raw);
+        const idx = list.findIndex((s) => s.id === storeId);
+        if (idx !== -1) {
+          list[idx].warningCount = newWarningCount;
+          list[idx].isBlocked = false;
+          localStorage.setItem(POOMASI_STORES_KEY, JSON.stringify(list));
+        }
+      }
+    } catch (e) {}
+
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
 
 
 

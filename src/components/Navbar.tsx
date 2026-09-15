@@ -28,6 +28,7 @@ interface NavbarProps {
   onOpenCouponWallet?: () => void;
   voucherCount?: number;
   onOpenStoreListModal?: () => void;
+  onOpenPoomasiModal?: () => void;
   alarmEnabled?: boolean;
   onToggleAlarm?: () => void;
   isRefreshing?: boolean;
@@ -58,6 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCouponWallet,
   voucherCount = 0,
   onOpenStoreListModal,
+  onOpenPoomasiModal,
   alarmEnabled = true,
   onToggleAlarm,
   isRefreshing = false,
@@ -130,6 +132,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
+            {/* ⭐ 모바일 플레이스 품앗이 바로가기 */}
+            {onOpenPoomasiModal && (
+              <button
+                type="button"
+                onClick={onOpenPoomasiModal}
+                className="flex items-center gap-0.5 px-2 py-1 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black shadow-2xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                title="네이버 플레이스 저장 품앗이"
+              >
+                <span>⭐</span>
+                <span>품앗이</span>
+              </button>
+            )}
+
             {/* 교환 ON / OFF */}
             <button
               type="button"
@@ -150,6 +165,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Desktop Right Action Controls (hidden md:flex) */}
           <div className="hidden md:flex items-center gap-1 sm:gap-2 flex-shrink-0">
             
+            {/* ⭐ 네이버 플레이스 저장 품앗이 버튼 */}
+            {onOpenPoomasiModal && (
+              <button
+                type="button"
+                onClick={onOpenPoomasiModal}
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+              >
+                <span className="text-xs sm:text-sm">⭐</span>
+                <span className="hidden sm:inline">플레이스 품앗이</span>
+                <span className="sm:hidden">품앗이</span>
+              </button>
+            )}
+
             {/* ☕ 사장님 사랑방 커뮤니티 버튼 */}
             {onOpenCommunityModal && (
               <button

@@ -240,3 +240,39 @@ export interface AdBannerStat {
   lastClickedAt?: string;
   coupangUrl: string;
 }
+
+// ⭐ [네이버 플레이스 저장 품앗이 모델]
+export interface NaverPlacePoomasiStore {
+  id: string; // Store ID
+  storeName: string;
+  ownerName: string;
+  categoryName: string;
+  address: string;
+  phone?: string;
+  storeImageUrl?: string;
+  placeUrl: string; // 네이버 플레이스 링크 (예: https://naver.me/xxx)
+  message: string; // 사장님 각오/인사말 (예: "저장해 주시면 확인 즉시 맞저장 갑니다!")
+  registeredAt: string;
+  saveCount: number; // 받은 저장 수
+  warningCount: number; // 미저장 신고 누적 수 (3회 이상 시 자동 차단)
+  isBlocked: boolean; // warningCount >= 3
+}
+
+export type PoomasiRequestStatus = 'PENDING' | 'COMPLETED' | 'REPORTED';
+
+export interface NaverPlacePoomasiRequest {
+  id: string;
+  fromStoreId: string;
+  fromStoreName: string;
+  fromOwnerName: string;
+  fromPlaceUrl: string;
+  toStoreId: string;
+  toStoreName: string;
+  toPlaceUrl: string;
+  status: PoomasiRequestStatus;
+  createdAt: string;
+  completedAt?: string;
+  reportedAt?: string;
+  reportReason?: string;
+}
+
