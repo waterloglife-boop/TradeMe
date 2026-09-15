@@ -1491,11 +1491,15 @@ export async function sendChatMessageToSupabase(
 }
 
 export function subscribeToTradeChat(
-  tradeId: string,
+  targetStoreId: string,
+  myStoreId: string,
   onNewMessage: (msg: ChatMessage) => void
 ) {
+  if (!targetStoreId || !myStoreId) return () => {};
+
+  const pairKey = [targetStoreId, myStoreId].sort().join('-');
   const channel = supabase
-    .channel(`trade-chat-${tradeId}`)
+    .channel(`trade-chat-${pairKey}-${Date.now()}`)
     .on(
       'postgres_changes',
       {
@@ -1506,7 +1510,12 @@ export function subscribeToTradeChat(
       (payload) => {
         const newMsg = payload.new as any;
         if (!newMsg) return;
-        if (newMsg.trade_id !== tradeId && newMsg.sender_store_id !== tradeId) return;
+
+        // 🔒 STRICT 1:1 PAIR VERIFICATION: Must be strictly between targetStore and myStore
+        const isFromTargetToMe = newMsg.sender_store_id === targetStoreId && newMsg.trade_id === myStoreId;
+        const isFromMeToTarget = newMsg.sender_store_id === myStoreId && newMsg.trade_id === targetStoreId;
+        if (!isFromTargetToMe && !isFromMeToTarget) return;
+
         onNewMessage({
           id: newMsg.id,
           senderId: newMsg.sender_store_id,
@@ -1516,7 +1525,7 @@ export function subscribeToTradeChat(
             hour: '2-digit',
             minute: '2-digit',
           }),
-          isMe: false,
+          isMe: newMsg.sender_store_id === myStoreId,
           systemAction: parseSystemAction(newMsg.message),
         });
       }
@@ -2047,20 +2056,21 @@ export function subscribeToVouchers(
  */
 export async function fetchChatHistory(
   targetStoreId: string,
-  myStoreId?: string
+  myStoreId: string
 ): Promise<ChatMessage[]> {
+  if (!targetStoreId || !myStoreId) return [];
+
   try {
-    let query = supabase.from('chat_messages').select('*');
+    // 🔒 STRICT 1:1 PAIR QUERY: Only messages strictly between targetStoreId and myStoreId
+    const query = supabase
+      .from('chat_messages')
+      .select('*')
+      .or(
+        `and(trade_id.eq.${targetStoreId},sender_store_id.eq.${myStoreId}),and(trade_id.eq.${myStoreId},sender_store_id.eq.${targetStoreId})`
+      )
+      .order('created_at', { ascending: true });
 
-    if (myStoreId) {
-      query = query.or(
-        `and(trade_id.eq.${targetStoreId},sender_store_id.eq.${myStoreId}),and(trade_id.eq.${myStoreId},sender_store_id.eq.${targetStoreId}),trade_id.eq.${targetStoreId},sender_store_id.eq.${targetStoreId}`
-      );
-    } else {
-      query = query.or(`trade_id.eq.${targetStoreId},sender_store_id.eq.${targetStoreId}`);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: true });
+    const { data, error } = await query;
 
     if (error) {
       console.warn('[Supabase Error] fetchChatHistory warning:', error.message);
@@ -2072,12 +2082,11 @@ export async function fetchChatHistory(
       const raw = localStorage.getItem('trademe_local_chats');
       if (raw) {
         const parsed = JSON.parse(raw);
+        // 🔒 STRICT 1:1 LOCAL CACHE FILTER: Only keep messages between these two stores
         localData = parsed.filter(
           (msg: any) =>
             (msg.trade_id === targetStoreId && msg.sender_store_id === myStoreId) ||
-            (msg.trade_id === myStoreId && msg.sender_store_id === targetStoreId) ||
-            msg.trade_id === targetStoreId ||
-            msg.sender_store_id === targetStoreId
+            (msg.trade_id === myStoreId && msg.sender_store_id === targetStoreId)
         );
       }
     } catch (e) {}
@@ -2088,18 +2097,18 @@ export async function fetchChatHistory(
         allData.push(lm);
       }
     }
-    allData.sort((a, b) => new Date(a.created_at || Date.now()).getTime() - new Date(b.created_at || Date.now()).getTime());
+    allData.sort(
+      (a, b) =>
+        new Date(a.created_at || Date.now()).getTime() -
+        new Date(b.created_at || Date.now()).getTime()
+    );
 
-    // JS-side filter to ensure messages belong to this pair
-    const filtered = myStoreId
-      ? allData.filter(
-          (msg: any) =>
-            (msg.trade_id === targetStoreId && msg.sender_store_id === myStoreId) ||
-            (msg.trade_id === myStoreId && msg.sender_store_id === targetStoreId) ||
-            msg.trade_id === targetStoreId ||
-            msg.sender_store_id === targetStoreId
-        )
-      : allData;
+    // 🔒 Double check JS-side filter to guarantee 100% NO 3rd-party message leakage
+    const filtered = allData.filter(
+      (msg: any) =>
+        (msg.trade_id === targetStoreId && msg.sender_store_id === myStoreId) ||
+        (msg.trade_id === myStoreId && msg.sender_store_id === targetStoreId)
+    );
 
     return filtered.map((msg: any) => ({
       id: msg.id,
@@ -2110,7 +2119,7 @@ export async function fetchChatHistory(
         hour: '2-digit',
         minute: '2-digit',
       }),
-      isMe: myStoreId ? msg.sender_store_id === myStoreId : false,
+      isMe: msg.sender_store_id === myStoreId,
       systemAction: parseSystemAction(msg.message),
     }));
   } catch (err) {

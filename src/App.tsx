@@ -603,30 +603,40 @@ export const App: React.FC = () => {
 
   // Supabase Realtime Chat Subscription & Past History Loader (양방향 대화 완벽 지원)
   useEffect(() => {
-    if (!chatTargetStore) return;
+    if (!chatTargetStore || !myStore.id) return;
 
     const storeId = chatTargetStore.id;
 
-    // 2. [초기 데이터 로딩 최적화] 양방향 과거 채팅 내역 Supabase에서 불러오기
+    // 대화방 진입 시 이전 대화 잔상 즉시 초기화
+    setMessagesMap((prev) => ({
+      ...prev,
+      [storeId]: [],
+    }));
+
+    // 2. [초기 데이터 로딩 최적화] 나와 상대방 사이의 1:1 대화 내역만 엄격하게 불러오기
     async function loadHistory() {
       const history = await fetchChatHistory(storeId, myStore.id);
-      if (history && history.length > 0) {
-        setMessagesMap((prev) => ({
-          ...prev,
-          [storeId]: history,
-        }));
-      }
+      setMessagesMap((prev) => ({
+        ...prev,
+        [storeId]: history || [],
+      }));
     }
     loadHistory();
 
-    // 1. [채팅 중복 렌더링 버그 수정] 실시간 소켓 수신 시 자가 송신 메시지 중복 필터링
-    const unsubscribe = subscribeToTradeChat(storeId, (newMsg) => {
+    // 1. [실시간 1:1 소켓 구독] 나와 상대 매장 간의 메시지만 수신
+    const unsubscribe = subscribeToTradeChat(storeId, myStore.id, (newMsg) => {
       if (newMsg.senderId === myStore.id) return;
 
-      setMessagesMap((prev) => ({
-        ...prev,
-        [storeId]: [...(prev[storeId] || []), { ...newMsg, isMe: false }],
-      }));
+      setMessagesMap((prev) => {
+        const currentList = prev[storeId] || [];
+        if (currentList.some((m) => m.id === newMsg.id)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [storeId]: [...currentList, { ...newMsg, isMe: false }],
+        };
+      });
     });
 
     return () => unsubscribe();
@@ -699,12 +709,18 @@ export const App: React.FC = () => {
         });
       }
 
-      // 현재 열려있는 대화방이면 말풍선 바로 추가
+      // 현재 열려있는 대화방이면 말풍선 바로 추가 (중복 방지)
       if (chatTargetStoreRef.current?.id === data.counterpartStoreId) {
-        setMessagesMap((prev) => ({
-          ...prev,
-          [data.counterpartStoreId]: [...(prev[data.counterpartStoreId] || []), data.rawMsg],
-        }));
+        setMessagesMap((prev) => {
+          const currentList = prev[data.counterpartStoreId] || [];
+          if (currentList.some((m) => m.id === data.rawMsg.id)) {
+            return prev;
+          }
+          return {
+            ...prev,
+            [data.counterpartStoreId]: [...currentList, data.rawMsg],
+          };
+        });
       } else {
         // 아니면 상단에 실시간 알림 토스트 팝업
         const currentStores = storesRef.current;
