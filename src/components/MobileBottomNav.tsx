@@ -30,6 +30,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     <nav
       aria-label="Mobile Bottom Navigation"
       className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200/90 shadow-2xl pb-safe md:hidden select-none"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0px)' }}
     >
       <div className="flex items-center justify-around h-15 px-1 max-w-md mx-auto">
         

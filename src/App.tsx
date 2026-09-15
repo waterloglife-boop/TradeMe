@@ -1541,7 +1541,10 @@ export const App: React.FC = () => {
 
       {/* 🔔 실시간 알람 & 데이터 동기화 플로팅 토스트 */}
       {syncToastMessage && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto max-w-[92vw]">
+        <div 
+          className="fixed left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto max-w-[92vw]"
+          style={{ top: 'calc(max(env(safe-area-inset-top, 0px), 0px) + 4.5rem)' }}
+        >
           <div className="px-4 py-2 rounded-2xl shadow-xl flex items-center gap-2 text-xs sm:text-sm font-bold bg-gray-950/95 text-white border border-orange-400/60 backdrop-blur-md shadow-orange-500/20">
             <span>{syncToastMessage}</span>
           </div>

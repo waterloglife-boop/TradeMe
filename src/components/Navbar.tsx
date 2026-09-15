@@ -66,7 +66,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefreshAll,
 }) => {
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
+    <header 
+      className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm pt-safe"
+      style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}
+    >
       {/* Top Main Bar */}
       <div className="w-full max-w-[1720px] mx-auto px-2 sm:px-4 lg:px-6">
         <div className="flex items-center justify-between h-14 sm:h-16 gap-1.5 sm:gap-3">

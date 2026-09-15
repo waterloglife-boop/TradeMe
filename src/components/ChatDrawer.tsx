@@ -133,7 +133,10 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     <div className="fixed inset-y-0 right-0 z-[70] w-full sm:w-96 bg-white shadow-2xl border-l border-gray-200 flex flex-col transition-transform animate-in slide-in-from-right">
       
       {/* Chat Header */}
-      <div className="p-4 bg-gray-900 text-white flex items-center justify-between flex-shrink-0">
+      <div 
+        className="p-4 bg-gray-900 text-white flex items-center justify-between flex-shrink-0 pt-safe"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 16px)' }}
+      >
         <div className="flex items-center gap-3">
           <div className="relative">
             <img
