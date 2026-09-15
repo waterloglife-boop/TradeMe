@@ -806,12 +806,12 @@ export const App: React.FC = () => {
 
   // 💬 [사장님 사랑방] 내 게시글에 새 댓글이 달렸을 때 실시간 알림 리스너
   useEffect(() => {
-    if (!myStore.ownerName && !userOwnerName) return;
+    if (!myStore.id && !myStore.ownerName && !userOwnerName) return;
 
     const authorName = myStore.ownerName || userOwnerName;
     const storeName = myStore.storeName || '';
 
-    const unsubComments = subscribeToMyPostComments(authorName, storeName, (data) => {
+    const unsubComments = subscribeToMyPostComments(myStore.id, authorName, storeName, (data) => {
       if (alarmEnabledRef.current) {
         showDeviceNotification(`💬 [사장님 사랑방] 내 글에 새 댓글 도착!`, {
           body: `${data.comment.author_name || '이웃 사장'}님: "${data.comment.content}"`,
@@ -822,7 +822,7 @@ export const App: React.FC = () => {
     });
 
     return () => unsubComments();
-  }, [myStore.ownerName, myStore.storeName, userOwnerName]);
+  }, [myStore.id, myStore.ownerName, myStore.storeName, userOwnerName]);
 
   // 📲 백그라운드 Web Push (Google FCM) 실기기 구독 자동 등록
   useEffect(() => {

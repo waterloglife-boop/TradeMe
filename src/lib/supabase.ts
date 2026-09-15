@@ -3029,7 +3029,7 @@ export async function createPostComment(
     // Sync comments_count in community_posts
     const { data: currentPost } = await supabase
       .from('community_posts')
-      .select('comments_count, author_name, store_name, title')
+      .select('comments_count, author_name, store_name, title, store_id')
       .eq('id', comment.postId)
       .single();
     const newCount = (currentPost?.comments_count || 0) + 1;
@@ -3039,8 +3039,17 @@ export async function createPostComment(
       .eq('id', comment.postId);
 
     // 📲 글 작성자 사장님 스마트폰으로 Google FCM 백그라운드 푸시 발송 (내가 쓴 댓글 제외)
-    if (currentPost && currentPost.author_name && currentPost.author_name !== comment.authorName) {
+    const isMyOwnComment =
+      (comment.storeId && currentPost?.store_id && comment.storeId === currentPost.store_id) ||
+      (currentPost?.author_name && comment.authorName && (
+        currentPost.author_name === comment.authorName ||
+        currentPost.author_name.includes(comment.authorName) ||
+        comment.authorName.includes(currentPost.author_name)
+      ));
+
+    if (currentPost && !isMyOwnComment) {
       triggerBackgroundPush({
+        targetStoreId: currentPost.store_id || undefined,
         targetAuthorName: currentPost.author_name,
         title: '💬 [사장님 사랑방] 내 글에 새 댓글 도착!',
         body: `${comment.authorName}님: "${comment.content}"`,
@@ -3127,11 +3136,14 @@ export function subscribeToCommunity(onUpdate: () => void) {
  * ☕ 내가 쓴 사장님 사랑방 게시글에 새 댓글이 달렸을 때 실시간 감지 구독
  */
 export function subscribeToMyPostComments(
+  myStoreId: string,
   myAuthorName: string,
   myStoreName: string,
   onNewComment: (data: { comment: any; postTitle: string }) => void
 ) {
-  if (!myAuthorName && !myStoreName) return () => {};
+  if (!myStoreId && !myAuthorName && !myStoreName) return () => {};
+
+  const cleanAuthor = (myAuthorName || '').replace(/\s*사장님\s*$/, '').trim();
 
   const channel = supabase
     .channel(`my-comments-${Date.now()}`)
@@ -3143,23 +3155,36 @@ export function subscribeToMyPostComments(
         if (!newComment) return;
 
         // 내가 직접 작성한 댓글은 알림 제외
-        if (newComment.author_name === myAuthorName || (myStoreName && newComment.author_store_name === myStoreName)) {
+        const commentAuthorClean = (newComment.author_name || '').replace(/\s*사장님\s*$/, '').trim();
+        if (
+          (myStoreId && newComment.store_id === myStoreId) ||
+          (cleanAuthor && commentAuthorClean === cleanAuthor) ||
+          (myStoreName && newComment.store_name === myStoreName)
+        ) {
           return;
         }
 
         try {
-          // 해당 댓글이 달린 원본 게시글 조회
+          // 해당 댓글이 달린 원본 게시글 조회 (정확한 DB 컬럼명: id, title, author_name, store_name, store_id)
           const { data: post } = await supabase
             .from('community_posts')
-            .select('id, title, author_name, author_store_name')
+            .select('id, title, author_name, store_name, store_id')
             .eq('id', newComment.post_id)
             .single();
 
-          if (post && (post.author_name === myAuthorName || (myStoreName && post.author_store_name === myStoreName))) {
-            onNewComment({
-              comment: newComment,
-              postTitle: post.title || '내 게시글',
-            });
+          if (post) {
+            const postAuthorClean = (post.author_name || '').replace(/\s*사장님\s*$/, '').trim();
+            const isMyPost =
+              (myStoreId && post.store_id === myStoreId) ||
+              (myStoreName && post.store_name === myStoreName) ||
+              (cleanAuthor && (postAuthorClean === cleanAuthor || post.author_name.includes(cleanAuthor)));
+
+            if (isMyPost) {
+              onNewComment({
+                comment: newComment,
+                postTitle: post.title || '내 게시글',
+              });
+            }
           }
         } catch (e) {
           console.warn('[CommunityComment Subscription Notice]', e);

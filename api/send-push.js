@@ -42,10 +42,11 @@ export default async function handler(req, res) {
     if (targetStoreId) {
       query = query.eq('store_id', targetStoreId);
     } else if (targetAuthorName) {
+      const cleanName = targetAuthorName.replace(/\s*사장님\s*$/, '').trim();
       const { data: authorStores } = await supabase
         .from('stores')
         .select('id')
-        .eq('owner_name', targetAuthorName);
+        .or(`owner_name.eq."${targetAuthorName}",owner_name.eq."${cleanName}"`);
       if (authorStores && authorStores.length > 0) {
         const storeIds = authorStores.map((s) => s.id);
         query = query.in('store_id', storeIds);
