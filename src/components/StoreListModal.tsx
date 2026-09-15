@@ -631,6 +631,15 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
 
                   {/* 카드 바디: 체험단 모집 배너 & 상생 금액권 & 교환 가능 품목 */}
                   <div className="p-4 sm:p-5 space-y-3 flex-1 bg-white">
+                    {/* 📢 가게 소개 한 줄 요약 (실제 작성된 매장만 노출 - 가짜 더미 정보 제외) */}
+                    {store.description && store.description.trim() && (
+                      <div className="px-3 py-2 bg-amber-50/70 border border-amber-200/70 rounded-xl flex items-start gap-1.5 text-xs text-amber-950 font-medium leading-relaxed">
+                        <span className="text-amber-600 font-black text-sm leading-none flex-shrink-0">“</span>
+                        <p className="line-clamp-2 break-keep">{store.description.trim()}</p>
+                        <span className="text-amber-600 font-black text-sm leading-none flex-shrink-0">”</span>
+                      </div>
+                    )}
+
                     {/* 🧪 체험단 모집 슬림 미니 배너 (소형화 & 세련된 디자인 적용) */}
                     {store.isMenuTesting && (
                       <div className="p-2.5 sm:p-3 bg-purple-50/90 border border-purple-200/90 rounded-2xl flex items-center justify-between gap-2.5 shadow-2xs">

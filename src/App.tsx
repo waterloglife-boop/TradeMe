@@ -75,6 +75,7 @@ const INITIAL_EMPTY_STORE_STATE: Store = {
   exchangeItems: [],
   rating: 5.0,
   reviewCount: 0,
+  description: '',
   isMenuTesting: false,
 };
 
@@ -911,7 +912,7 @@ export const App: React.FC = () => {
 
   const handleRegisterNewStoreAndItems = (newStore: Store) => {
     setMyStore(newStore);
-    setStores((prevStores) => [newStore, ...prevStores]);
+    setStores((prevStores) => [newStore, ...prevStores.filter((s) => s.id !== newStore.id)]);
     setSelectedStore(newStore);
   };
 
@@ -1294,7 +1295,8 @@ export const App: React.FC = () => {
       lat,
       lng,
       myStore.id,
-      myStore.userId
+      myStore.userId,
+      myStore.description
     );
 
     try {
@@ -1575,6 +1577,7 @@ export const App: React.FC = () => {
           }}
           onOpenMenuTestDashboard={() => setIsMenuTestDashboardOpen(true)}
           isMyStore={selectedStore?.id === myStore.id}
+          onEditStore={() => setIsRegisterModalOpen(true)}
         />
 
         {/* 🌟 비로그인 첫 방문 상생 웰컴 플로팅 카드 (매장 상세 창 오픈 시에는 미노출하여 터치 및 시안성 극대화) */}
@@ -1697,6 +1700,7 @@ export const App: React.FC = () => {
         pickedLat={pickedLocation.lat}
         pickedLng={pickedLocation.lng}
         onUpdatePickedLocation={(lat, lng) => setPickedLocation({ lat, lng })}
+        currentStore={myStore}
       />
 
       {/* 🧪 Menu Test Application Modal */}

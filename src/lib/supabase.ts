@@ -743,7 +743,8 @@ export async function saveProfileToSupabase(
   lat?: number,
   lng?: number,
   storeId?: string,
-  explicitUserId?: string
+  explicitUserId?: string,
+  description?: string
 ) {
   try {
     let userId = explicitUserId || '';
@@ -800,6 +801,7 @@ export async function saveProfileToSupabase(
     if (phone) storePayload.phone = phone;
     if (storeImageUrl) storePayload.store_image_url = storeImageUrl;
     if (address) storePayload.address = address;
+    if (description !== undefined) storePayload.description = description;
     if (breakTimeHours) {
       // 🌟 operating_hours와 break_time_hours 두 컬럼 모두를 동기화하여 변경사항이 100% 즉시 반영되도록 보장
       storePayload.operating_hours = breakTimeHours;
@@ -810,7 +812,12 @@ export async function saveProfileToSupabase(
     if (lng !== undefined) storePayload.lng = lng;
 
     if (storeId) {
-      const { error: storeIdErr } = await supabase.from('stores').update(storePayload).eq('id', storeId);
+      let { error: storeIdErr } = await supabase.from('stores').update(storePayload).eq('id', storeId);
+      if (storeIdErr && storeIdErr.message?.includes('column')) {
+        delete storePayload.description;
+        const res = await supabase.from('stores').update(storePayload).eq('id', storeId);
+        storeIdErr = res.error;
+      }
       if (storeIdErr) {
         console.warn('[Supabase Notice] stores update by id failed:', storeIdErr);
       }
@@ -993,6 +1000,7 @@ export async function fetchUserStoreFromSupabase(): Promise<Store | null> {
       storeImageUrl: storeData.store_image_url || '',
       rating: storeData.rating || 5.0,
       reviewCount: storeData.review_count || 0,
+      description: storeData.description || storeData.store_description || '',
       isMenuTesting: storeData.is_menu_testing ?? false,
       menuTestTitle: storeData.menu_test_title ?? '',
       menuTestReward: storeData.menu_test_reward ?? '',
@@ -1117,6 +1125,7 @@ export async function fetchStoresFromSupabase(): Promise<Store[]> {
         rating: s.rating || 5.0,
         reviewCount: s.review_count || 0,
         tradeCount: Math.max(Number(s.trade_count || 0), tradeCountByStore[s.id] || 0),
+        description: s.description || s.store_description || '',
         isMenuTesting: s.is_menu_testing ?? false,
         menuTestTitle: s.menu_test_title ?? '',
         menuTestReward: s.menu_test_reward ?? '',
@@ -1265,6 +1274,7 @@ export async function insertStoreAndItems(
       store_image_url: storeInfo.storeImageUrl,
       is_exchange_active: storeInfo.breakTimeActive,
       operating_hours: storeInfo.breakTimeHours,
+      description: storeInfo.description || '',
 
       // 🧪 [신메뉴 테스트 캠페인 필드]
       is_menu_testing: storeInfo.isMenuTesting ?? false,
@@ -1281,6 +1291,7 @@ export async function insertStoreAndItems(
     if (storeError && storeError.message?.includes('column')) {
       delete storePayload.is_exchange_active;
       delete storePayload.operating_hours;
+      delete storePayload.description;
       delete storePayload.is_menu_testing;
       delete storePayload.menu_test_title;
       delete storePayload.menu_test_reward;

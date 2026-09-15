@@ -126,6 +126,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
   const [storeImageUrl, setStoreImageUrl] = useState(
     'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'
   );
+  const [description, setDescription] = useState('');
 
   // 🧪 [신메뉴 테스트 캠페인 상태]
   const [isMenuTesting, setIsMenuTesting] = useState(false);
@@ -146,6 +147,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
         setCategoryName(targetStore.categoryName || '한식');
         setAddress(targetStore.address || '');
         setPhone(targetStore.phone || '');
+        setDescription(targetStore.description || '');
         setOperatingHours(targetStore.breakTimeHours || '10:00 - 22:00 (연중무휴)');
         if (targetStore.lat && targetStore.lng) {
           setCurrentLat(targetStore.lat);
@@ -398,6 +400,7 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
       breakTimeActive: operatingHoursActive,
       breakTimeHours: operatingHours,
       storeImageUrl,
+      description: description.trim(),
       rating: 4.9,
       reviewCount: 1,
 
@@ -561,6 +564,29 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                     <span>위치 찾기</span>
                   </button>
                 </div>
+              </div>
+
+              {/* 📢 가게 소개 & 사장님 한마디 */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-gray-700">
+                    가게 소개 & 사장님 인사말 (선택)
+                  </label>
+                  <span className="text-[11px] text-gray-400 font-medium">
+                    {description.length} / 300자
+                  </span>
+                </div>
+                <textarea
+                  rows={3}
+                  maxLength={300}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="예: 안녕하세요 북정 마라탕 맛집 마라위크입니다. 저희는 신선한 재료로 여러분의 마라의 편견을 깨기 위해 노력하고 있습니다. 이웃 사장님들과의 교환과 소통 언제나 환영합니다!"
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-medium leading-relaxed resize-none"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  💡 지도나 목록에서 우리 가게를 클릭했을 때 상단에 표시되는 소개글입니다.
+                </p>
               </div>
 
               {/* Operating Hours setup (Replaces Break Time per user request) */}

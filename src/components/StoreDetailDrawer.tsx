@@ -24,6 +24,7 @@ interface StoreDetailDrawerProps {
   onOpenMenuTestApply?: (store: Store, campaign?: MenuTestCampaign) => void;
   onOpenMenuTestDashboard?: () => void;
   isMyStore?: boolean;
+  onEditStore?: () => void;
 }
 
 export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
@@ -34,6 +35,7 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
   onOpenMenuTestApply,
   onOpenMenuTestDashboard,
   isMyStore,
+  onEditStore,
 }) => {
   const [campaigns, setCampaigns] = useState<MenuTestCampaign[]>([]);
   const [items, setItems] = useState<ExchangeItem[]>(store?.exchangeItems || []);
@@ -188,6 +190,50 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
       {/* Scrollable Content */}
       <div className="p-4 overflow-y-auto flex-1 space-y-4">
         
+        {/* 📢 가게 소개 & 사장님 한마디 (더미 정보 없이 실제 등록된 내용만 노출) */}
+        {store.description && store.description.trim() ? (
+          <div className="bg-gradient-to-br from-amber-50/80 via-orange-50/30 to-amber-50/60 border border-amber-200/80 rounded-2xl p-3.5 sm:p-4 shadow-xs space-y-1.5 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
+                <span className="text-sm">📢</span>
+                <span>가게 소개</span>
+              </span>
+              {isMyStore && onEditStore && (
+                <button
+                  type="button"
+                  onClick={onEditStore}
+                  className="text-[11px] font-bold text-amber-800 hover:text-amber-950 bg-amber-200/60 hover:bg-amber-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                >
+                  ✏️ 소개 수정
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line font-medium break-keep">
+              {store.description.trim()}
+            </p>
+          </div>
+        ) : isMyStore ? (
+          <div className="bg-amber-50/60 border border-dashed border-amber-300 rounded-2xl p-3 flex items-center justify-between gap-2 animate-in fade-in">
+            <div className="text-xs text-amber-900">
+              <span className="font-bold flex items-center gap-1">
+                <span>📢</span> 우리 가게 소개글을 등록해 보세요!
+              </span>
+              <p className="text-[11px] text-amber-700/80 mt-0.5">
+                이웃 사장님들에게 매장의 장점과 인사말을 전할 수 있습니다.
+              </p>
+            </div>
+            {onEditStore && (
+              <button
+                type="button"
+                onClick={onEditStore}
+                className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl whitespace-nowrap shadow-xs active:scale-95 transition-all cursor-pointer"
+              >
+                + 소개 작성
+              </button>
+            )}
+          </div>
+        ) : null}
+
         {/* 🧪 Highlighted Menu Test Campaign Card(s) - Up to 2 concurrent campaigns */}
         {store.isMenuTesting && (
           <div className="space-y-3">
