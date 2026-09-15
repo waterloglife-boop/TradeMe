@@ -68,11 +68,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
       {/* Top Main Bar */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
+      <div className="w-full max-w-[1720px] mx-auto px-2 sm:px-4 lg:px-6">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-1.5 sm:gap-3">
           
           {/* Logo & Slogan */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl shadow-md shadow-orange-500/20 flex-shrink-0 overflow-hidden border border-orange-200 bg-white transition-transform hover:scale-105">
               <img src="/favicon.svg" alt="Trade Me 로고" className="w-full h-full object-cover" />
             </div>
@@ -81,12 +81,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="font-extrabold text-base sm:text-xl tracking-tight bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
                   Trade Me
                 </span>
-                <span className="hidden md:inline-block px-2 py-0.5 text-[11px] font-bold bg-orange-100 text-orange-800 rounded-full border border-orange-200 whitespace-nowrap">
+                <span className="hidden xl:inline-block px-2 py-0.5 text-[11px] font-bold bg-orange-100 text-orange-800 rounded-full border border-orange-200 whitespace-nowrap">
                   소상공인 1:1 물물교환
                 </span>
               </div>
-              <p className="text-xs text-gray-500 hidden sm:block">
-                식사 · 베이커리 · 편의점 신선식품 · 숙박 1:1 자원 맞교환
+              <p className="text-xs text-gray-500 hidden 2xl:block truncate max-w-[260px]">
+                식사 · 베이커리 · 편의점 신선식품 · 숙박 1:1 맞교환
               </p>
             </div>
           </div>
@@ -163,18 +163,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Desktop Right Action Controls (hidden md:flex) */}
-          <div className="hidden md:flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <div className="hidden md:flex items-center gap-1 lg:gap-1.5 xl:gap-2 flex-shrink-0">
             
             {/* ⭐ 네이버 플레이스 저장 품앗이 버튼 */}
             {onOpenPoomasiModal && (
               <button
                 type="button"
                 onClick={onOpenPoomasiModal}
-                className="flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                title="네이버 플레이스 저장 품앗이"
               >
                 <span className="text-xs sm:text-sm">⭐</span>
-                <span className="hidden sm:inline">플레이스 품앗이</span>
-                <span className="sm:hidden">품앗이</span>
+                <span className="hidden xl:inline">플레이스 품앗이</span>
+                <span className="xl:hidden">품앗이</span>
               </button>
             )}
 
@@ -182,11 +183,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onOpenCommunityModal && (
               <button
                 onClick={onOpenCommunityModal}
-                className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-xs active:scale-95 transition whitespace-nowrap"
+                className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                title="사장님 사랑방 커뮤니티"
               >
                 <span className="text-xs sm:text-sm">☕</span>
-                <span className="hidden sm:inline">사장님 사랑방</span>
-                <span className="sm:hidden">사랑방</span>
+                <span className="hidden xl:inline">사장님 사랑방</span>
+                <span className="xl:hidden">사랑방</span>
               </button>
             )}
 
@@ -195,11 +197,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onOpenChatListModal}
-                className="relative flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap"
+                className="relative flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                title="1:1 사장님 대화함"
               >
                 <span className="text-xs sm:text-sm">💬</span>
-                <span className="hidden sm:inline">1:1 대화함</span>
-                <span className="sm:hidden">대화함</span>
+                <span className="hidden xl:inline">1:1 대화함</span>
+                <span className="xl:hidden">대화함</span>
                 {chatCount > 0 && (
                   <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-white/25 text-white">
                     {chatCount}
@@ -217,11 +220,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onOpenCouponWallet && (
               <button
                 onClick={onOpenCouponWallet}
-                className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-700 hover:to-orange-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap"
+                className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-700 hover:to-orange-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                title="내 교환권 보관함"
               >
                 <span className="text-xs sm:text-sm">🎟️</span>
-                <span className="hidden sm:inline">교환권 보관함</span>
-                <span className="sm:hidden">보관함</span>
+                <span className="hidden xl:inline">교환권 보관함</span>
+                <span className="xl:hidden">보관함</span>
                 <span className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black ${
                   voucherCount >= 5 ? 'bg-red-500 text-white animate-pulse' : 'bg-white/25 text-white'
                 }`}>
@@ -231,21 +235,24 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {/* Break Time Toggle Box */}
-            <div className={`flex items-center gap-1 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border transition-all ${
+            <div className={`flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-full border transition-all ${
               myBreakTimeActive
                 ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-xs'
                 : 'bg-gray-100 border-gray-200 text-gray-600'
             }`}>
               <div className="flex items-center gap-1">
-                <span className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${myBreakTimeActive ? 'bg-amber-500 animate-ping' : 'bg-gray-400'}`}></span>
-                <Clock className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${myBreakTimeActive ? 'text-amber-600' : 'text-gray-400'}`} />
-                <span className="text-xs sm:text-sm font-semibold hidden md:inline">
+                <span className={`w-2 h-2 rounded-full ${myBreakTimeActive ? 'bg-amber-500 animate-ping' : 'bg-gray-400'}`}></span>
+                <Clock className={`w-3.5 h-3.5 ${myBreakTimeActive ? 'text-amber-600' : 'text-gray-400'}`} />
+                <span className="text-xs font-semibold hidden 2xl:inline">
                   내 가게 교환가능:
+                </span>
+                <span className="text-xs font-semibold hidden md:inline 2xl:hidden">
+                  교환:
                 </span>
               </div>
               <button
                 onClick={onToggleBreakTime}
-                className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                   myBreakTimeActive ? 'bg-amber-600' : 'bg-gray-300'
                 }`}
                 role="switch"
@@ -253,8 +260,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <span
                   aria-hidden="true"
-                  className={`pointer-events-none inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    myBreakTimeActive ? 'translate-x-4 sm:translate-x-5' : 'translate-x-0'
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    myBreakTimeActive ? 'translate-x-4' : 'translate-x-0'
                   }`}
                 />
               </button>
@@ -270,10 +277,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={onRefreshAll}
                 disabled={isRefreshing}
                 title="최신 매장 및 거래 데이터 새로고침"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold transition active:scale-95 cursor-pointer shadow-2xs"
+                className="flex items-center gap-1 px-2 lg:px-2.5 py-1 sm:py-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold transition active:scale-95 cursor-pointer shadow-2xs"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-orange-600' : 'text-gray-500'}`} />
-                <span className="hidden lg:inline">{isRefreshing ? '동기화 중...' : '새로고침'}</span>
+                <span className="hidden 2xl:inline">{isRefreshing ? '동기화 중...' : '새로고침'}</span>
               </button>
             )}
 
@@ -283,7 +290,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={onToggleAlarm}
                 title={alarmEnabled ? "실시간 거래 및 대화 알람 소리 켜짐 (클릭 시 끄기)" : "알람 소리 꺼짐 (클릭 시 켜기)"}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl transition shadow-2xs active:scale-95 border cursor-pointer ${
+                className={`flex items-center gap-1 px-2 lg:px-2.5 py-1 sm:py-1.5 text-xs font-bold rounded-xl transition shadow-2xs active:scale-95 border cursor-pointer ${
                   alarmEnabled
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
                     : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
@@ -292,12 +299,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {alarmEnabled ? (
                   <>
                     <Bell className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-                    <span className="hidden lg:inline">알람 ON</span>
+                    <span className="hidden xl:inline">알람 ON</span>
+                    <span className="xl:hidden font-black text-[10px]">ON</span>
                   </>
                 ) : (
                   <>
                     <BellOff className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="hidden lg:inline">알람 OFF</span>
+                    <span className="hidden xl:inline">알람 OFF</span>
+                    <span className="xl:hidden font-black text-[10px]">OFF</span>
                   </>
                 )}
               </button>
@@ -306,7 +315,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* 🏬 Store Management / Auth Button with Global Notification Badge */}
             <button
               onClick={onOpenAuthModal}
-              className={`relative flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-extrabold rounded-xl transition-all shadow-xs active:scale-95 whitespace-nowrap ${
+              className={`relative flex items-center gap-1 px-2.5 lg:px-3 py-1 sm:py-1.5 text-xs font-extrabold rounded-xl transition-all shadow-xs active:scale-95 whitespace-nowrap ${
                 isLoggedIn
                   ? 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-xs'
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
@@ -315,8 +324,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               {isLoggedIn ? (
                 <>
                   <Store className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white flex-shrink-0" />
-                  <span className="hidden sm:inline">🏬 내 매장 관리 ({userOwnerName})</span>
-                  <span className="sm:hidden">내 매장</span>
+                  <span className="hidden 2xl:inline">🏬 내 매장 관리 ({userOwnerName})</span>
+                  <span className="hidden xl:inline 2xl:hidden">🏬 내 매장 ({userOwnerName})</span>
+                  <span className="xl:hidden">내 매장</span>
 
                   {/* 🔴 Global Pending Alert Badge */}
                   {pendingAlertCount > 0 && (
