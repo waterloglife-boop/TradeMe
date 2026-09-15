@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Ticket, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, ChevronRight, ShieldCheck, ArrowRight, Store as StoreIcon, AlertTriangle, ShieldAlert, Trash2 } from 'lucide-react';
 import { Store, IssuedVoucher } from '../types/trade';
 import { fetchStoredVouchers, fetchVouchersFromSupabase, redeemVoucherInStorage, restoreVoucherInStorage, deleteVoucherFromStorage } from '../lib/supabase';
-import { WalletFooterSponsoredCard } from './CoupangAffiliateBanner';
+import { WalletFooterSponsoredCard, WalletAdPartnershipCard } from './CoupangAffiliateBanner';
 
 interface CouponWalletModalProps {
   isOpen: boolean;
@@ -10,6 +10,7 @@ interface CouponWalletModalProps {
   myStore: Store;
   onExploreStores?: () => void;
   onWalletUpdate?: () => void;
+  onOpenAdPartnership?: () => void;
 }
 
 export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
@@ -18,6 +19,7 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
   myStore,
   onExploreStores,
   onWalletUpdate,
+  onOpenAdPartnership,
 }) => {
   const [vouchers, setVouchers] = useState<IssuedVoucher[]>([]);
   const [activeTab, setActiveTab] = useState<'AVAILABLE' | 'HISTORY'>('AVAILABLE');
@@ -326,6 +328,9 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
               )}
             </div>
           )}
+
+          {/* 📢 광고주 제휴 모집 배너 카드 (교환권 보관함 스폰서십) */}
+          <WalletAdPartnershipCard onOpenAdPartnership={onOpenAdPartnership} />
 
           {/* 🎟️ 쿠팡 파트너스 보관함 스폰서 배너 (로켓와우 골든아워 특가) */}
           <WalletFooterSponsoredCard />

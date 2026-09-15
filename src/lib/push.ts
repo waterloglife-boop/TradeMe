@@ -48,7 +48,7 @@ export async function registerPushSubscription(storeId: string): Promise<boolean
       const convertedVapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: convertedVapidKey,
+        applicationServerKey: convertedVapidKey as any,
       });
     }
 

@@ -23,6 +23,7 @@ import { InquiryModal } from './components/InquiryModal';
 import { TermsOfServiceModal, PrivacyPolicyModal } from './components/LegalModals';
 import { TopMainSlimBanner } from './components/CoupangAffiliateBanner';
 import { StoreListModal } from './components/StoreListModal';
+import { AdPartnershipModal } from './components/AdPartnershipModal';
 import { AlarmGuideModal } from './components/AlarmGuideModal';
 import { NaverPlacePoomasiModal } from './components/NaverPlacePoomasiModal';
 import { InquiryType } from './types/trade';
@@ -358,6 +359,15 @@ export const App: React.FC = () => {
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [bannedStoreIds, setBannedStoreIds] = useState<string[]>([]);
+
+  // 📢 광고주 제휴 입점 모달 state
+  const [isAdPartnershipOpen, setIsAdPartnershipOpen] = useState(false);
+  const [adPartnershipDefaultZone, setAdPartnershipDefaultZone] = useState<'TOP_BANNER' | 'STORE_FEED' | 'COUPON_WALLET' | 'ALL'>('ALL');
+
+  const handleOpenAdPartnership = (zone: 'TOP_BANNER' | 'STORE_FEED' | 'COUPON_WALLET' | 'ALL' = 'ALL') => {
+    setAdPartnershipDefaultZone(zone);
+    setIsAdPartnershipOpen(true);
+  };
 
   const handleOpenInquiry = (type: InquiryType, prefill?: { defaultTitle?: string; defaultContent?: string }) => {
     setInquiryDefaultType(type);
@@ -1586,8 +1596,8 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* 🏆 쿠팡 파트너스 홈 상단 슬림 기획전 띠배너 (식자재/도매) */}
-      <TopMainSlimBanner />
+      {/* 🏆 쿠팡 파트너스 & 광고주 모집 홈 상단 슬림 기획전 띠배너 (식자재/도매) */}
+      <TopMainSlimBanner onOpenAdPartnership={() => handleOpenAdPartnership('TOP_BANNER')} />
 
       {/* Main Map View */}
       <main className="relative flex-1">
@@ -1752,6 +1762,7 @@ export const App: React.FC = () => {
           setIsCouponWalletOpen(false);
           setMobileActiveTab('MAP');
         }}
+        onOpenAdPartnership={() => handleOpenAdPartnership('COUPON_WALLET')}
       />
 
       {/* Register Store & Exchange Items Modal (Legacy/Direct) */}
@@ -2101,6 +2112,7 @@ export const App: React.FC = () => {
           setTargetMenuTestCampaign(campaign || null);
           setIsMenuTestModalOpen(true);
         }}
+        onOpenAdPartnership={() => handleOpenAdPartnership('STORE_FEED')}
       />
 
       {/* 🔔 실시간 거래 & 대화 알림 허용 안내 모달 */}
@@ -2109,6 +2121,13 @@ export const App: React.FC = () => {
         onClose={() => setIsAlarmModalOpen(false)}
         onConfirmEnable={handleConfirmEnableAlarm}
         onSendTestNotification={handleSendTestNotification}
+      />
+
+      {/* 📢 광고주 입점 및 B2B 제휴 상담 모달 (3대 핵심 노출 구역) */}
+      <AdPartnershipModal
+        isOpen={isAdPartnershipOpen}
+        onClose={() => setIsAdPartnershipOpen(false)}
+        defaultZone={adPartnershipDefaultZone}
       />
     </div>
   );

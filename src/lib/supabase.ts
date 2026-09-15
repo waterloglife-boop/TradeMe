@@ -3602,11 +3602,12 @@ export function toggleInquiryStatus(id: string): CustomerInquiry[] {
 
   // ☁️ Sync status update to Supabase
   try {
+    const isResolved = (nextStatus as string) === 'RESOLVED';
     supabase
       .from('customer_inquiries')
       .update({
         status: nextStatus,
-        resolved_at: nextStatus === 'RESOLVED' ? new Date().toISOString() : null,
+        resolved_at: isResolved ? new Date().toISOString() : null,
       })
       .eq('id', id)
       .then(() => {});
@@ -4093,7 +4094,7 @@ export async function sendPoomasiRequest(
 
     // 3) Trigger Push notification to toStore owner
     triggerBackgroundPush({
-      targetStoreId: toStore.storeId,
+      targetStoreId: toStore.id,
       targetAuthorName: toStore.ownerName,
       title: '⭐ [네이버 플레이스 품앗이] 맞저장 요청!',
       body: `[${fromStore.storeName}] 사장님이 내 가게를 저장하고 맞저장을 요청했습니다!`,

@@ -18,6 +18,7 @@ import {
   Navigation,
 } from 'lucide-react';
 import { Store, ExchangeItem, MenuTestCampaign } from '../types/trade';
+import { StoreFeedAdPartnershipCard } from './CoupangAffiliateBanner';
 
 interface StoreListModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ interface StoreListModalProps {
   onOpenProposal: (item: ExchangeItem) => void;
   onOpenChat: (targetStore: Store) => void;
   onOpenMenuTestApply: (store: Store, campaign?: MenuTestCampaign) => void;
+  onOpenAdPartnership?: () => void;
 }
 
 // Haversine 거리 계산 헬퍼 (km)
@@ -80,6 +82,7 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
   onOpenProposal,
   onOpenChat,
   onOpenMenuTestApply,
+  onOpenAdPartnership,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('ALL');
@@ -501,6 +504,9 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
 
         {/* 3. 매장 카드 스트림 */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 bg-slate-100/80">
+          {/* 📢 광고주 제휴 모집 배너 카드 (우리 동네 가맹점 모아보기 피드) */}
+          <StoreFeedAdPartnershipCard onOpenAdPartnership={onOpenAdPartnership} />
+
           {filteredStores.length === 0 ? (
             <div className="py-16 text-center space-y-3 bg-white rounded-3xl border border-gray-200 p-6">
               <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-2xl mx-auto">

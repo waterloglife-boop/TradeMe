@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { Store } from '../types/trade';
 import { Utensils, Bed, Coffee, CheckCircle2, Clock, MapPin, Sparkles } from 'lucide-react';
@@ -84,8 +84,8 @@ export const MapView: React.FC<MapViewProps> = ({
       else if (store.category === 'CAFE') { iconEmoji = '☕'; iconBg = '#ffedd5'; }
       else if (store.category === 'BEAUTY') { iconEmoji = '💅'; iconBg = '#fce7f3'; }
       else if (store.category === 'PUB') { iconEmoji = '🍺'; iconBg = '#fef9c3'; }
-      else if (store.category === 'RETAIL') { iconEmoji = '🛍️'; iconBg = '#ecfccb'; }
-      else if (store.category === 'SERVICE') { iconEmoji = '🧺'; iconBg = '#e0e7ff'; }
+      else if ((store.category as string) === 'RETAIL') { iconEmoji = '🛍️'; iconBg = '#ecfccb'; }
+      else if ((store.category as string) === 'SERVICE') { iconEmoji = '🧺'; iconBg = '#e0e7ff'; }
 
       // 테두리 강조 (말풍선 일체 제거)
       if (store.isMenuTesting) {

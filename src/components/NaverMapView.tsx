@@ -161,8 +161,8 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
         else if (store.category === 'CAFE') { iconEmoji = '☕'; iconBg = '#ffedd5'; }
         else if (store.category === 'BEAUTY') { iconEmoji = '💅'; iconBg = '#fce7f3'; }
         else if (store.category === 'PUB') { iconEmoji = '🍺'; iconBg = '#fef9c3'; }
-        else if (store.category === 'RETAIL') { iconEmoji = '🛍️'; iconBg = '#ecfccb'; }
-        else if (store.category === 'SERVICE') { iconEmoji = '🧺'; iconBg = '#e0e7ff'; }
+        else if ((store.category as string) === 'RETAIL') { iconEmoji = '🛍️'; iconBg = '#ecfccb'; }
+        else if ((store.category as string) === 'SERVICE') { iconEmoji = '🧺'; iconBg = '#e0e7ff'; }
 
         // 미세하고 일관된 테두리 강조 (지저분한 상단 말풍선 일체 제거!)
         if (store.isMenuTesting) {

@@ -42,15 +42,14 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
 
   // 1) 채팅창 접속 시 최신 대화(맨 아래)가 즉시 보이도록 스크롤
   useEffect(() => {
-    if (isOpen) {
-      scrollToBottom('auto');
-      const timer1 = setTimeout(() => scrollToBottom('auto'), 40);
-      const timer2 = setTimeout(() => scrollToBottom('auto'), 180);
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-      };
-    }
+    if (!isOpen) return;
+    scrollToBottom('auto');
+    const timer1 = setTimeout(() => scrollToBottom('auto'), 40);
+    const timer2 = setTimeout(() => scrollToBottom('auto'), 180);
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, [isOpen, targetStore?.id]);
 
   // 2) 새 메시지 전송 및 수신 시 부드럽게 맨 아래로 자동 스크롤
