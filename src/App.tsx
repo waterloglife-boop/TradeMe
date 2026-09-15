@@ -1584,25 +1584,6 @@ export const App: React.FC = () => {
           <span>💡 상단 [물물교환 품목 등록]에서 도로명 주소로 위치를 조율하세요</span>
         </div>
 
-        {/* 🎧 모바일 전용 소통창구 & 면책고지 퀵 스크롤 버튼 */}
-        <button
-          type="button"
-          onClick={() => {
-            const footerEl = document.querySelector('footer');
-            if (footerEl) {
-              footerEl.scrollIntoView({ behavior: 'smooth' });
-            } else {
-              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-            }
-          }}
-          className="md:hidden absolute bottom-6 right-4 z-20 flex items-center gap-1.5 px-3 py-2 bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-orange-300 text-xs font-black text-gray-800 hover:text-orange-600 active:scale-95 transition-all cursor-pointer select-none"
-          title="소통 창구 및 면책 고지로 바로 이동"
-        >
-          <span className="text-orange-500 text-sm">🎧</span>
-          <span>소통창구·고지</span>
-          <ChevronDown className="w-3.5 h-3.5 text-orange-500" />
-        </button>
-
         {/* Selected Store Detail & Exchange Items Drawer */}
         <StoreDetailDrawer
           store={selectedStore?.id === myStore.id ? myStore : selectedStore}

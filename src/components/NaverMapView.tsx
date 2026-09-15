@@ -395,7 +395,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   }
 
   return (
-    <div className="relative w-full h-[calc(100vh-100px)] min-h-[580px] overflow-hidden">
+    <div className="relative w-full h-[calc(100dvh-260px)] min-h-[380px] max-h-[520px] md:h-[calc(100vh-100px)] md:min-h-[580px] md:max-h-none overflow-hidden">
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
       {/* 📍 지도 핀 표시 방식 스위처 (알약 핀 ↔ 초소형 핀) */}

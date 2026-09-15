@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Bug, HelpCircle, Lightbulb, Handshake, Headphones, ArrowUp } from 'lucide-react';
+import { Bug, HelpCircle, Lightbulb, Handshake, Headphones, ArrowUp, ChevronDown } from 'lucide-react';
 import { InquiryType } from '../types/trade';
 
 interface FooterProps {
@@ -33,22 +33,29 @@ export const Footer: React.FC<FooterProps> = ({
   };
 
   return (
-    <footer className="w-full bg-slate-50 border-t border-gray-200 text-gray-600 py-10 px-4 sm:px-6 relative z-10 font-sans pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
+    <footer id="footer-section" className="w-full bg-slate-50 border-t border-gray-200 text-gray-600 pt-3 pb-10 px-4 sm:px-6 relative z-10 font-sans pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
       
-      {/* 🗺️ 모바일용 상단 지도 복귀 버튼 */}
-      <div className="flex justify-center mb-6 md:hidden">
-        <button
-          type="button"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-gray-300 text-xs font-bold text-gray-700 shadow-sm active:scale-95 transition-all"
-        >
-          <span>🗺️ 지도 화면으로 돌아가기</span>
-          <ArrowUp className="w-3.5 h-3.5 text-gray-500" />
-        </button>
+      {/* ⬇️ 모바일용 상단 피킹 힌트 손잡이 & 퀵 스크롤 바 */}
+      <div 
+        onClick={() => {
+          const cardEl = document.getElementById('footer-contact-card');
+          if (cardEl) {
+            cardEl.scrollIntoView({ behavior: 'smooth' });
+          } else {
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+          }
+        }}
+        className="md:hidden flex flex-col items-center justify-center cursor-pointer mb-3 select-none group"
+      >
+        <div className="w-12 h-1.5 rounded-full bg-gray-300 group-hover:bg-orange-400 transition-colors mb-2" />
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-white border border-orange-200 rounded-full text-[11px] font-extrabold text-orange-700 shadow-xs">
+          <span>🎧 소통 창구 · 면책고지</span>
+          <ChevronDown className="w-3.5 h-3.5 text-orange-500 animate-bounce" />
+        </div>
       </div>
 
       {/* 🎧 💌 원클릭 문의 및 오류, 제휴·광고 제안 Card */}
-      <div className="max-w-4xl mx-auto bg-white border border-orange-200/80 rounded-2xl p-5 sm:p-6 mb-8 shadow-xs">
+      <div id="footer-contact-card" className="max-w-4xl mx-auto bg-white border border-orange-200/80 rounded-2xl p-5 sm:p-6 mb-8 shadow-xs">
         <h4 className="text-gray-800 font-extrabold text-sm sm:text-base text-center mb-4 flex items-center justify-center gap-2">
           <span className="w-6 h-6 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-xs">
             <Headphones className="w-3.5 h-3.5" />
@@ -137,8 +144,20 @@ export const Footer: React.FC<FooterProps> = ({
         </p>
       </div>
 
+      {/* 🗺️ 모바일용 상단 지도 복귀 버튼 */}
+      <div className="flex justify-center mt-6 mb-2 md:hidden">
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-gray-300 text-xs font-bold text-gray-700 shadow-xs hover:border-orange-400 active:scale-95 transition-all cursor-pointer"
+        >
+          <span>🗺️ 지도 화면 맨 위로 돌아가기</span>
+          <ArrowUp className="w-3.5 h-3.5 text-gray-500" />
+        </button>
+      </div>
+
       {/* Copyright with Triple-Click Easter Egg */}
-      <div className="mt-8 pt-5 border-t border-gray-200 text-center">
+      <div className="mt-6 pt-4 border-t border-gray-200 text-center">
         <p
           onClick={handleCopyrightClick}
           className="text-xs text-gray-400 select-none cursor-pointer hover:text-orange-600 transition-colors inline-block py-1 font-medium"
