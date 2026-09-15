@@ -114,11 +114,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onToggleAlarm}
-                title={alarmEnabled ? "실시간 알람 소리 켜짐 (터치 시 끄기)" : "실시간 알람 소리 꺼짐 (터치 시 켜기)"}
-                className={`flex items-center gap-1 px-2 py-1 rounded-full border cursor-pointer select-none transition-all active:scale-95 ${
+                title={alarmEnabled ? "실시간 알람 소리 켜짐 (터치 시 끄기)" : "실시간 백그라운드 푸시 알람 켜기 (터치 시 설정 안내)"}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full border cursor-pointer select-none transition-all active:scale-95 ${
                   alarmEnabled
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
-                    : 'bg-gray-100 border-gray-200 text-gray-500'
+                    : 'bg-amber-50 border-amber-300 text-amber-900 shadow-xs'
                 }`}
               >
                 {alarmEnabled ? (
@@ -128,8 +128,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </>
                 ) : (
                   <>
-                    <BellOff className="w-3 h-3 text-gray-400" />
-                    <span className="text-[10px] font-black">알람 OFF</span>
+                    <Bell className="w-3 h-3 text-amber-600 animate-bounce" />
+                    <span className="text-[10px] font-black">알람 켜기</span>
                   </>
                 )}
               </button>
@@ -292,11 +292,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onToggleAlarm}
-                title={alarmEnabled ? "실시간 거래 및 대화 알람 소리 켜짐 (클릭 시 끄기)" : "알람 소리 꺼짐 (클릭 시 켜기)"}
+                title={alarmEnabled ? "실시간 거래 및 대화 알람 소리 켜짐 (클릭 시 끄기)" : "실시간 백그라운드 푸시 알람 켜기 (클릭 시 설정 안내)"}
                 className={`flex items-center gap-1 px-2 lg:px-2.5 py-1 sm:py-1.5 text-xs font-bold rounded-xl transition shadow-2xs active:scale-95 border cursor-pointer ${
                   alarmEnabled
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                    : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                    : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-xs'
                 }`}
               >
                 {alarmEnabled ? (
@@ -307,9 +307,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </>
                 ) : (
                   <>
-                    <BellOff className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="hidden xl:inline">알람 OFF</span>
-                    <span className="xl:hidden font-black text-[10px]">OFF</span>
+                    <Bell className="w-3.5 h-3.5 text-amber-600 animate-bounce" />
+                    <span className="hidden xl:inline">알람 켜기</span>
+                    <span className="xl:hidden font-black text-[10px]">켜기</span>
                   </>
                 )}
               </button>

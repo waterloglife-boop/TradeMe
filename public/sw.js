@@ -61,11 +61,26 @@ self.addEventListener('push', (event) => {
     body: body,
     icon: icon,
     badge: '/favicon-32x32.png',
-    vibrate: [200, 100, 200, 100, 200],
     tag: tag,
     renotify: true,
     data: { url: url },
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  // vibrate는 진동 모터를 지원하는 브라우저(안드로이드/데스크톱)에서만 적용 (iOS WebKit 방어)
+  try {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      options.vibrate = [200, 100, 200, 100, 200];
+    }
+  } catch (err) {}
+
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch((err) => {
+      // iOS / 특정 브라우저에서 옵션 불일치 시 기본 옵션으로 재시도
+      return self.registration.showNotification(title, {
+        body: body,
+        icon: icon,
+        data: { url: url },
+      });
+    })
+  );
 });

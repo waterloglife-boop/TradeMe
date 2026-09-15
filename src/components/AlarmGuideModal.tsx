@@ -278,7 +278,7 @@ export const AlarmGuideModal: React.FC<AlarmGuideModalProps> = ({
             <button
               type="button"
               onClick={() => {
-                alert('🍎 아이폰 알림 안내:\\n\\n사파리 화면 맨 밑의 [공유 (네모 속 ⬆️ 화살표)]를 누르신 후, [홈 화면에 추가]를 눌러 앱으로 접속해 주셔야 잠금화면 알림을 받으실 수 있습니다!');
+                alert('🍎 아이폰 알림 안내:\n\n사파리 화면 맨 밑의 [공유 (네모 속 ⬆️ 화살표)]를 누르신 후, [홈 화면에 추가]를 눌러 앱으로 접속해 주셔야 잠금화면 알림을 받으실 수 있습니다!');
                 onConfirmEnable();
               }}
               className="flex-1 py-3 px-4 rounded-xl font-black text-xs sm:text-sm bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"

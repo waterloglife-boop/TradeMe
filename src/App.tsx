@@ -101,18 +101,21 @@ export const App: React.FC = () => {
   const [pendingTradeCount, setPendingTradeCount] = useState(0);
   const [pendingMenuTestCount, setPendingMenuTestCount] = useState(0);
 
-  // 🔔 실시간 알람 사운드 & 수동 새로고침 State (기본값: ON / 허용 시 자동 활성화)
+  // 🔔 실시간 알람 사운드 & 백그라운드 푸시 State
   const [alarmEnabled, setAlarmEnabled] = useState<boolean>(() => {
     try {
-      const saved = localStorage.getItem('trademe_alarm_enabled');
-      if (saved === 'false') return false; // 명시적으로 끈 경우에만 OFF
-      if (saved === 'true') return true;
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        return true;
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        // 알림 권한이 허용되어 있을 때만 활성화 (미허용 시 상단에 '알람 켜기' 유도 버튼 노출)
+        if (Notification.permission !== 'granted') {
+          return false;
+        }
+        const saved = localStorage.getItem('trademe_alarm_enabled');
+        return saved !== 'false';
       }
-      return true; // 실시간 1:1 거래 및 채팅 알람 기본 ON
+      const saved = localStorage.getItem('trademe_alarm_enabled');
+      return saved === 'true';
     } catch (e) {
-      return true;
+      return false;
     }
   });
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState<boolean>(false);
@@ -142,7 +145,7 @@ export const App: React.FC = () => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'granted') {
         isPermissionGranted = true;
-      } else if (Notification.permission === 'default') {
+      } else {
         try {
           const permission = await Notification.requestPermission();
           isPermissionGranted = permission === 'granted';
@@ -152,15 +155,14 @@ export const App: React.FC = () => {
       }
     }
 
-    // 소리 알람 활성화 (푸시 권한이 차단되어 있어도 앱 내 Web Audio 알람은 100% 정상 작동)
-    setAlarmEnabled(true);
-    try {
-      localStorage.setItem('trademe_alarm_enabled', 'true');
-    } catch (e) {}
-
-    playNotificationChime();
-
     if (isPermissionGranted) {
+      setAlarmEnabled(true);
+      try {
+        localStorage.setItem('trademe_alarm_enabled', 'true');
+      } catch (e) {}
+
+      playNotificationChime();
+
       if (myStore.id && myStore.id !== 'my_store') {
         registerPushSubscription(myStore.id);
       }
@@ -170,7 +172,13 @@ export const App: React.FC = () => {
         tag: 'trademe-welcome',
       });
     } else {
-      setSyncToastMessage('🔊 앱 내 소리 알람이 켜졌습니다! (잠금화면 푸시는 주소창 🔒에서 허용 필요)');
+      // 브라우저 권한이 거부되었거나 아직 허용되지 않은 경우
+      setAlarmEnabled(false);
+      try {
+        localStorage.setItem('trademe_alarm_enabled', 'false');
+      } catch (e) {}
+      playNotificationChime();
+      setSyncToastMessage('🔊 앱 내 소리는 켜졌으나, 백그라운드 푸시는 브라우저 알림 허용이 필요합니다.');
     }
     setTimeout(() => setSyncToastMessage(null), 3500);
   };
@@ -846,11 +854,38 @@ export const App: React.FC = () => {
     return () => unsubComments();
   }, [myStore.id, myStore.ownerName, myStore.storeName, userOwnerName]);
 
-  // 📲 백그라운드 Web Push (Google FCM) 실기기 구독 자동 등록
+  // 📲 백그라운드 Web Push (Google FCM) 실기기 구독 자동 등록 및 앱 복귀 시 동기화
   useEffect(() => {
-    if (myStore.id && myStore.id !== 'my_store') {
-      registerPushSubscription(myStore.id);
-    }
+    const syncPushAndAlarmState = () => {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          const saved = localStorage.getItem('trademe_alarm_enabled');
+          if (saved !== 'false') {
+            setAlarmEnabled(true);
+          }
+          if (myStore.id && myStore.id !== 'my_store') {
+            registerPushSubscription(myStore.id);
+          }
+        } else {
+          setAlarmEnabled(false);
+        }
+      }
+    };
+
+    syncPushAndAlarmState();
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        syncPushAndAlarmState();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+    };
   }, [myStore.id]);
 
   useEffect(() => {

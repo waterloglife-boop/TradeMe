@@ -4044,15 +4044,14 @@ export async function sendPoomasiRequest(
     } catch (e) {}
 
     // 3) Trigger Push notification to toStore owner
-    triggerBackgroundPush(
-      toStore.ownerName,
-      `⭐ [네이버 플레이스 저장 품앗이] [${fromStore.storeName}] 사장님이 내 가게를 저장하고 맞저장을 요청했습니다!`,
-      {
-        type: 'POOMASI_REQUEST',
-        requestId: newRequest.id,
-        fromStoreName: fromStore.storeName,
-      }
-    );
+    triggerBackgroundPush({
+      targetStoreId: toStore.storeId,
+      targetAuthorName: toStore.ownerName,
+      title: '⭐ [네이버 플레이스 품앗이] 맞저장 요청!',
+      body: `[${fromStore.storeName}] 사장님이 내 가게를 저장하고 맞저장을 요청했습니다!`,
+      tag: `poomasi-${newRequest.id}`,
+      url: '/',
+    });
 
     return { success: true };
   } catch (err: any) {

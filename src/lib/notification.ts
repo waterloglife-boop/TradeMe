@@ -38,7 +38,6 @@ export async function showDeviceNotification(
     body: options.body || '',
     icon: options.icon || '/pwa-192x192.png',
     badge: options.badge || '/favicon-32x32.png',
-    vibrate: [200, 100, 200, 100, 200],
     tag: options.tag || 'trademe-alert',
     renotify: true,
     data: {
@@ -46,6 +45,12 @@ export async function showDeviceNotification(
       ...options.data,
     },
   };
+
+  try {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      notifOptions.vibrate = [200, 100, 200, 100, 200];
+    }
+  } catch (err) {}
 
   // 4. 모바일 안드로이드(크롬/삼성인터넷)는 반드시 ServiceWorkerRegistration.showNotification() 사용
   if ('serviceWorker' in navigator) {

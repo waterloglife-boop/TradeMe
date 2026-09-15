@@ -77,11 +77,17 @@ export default async function handler(req, res) {
     let sentCount = 0;
     const staleIds = [];
 
+    const pushOptions = {
+      TTL: 60 * 60 * 24, // 24 hours
+      urgency: 'high',   // 🚨 CRITICAL: High urgency delivers push immediately even in Android Doze mode or iOS standby
+      topic: (tag || 'trademe').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32),
+    };
+
     await Promise.all(
       subs.map(async (row) => {
         try {
           if (!row.subscription || !row.subscription.endpoint) return;
-          await webpush.sendNotification(row.subscription, payload);
+          await webpush.sendNotification(row.subscription, payload, pushOptions);
           sentCount++;
         } catch (pushErr) {
           console.warn('[WebPush] Push failed for ' + row.id + ':', pushErr.statusCode, pushErr.message);

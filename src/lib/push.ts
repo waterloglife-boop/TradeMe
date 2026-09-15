@@ -58,18 +58,22 @@ export async function registerPushSubscription(storeId: string): Promise<boolean
     const endpoint = sub.endpoint;
 
     // 3. Supabase push_subscriptions 테이블에 동기화
-    // 기존에 동일 엔드포인트가 이미 등록되어 있는지 확인
+    // 이 기기의 고유 endpoint를 기준으로 조회하여 기기별 등록/갱신
     const { data: existingRows } = await supabase
       .from('push_subscriptions')
-      .select('id, store_id')
-      .limit(10);
+      .select('id, store_id, subscription')
+      .limit(100);
 
-    const match = existingRows?.find((r: any) => r.store_id === storeId);
+    const match = existingRows?.find((r: any) => {
+      const ep = r.subscription?.endpoint;
+      return ep && ep === endpoint;
+    });
 
     if (match) {
       await supabase
         .from('push_subscriptions')
         .update({
+          store_id: storeId,
           subscription: subJson,
           user_agent: navigator.userAgent,
           updated_at: new Date().toISOString(),
