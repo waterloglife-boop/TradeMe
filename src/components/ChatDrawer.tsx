@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, ArrowRightLeft, CheckCircle2, Store, Clock, Trash2 } from 'lucide-react';
 import { Store as StoreType, ChatMessage } from '../types/trade';
 import { getAllStoredVouchers } from '../lib/supabase';
@@ -29,6 +29,36 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   onDeleteChat,
 }) => {
   const [inputText, setInputText] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior });
+    } else if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  };
+
+  // 1) 채팅창 접속 시 최신 대화(맨 아래)가 즉시 보이도록 스크롤
+  useEffect(() => {
+    if (isOpen) {
+      scrollToBottom('auto');
+      const timer1 = setTimeout(() => scrollToBottom('auto'), 40);
+      const timer2 = setTimeout(() => scrollToBottom('auto'), 180);
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
+  }, [isOpen, targetStore?.id]);
+
+  // 2) 새 메시지 전송 및 수신 시 부드럽게 맨 아래로 자동 스크롤
+  useEffect(() => {
+    if (isOpen && messages.length > 0) {
+      scrollToBottom('smooth');
+    }
+  }, [messages.length, isOpen]);
 
   if (!isOpen || !targetStore) return null;
 
@@ -188,7 +218,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
       )}
 
       {/* Messages Stream */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50">
+      <div ref={containerRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50">
         <div className="text-center my-2">
           <span className="text-[11px] bg-gray-200 text-gray-600 px-3 py-1 rounded-full font-medium">
             1:1 사장님 물물교환 대화방이 생성되었습니다
@@ -411,6 +441,8 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             </div>
           );
         })}
+        {/* 최신 대화로 즉시 스크롤하기 위한 하단 앵커 */}
+        <div ref={messagesEndRef} className="h-0 w-full" />
       </div>
 
       {/* Quick Suggestion Chips */}
