@@ -65,7 +65,7 @@ function estimateWalkTime(km: number): string {
   return `도보 ${hours}시간 ${remainMins}분`;
 }
 
-type StatusFilterType = 'ALL' | 'MENU_TEST' | 'EXCHANGE_READY';
+type StatusFilterType = 'ALL' | 'MENU_TEST' | 'EXCHANGE_READY' | 'VOUCHER';
 type CategoryFilterType = 'ALL' | 'FOOD' | 'RETAIL' | 'BEAUTY' | 'OTHER';
 type DistanceFilterType = 'ALL' | 1 | 3 | 5 | 10;
 type SortType = 'DISTANCE' | 'TRADES' | 'NAME';
@@ -108,6 +108,10 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
       .filter((store) => {
         // 1. 상태 필터
         if (statusFilter === 'MENU_TEST' && !store.isMenuTesting) return false;
+        if (statusFilter === 'VOUCHER') {
+          const hasVoucher = store.voucherActive || (store.exchangeItems || []).some((it) => it.isVoucher);
+          if (!hasVoucher) return false;
+        }
         if (statusFilter === 'EXCHANGE_READY') {
           const hasExchange =
             store.breakTimeActive ||
@@ -215,6 +219,13 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
   }, [storesWithDistance, statusFilter, categoryFilter, distanceFilter, searchQuery, sortBy]);
 
   const menuTestCount = useMemo(() => stores.filter((s) => s.isMenuTesting).length, [stores]);
+  const voucherCount = useMemo(
+    () =>
+      stores.filter(
+        (s) => s.voucherActive || (s.exchangeItems || []).some((it) => it.isVoucher)
+      ).length,
+    [stores]
+  );
   const exchangeReadyCount = useMemo(
     () =>
       stores.filter(
@@ -311,7 +322,7 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
             )}
           </div>
 
-          {/* 상태 필터 알약 (신메뉴 시식단 / 물물교환) */}
+          {/* 상태 필터 알약 (전체 / 체험단 모집 / 물물교환 / 금액권) */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-touch py-0.5">
             <button
               type="button"
@@ -334,7 +345,7 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
               }`}
             >
               <span>🧪</span>
-              <span>신메뉴 시식단</span>
+              <span>체험단 모집</span>
               <span className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                 statusFilter === 'MENU_TEST' ? 'bg-white text-purple-800' : 'bg-purple-100 text-purple-800'
               }`}>
@@ -356,6 +367,23 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
                 statusFilter === 'EXCHANGE_READY' ? 'bg-white text-amber-900' : 'bg-amber-100 text-amber-900'
               }`}>
                 {exchangeReadyCount}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('VOUCHER')}
+              className={`flex-shrink-0 whitespace-nowrap flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+                statusFilter === 'VOUCHER'
+                  ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-300'
+                  : 'bg-white border border-amber-200 text-amber-900 hover:bg-amber-50'
+              }`}
+            >
+              <span>🎟️</span>
+              <span>금액권 가능</span>
+              <span className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                statusFilter === 'VOUCHER' ? 'bg-white text-amber-900' : 'bg-amber-100 text-amber-900'
+              }`}>
+                {voucherCount}
               </span>
             </button>
           </div>
@@ -472,7 +500,7 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
         </div>
 
         {/* 3. 매장 카드 스트림 */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 bg-gray-100/70">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 bg-slate-100/80">
           {filteredStores.length === 0 ? (
             <div className="py-16 text-center space-y-3 bg-white rounded-3xl border border-gray-200 p-6">
               <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-2xl mx-auto">
@@ -504,10 +532,10 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
               return (
                 <div
                   key={store.id}
-                  className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200/90 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col break-keep"
+                  className="bg-white rounded-2xl sm:rounded-3xl border-2 border-gray-300 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col break-keep ring-1 ring-black/5"
                 >
-                  {/* 카드 상단 정보: 썸네일 + 기본 정보 + 거래 성사 횟수 뱃지 */}
-                  <div className="p-4 sm:p-5 flex items-start gap-3.5 border-b border-gray-100">
+                  {/* 카드 상단 정보: 썸네일 + 기본 정보 + 거래 성사 횟수 & 상태 뱃지 */}
+                  <div className="p-4 sm:p-5 flex items-start gap-3.5 border-b-2 border-gray-100 bg-gradient-to-r from-gray-50/90 via-slate-50/40 to-white">
                     {/* 매장 썸네일 */}
                     <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200/80 flex-shrink-0 shadow-2xs">
                       <img
@@ -546,12 +574,18 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
                         {store.isMenuTesting && (
                           <span className="px-2 py-0.5 text-[10px] font-black bg-purple-600 text-white rounded-md whitespace-nowrap flex items-center gap-0.5 shadow-2xs">
                             <span>🧪</span>
-                            <span>시식단 모집</span>
+                            <span>체험단 모집</span>
                           </span>
                         )}
                         {store.breakTimeActive && (
                           <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 rounded-md whitespace-nowrap">
                             ☕ 교환 가능
+                          </span>
+                        )}
+                        {hasVoucher && (
+                          <span className="px-2 py-0.5 text-[10px] font-black bg-amber-500 text-white rounded-md whitespace-nowrap flex items-center gap-0.5 shadow-2xs">
+                            <span>🎟️</span>
+                            <span>금액권 가능 ({(store.voucherAmount || 30000).toLocaleString()}원)</span>
                           </span>
                         )}
                       </div>
@@ -595,45 +629,86 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
                     </div>
                   </div>
 
-                  {/* 카드 바디: 신메뉴 시식단 배너 & 교환 가능 품목 */}
-                  <div className="p-4 sm:p-5 space-y-3.5 flex-1 bg-white">
-                    {/* 🧪 신메뉴 시식단 하이라이트 배너 */}
+                  {/* 카드 바디: 체험단 모집 배너 & 상생 금액권 & 교환 가능 품목 */}
+                  <div className="p-4 sm:p-5 space-y-3 flex-1 bg-white">
+                    {/* 🧪 체험단 모집 슬림 미니 배너 (소형화 & 세련된 디자인 적용) */}
                     {store.isMenuTesting && (
-                      <div className="rounded-2xl bg-gradient-to-br from-purple-900 via-indigo-950 to-purple-900 text-white p-3.5 sm:p-4 shadow-sm space-y-2 border border-purple-400/30">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="px-2.5 py-0.5 text-[10px] font-black bg-purple-500 text-white rounded-full flex items-center gap-1 whitespace-nowrap shadow-xs">
-                            <span>🧪</span> 신메뉴 시식단 모집 중
+                      <div className="p-2.5 sm:p-3 bg-purple-50/90 border border-purple-200/90 rounded-2xl flex items-center justify-between gap-2.5 shadow-2xs">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <span className="px-2 py-0.5 text-[10px] font-black bg-purple-600 text-white rounded-md whitespace-nowrap flex-shrink-0 shadow-2xs">
+                            🧪 체험단
                           </span>
-                          <span className="text-[11px] font-bold text-purple-200 whitespace-nowrap">
-                            정원 {store.menuTestQuota || 5}명
-                          </span>
-                        </div>
-                        <div className="space-y-0.5">
-                          <h4 className="font-extrabold text-sm sm:text-base text-white tracking-tight leading-snug break-keep">
-                            {store.menuTestTitle || '가을 신메뉴 1호 시식단 모집'}
-                          </h4>
-                          <p className="text-xs text-purple-200 leading-relaxed break-keep">
-                            🎁 제공 혜택: <strong className="text-amber-300 font-bold">{store.menuTestReward || '신메뉴 2인 무료 시식'}</strong>
-                          </p>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-extrabold text-xs sm:text-sm text-purple-950 truncate">
+                              {store.menuTestTitle || '가을 신메뉴 1호 체험단 모집'}
+                            </h4>
+                            <p className="text-[11px] text-purple-700 truncate">
+                              🎁 혜택: <span className="font-bold text-purple-900">{store.menuTestReward || '신메뉴 2인 무료 시식'}</span> · 정원 {store.menuTestQuota || 5}명
+                            </p>
+                          </div>
                         </div>
                         {isMyStore ? (
-                          <div className="w-full py-1.5 bg-purple-800/60 text-purple-200 text-center text-xs font-bold rounded-xl border border-purple-400/20">
-                            👑 내 매장이 등록한 신메뉴 시식단입니다
-                          </div>
+                          <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-2.5 py-1 rounded-lg whitespace-nowrap flex-shrink-0 text-center">
+                            내 모집글
+                          </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => onOpenMenuTestApply(store)}
-                            className="w-full py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-gray-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl shadow-xs whitespace-nowrap active:scale-95 transition-all flex-shrink-0 cursor-pointer"
                           >
-                            <span>🧪</span>
-                            <span>[{store.storeName}] 시식단 바로 신청하기</span>
+                            체험단 신청
                           </button>
                         )}
                       </div>
                     )}
 
-                    {/* 🤝 교환 가능 품목 목록 (이미지 크기 소형화 & 가로 컴팩트 배치 적용) */}
+                    {/* 🎟️ 상생 금액권 교환 블록 (일반 품목 유무와 무관하게 항상 표시) */}
+                    {hasVoucher && (
+                      <div className="p-2.5 sm:p-3 bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-2.5 shadow-2xs">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm shadow-2xs flex-shrink-0 font-bold">
+                            🎟️
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded whitespace-nowrap">
+                                상생 금액권
+                              </span>
+                              <span className="text-xs sm:text-sm font-black text-amber-950 truncate">
+                                {(store.voucherAmount || 30000).toLocaleString()}원 자유 이용권
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-amber-800 truncate">
+                              전 메뉴 및 서비스 자유 선택 이용 (초과 금액 차액 결제 가능)
+                            </p>
+                          </div>
+                        </div>
+                        {!isMyStore && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onOpenProposal({
+                                id: `voucher-${store.id}`,
+                                storeId: store.id,
+                                title: `${store.storeName} ${(store.voucherAmount || 30000).toLocaleString()}원 상생 금액권`,
+                                estimatedPrice: store.voucherAmount || 30000,
+                                description: '전 메뉴 및 서비스 자유 선택 이용',
+                                type: 'VOUCHER',
+                                imageUrl: store.storeImageUrl || '',
+                                isAvailable: true,
+                                isVoucher: true,
+                              })
+                            }
+                            className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold text-xs rounded-xl shadow-xs whitespace-nowrap active:scale-95 transition-all flex-shrink-0 cursor-pointer"
+                          >
+                            금액권 제안
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 🤝 교환 가능 품목 목록 */}
                     {regularItems.length > 0 ? (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs font-extrabold text-gray-800">
@@ -685,47 +760,15 @@ export const StoreListModal: React.FC<StoreListModalProps> = ({
                           ))}
                         </div>
                       </div>
-                    ) : hasVoucher ? (
-                      <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-2xl flex items-center justify-between gap-3">
-                        <div className="space-y-0.5">
-                          <span className="px-2 py-0.5 text-[10px] font-black bg-amber-500 text-white rounded-md whitespace-nowrap">
-                            🎟️ VIP 상생 금액 이용권 발행 매장
-                          </span>
-                          <p className="text-xs font-bold text-gray-800 break-keep">
-                            {store.storeName} {(store.voucherAmount || 30000).toLocaleString()}원 이용권
-                          </p>
-                        </div>
-                        {!isMyStore && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onOpenProposal({
-                                id: `voucher-${store.id}`,
-                                storeId: store.id,
-                                title: `${store.storeName} ${(store.voucherAmount || 30000).toLocaleString()}원 상생 이용권`,
-                                estimatedPrice: store.voucherAmount || 30000,
-                                description: '전 메뉴 및 서비스 자유 이용',
-                                type: 'VOUCHER',
-                                imageUrl: store.storeImageUrl || '',
-                                isAvailable: true,
-                                isVoucher: true,
-                              })
-                            }
-                            className="px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold text-xs rounded-xl shadow-xs whitespace-nowrap active:scale-95 cursor-pointer"
-                          >
-                            금액권 교환 제안
-                          </button>
-                        )}
-                      </div>
-                    ) : (
+                    ) : !hasVoucher ? (
                       <div className="p-3.5 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-500 font-medium break-keep">
                         ☕ 사장님이 가입 후 분위기를 둘러보고 계십니다. 1:1 대화로 편하게 소통해 보세요!
                       </div>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* 카드 하단 액션 버튼 바 */}
-                  <div className="p-3 sm:px-5 bg-gray-50/80 border-t border-gray-100 flex items-center justify-between gap-2">
+                  <div className="p-3 sm:px-5 bg-gray-50/90 border-t-2 border-gray-100 flex items-center justify-between gap-2">
                     <button
                       type="button"
                       onClick={() => {

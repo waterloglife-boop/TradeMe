@@ -111,11 +111,15 @@ export const MapView: React.FC<MapViewProps> = ({
           ${
             store.isMenuTesting
               ? `<div class="absolute -top-6 -left-6 bg-purple-700 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full shadow-lg border border-purple-300 flex items-center gap-0.5 whitespace-nowrap animate-bounce">
-                  <span>🧪 신메뉴 테스트</span>
+                  <span>🧪 체험단 모집</span>
                  </div>`
               : isBreakTime
               ? `<div class="absolute -top-6 -left-4 bg-amber-600 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shadow-lg border border-amber-300 flex items-center gap-0.5 whitespace-nowrap animate-bounce">
                   <span>☕ 교환 가능</span>
+                 </div>`
+              : (store.voucherActive || (store.exchangeItems && store.exchangeItems.some((it: any) => it.isVoucher)))
+              ? `<div class="absolute -top-6 -left-4 bg-amber-600 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shadow-lg border border-amber-300 flex items-center gap-0.5 whitespace-nowrap animate-bounce">
+                  <span>🎟️ 금액권 가능</span>
                  </div>`
               : ''
           }
@@ -136,12 +140,15 @@ export const MapView: React.FC<MapViewProps> = ({
       });
     };
 
-    // Add My Store Marker
-    const myIcon = createCustomIcon(myStore, true);
-    const myMarker = L.marker([myStore.lat, myStore.lng], { icon: myIcon })
-      .addTo(map)
-      .on('click', () => onSelectStore(myStore));
-    markersRef.current[myStore.id] = myMarker;
+    // Add My Store Marker (필터 결과에 포함된 경우에만 노출)
+    const isMyStoreInFiltered = stores.some((s) => s.id === myStore?.id);
+    if (isMyStoreInFiltered && myStore?.lat && myStore?.lng) {
+      const myIcon = createCustomIcon(myStore, true);
+      const myMarker = L.marker([myStore.lat, myStore.lng], { icon: myIcon })
+        .addTo(map)
+        .on('click', () => onSelectStore(myStore));
+      markersRef.current[myStore.id] = myMarker;
+    }
 
     // Add Other Stores Markers
     stores.forEach((store) => {

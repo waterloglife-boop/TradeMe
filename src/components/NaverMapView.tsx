@@ -183,11 +183,15 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
             ${
               store.isMenuTesting
                 ? `<div style="position: absolute; top: -22px; left: -14px; background: #6d28d9; color: white; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; box-shadow: 0 2px 8px rgba(109,40,217,0.5); border: 1px solid #ddd6fe;">
-                    🧪 신메뉴 테스트
+                    🧪 체험단 모집
                    </div>`
                 : isBreakTime
                 ? `<div style="position: absolute; top: -22px; left: -10px; background: #d97706; color: white; font-weight: bold; font-size: 10px; padding: 2px 6px; border-radius: 10px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3); border: 1px solid #fef3c7;">
                     ☕ 교환 가능
+                   </div>`
+                : (store.voucherActive || (store.exchangeItems && store.exchangeItems.some((it: any) => it.isVoucher)))
+                ? `<div style="position: absolute; top: -22px; left: -10px; background: #d97706; color: white; font-weight: bold; font-size: 10px; padding: 2px 6px; border-radius: 10px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3); border: 1px solid #fde68a;">
+                    🎟️ 금액권 가능
                    </div>`
                 : ''
             }
@@ -201,8 +205,9 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
         `;
       };
 
-      // Render My Store Marker
-      if (myStore && typeof myStore.lat === 'number' && typeof myStore.lng === 'number' && !isNaN(myStore.lat) && !isNaN(myStore.lng)) {
+      // Render My Store Marker (필터 적용 시 myStore가 필터 결과에 포함된 경우에만 노출)
+      const isMyStoreInFiltered = stores.some((s) => s.id === myStore?.id);
+      if (isMyStoreInFiltered && myStore && typeof myStore.lat === 'number' && typeof myStore.lng === 'number' && !isNaN(myStore.lat) && !isNaN(myStore.lng)) {
         const myMarker = new window.naver.maps.Marker({
           position: new window.naver.maps.LatLng(myStore.lat, myStore.lng),
           map,

@@ -1449,11 +1449,34 @@ export const App: React.FC = () => {
         isLoggedIn={isLoggedIn}
         userOwnerName={userOwnerName}
         selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
+        onSelectCategory={(cat) => {
+          setSelectedCategory(cat);
+          if (cat === 'ALL') {
+            setOnlyMenuTesting(false);
+          }
+        }}
         onlyBreakTime={onlyBreakTime}
-        onToggleOnlyBreakTime={() => setOnlyBreakTime(!onlyBreakTime)}
+        onToggleOnlyBreakTime={() => {
+          const next = !onlyBreakTime;
+          setOnlyBreakTime(next);
+          if (next) {
+            setOnlyMenuTesting(false);
+          }
+        }}
         onlyMenuTesting={onlyMenuTesting}
-        onToggleOnlyMenuTesting={() => setOnlyMenuTesting(!onlyMenuTesting)}
+        onToggleOnlyMenuTesting={() => {
+          if (!onlyMenuTesting) {
+            setOnlyMenuTesting(true);
+            setSelectedCategory('ALL');
+            setOnlyBreakTime(false);
+            setSyncToastMessage('🧪 체험단 모집 중인 매장만 지도에 표시합니다.');
+            setTimeout(() => setSyncToastMessage(null), 2500);
+          } else {
+            setOnlyMenuTesting(false);
+            setSyncToastMessage('🗺️ 전체 가맹점을 지도에 표시합니다.');
+            setTimeout(() => setSyncToastMessage(null), 2000);
+          }
+        }}
         menuTestingStoreCount={menuTestingStoreCount}
         storeCount={filteredStores.length}
         hasRegisteredStore={hasRegisteredStore}

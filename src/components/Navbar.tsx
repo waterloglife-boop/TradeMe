@@ -390,9 +390,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? 'bg-purple-600 text-white ring-2 ring-purple-300 shadow-purple-200'
                     : 'bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100'
                 }`}
+                title="체험단(시식단) 모집 매장만 지도에 표시"
               >
                 <span>🧪</span>
-                <span>신메뉴 테스트</span>
+                <span>체험단 모집</span>
                 {menuTestingStoreCount > 0 && (
                   <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                     onlyMenuTesting ? 'bg-white text-purple-700' : 'bg-purple-600 text-white'
