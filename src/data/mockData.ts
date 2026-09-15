@@ -17,7 +17,7 @@ export const MY_STORE_MOCK: Store = {
   rating: 5.0,
   reviewCount: 88,
   storeImageUrl: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80',
-  description: '안녕하세요 북정 마라탕 맛집 마라위크입니다.\n저희는 신선한 재료로 여러분의 마라의 편견을 깨기 위해 노력하고 있습니다.',
+  description: '',
 
   // 🧪 신메뉴 테스트 캠페인
   isMenuTesting: true,

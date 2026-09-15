@@ -581,12 +581,9 @@ export const RegisterStoreAndItemsModal: React.FC<RegisterStoreAndItemsModalProp
                   maxLength={300}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="예: 안녕하세요 북정 마라탕 맛집 마라위크입니다. 저희는 신선한 재료로 여러분의 마라의 편견을 깨기 위해 노력하고 있습니다. 이웃 사장님들과의 교환과 소통 언제나 환영합니다!"
+                  placeholder="가게소개 & 사장님 인사말 입력"
                   className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-medium leading-relaxed resize-none"
                 />
-                <p className="text-[11px] text-gray-500 mt-1">
-                  💡 지도나 목록에서 우리 가게를 클릭했을 때 상단에 표시되는 소개글입니다.
-                </p>
               </div>
 
               {/* Operating Hours setup (Replaces Break Time per user request) */}
