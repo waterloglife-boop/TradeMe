@@ -14,6 +14,7 @@ interface NavbarProps {
   onlyMenuTesting?: boolean;
   onToggleOnlyMenuTesting?: () => void;
   menuTestingStoreCount?: number;
+  exchangeReadyStoreCount?: number;
   storeCount: number;
   hasRegisteredStore?: boolean;
   pendingAlertCount?: number;
@@ -46,6 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onlyMenuTesting = false,
   onToggleOnlyMenuTesting,
   menuTestingStoreCount = 0,
+  exchangeReadyStoreCount = 0,
   storeCount,
   hasRegisteredStore = false,
   pendingAlertCount = 0,
@@ -414,6 +416,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Clock className="w-3.5 h-3.5" />
               <span>☕ 물물교환 가능</span>
+              {exchangeReadyStoreCount > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  onlyBreakTime ? 'bg-white text-amber-800' : 'bg-amber-600 text-white'
+                }`}>
+                  {exchangeReadyStoreCount}
+                </span>
+              )}
             </button>
 
             {/* 📋 목록으로 모아보기 버튼 */}

@@ -23,6 +23,8 @@ export const MapView: React.FC<MapViewProps> = ({
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
   const tempPickerMarkerRef = useRef<L.Marker | null>(null);
 
+  const [pinStyle, setPinStyle] = useState<'PILL' | 'MICRO'>('PILL');
+
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -70,35 +72,70 @@ export const MapView: React.FC<MapViewProps> = ({
     markersRef.current = {};
 
     const createCustomIcon = (store: Store, isMyStore: boolean) => {
-      const isBreakTime = store.breakTimeActive;
       const isSelected = selectedStore?.id === store.id;
 
-      let bgColor = 'bg-slate-800';
-      let borderColor = 'border-slate-600';
       let iconEmoji = '🍽️';
+      let iconBg = '#f1f5f9';
+      let borderColor = '#cbd5e1';
 
-      if (store.category === 'ACCOMMODATION') iconEmoji = '🏨';
-      if (store.category === 'JAPANESE') iconEmoji = '🍣';
-      if (store.category === 'WESTERN') iconEmoji = '🍝';
-      if (store.category === 'CAFE') iconEmoji = '☕';
-      if (store.category === 'BEAUTY') iconEmoji = '💅';
-      if (store.category === 'PUB') iconEmoji = '🍺';
-      if (isMyStore) iconEmoji = '👑';
+      if (store.category === 'ACCOMMODATION') { iconEmoji = '🏨'; iconBg = '#e0f2fe'; }
+      else if (store.category === 'JAPANESE') { iconEmoji = '🍣'; iconBg = '#fef3c7'; }
+      else if (store.category === 'WESTERN') { iconEmoji = '🍝'; iconBg = '#fee2e2'; }
+      else if (store.category === 'CAFE') { iconEmoji = '☕'; iconBg = '#ffedd5'; }
+      else if (store.category === 'BEAUTY') { iconEmoji = '💅'; iconBg = '#fce7f3'; }
+      else if (store.category === 'PUB') { iconEmoji = '🍺'; iconBg = '#fef9c3'; }
+      else if (store.category === 'RETAIL') { iconEmoji = '🛍️'; iconBg = '#ecfccb'; }
+      else if (store.category === 'SERVICE') { iconEmoji = '🧺'; iconBg = '#e0e7ff'; }
 
-      if (isBreakTime) {
-        bgColor = 'bg-gradient-to-tr from-amber-500 to-orange-500';
-        borderColor = 'border-amber-200 ring-4 ring-amber-400/40 animate-pulse';
-      }
-
+      // 테두리 강조 (말풍선 일체 제거)
       if (store.isMenuTesting) {
-        bgColor = 'bg-gradient-to-tr from-purple-600 via-indigo-600 to-purple-700';
-        borderColor = 'border-purple-200 ring-4 ring-purple-400/60 animate-pulse';
-        iconEmoji = '🧪';
+        borderColor = '#9333ea';
+      } else if (store.breakTimeActive) {
+        borderColor = '#f97316';
       }
 
       if (isMyStore) {
-        bgColor = 'bg-gradient-to-tr from-blue-600 to-indigo-600';
-        borderColor = 'border-blue-200 ring-2 ring-blue-400/50';
+        iconEmoji = '👑';
+        borderColor = '#2563eb';
+        iconBg = '#dbeafe';
+      }
+
+      if (isSelected) {
+        borderColor = '#ea580c';
+      }
+
+      if (pinStyle === 'MICRO') {
+        const html = `
+          <div 
+            data-store-id="${store.id}"
+            onclick="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
+            ontouchend="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
+            style="transform: translate(-50%, -50%) ${isSelected ? 'scale(1.25)' : 'scale(1)'}; cursor: pointer;"
+            class="transition-transform select-none"
+            title="${store.storeName}"
+          >
+            <div style="
+              width: 26px;
+              height: 26px;
+              border-radius: 50%;
+              background: ${isMyStore ? '#eff6ff' : '#ffffff'};
+              border: 2px solid ${borderColor};
+              box-shadow: ${isSelected ? '0 4px 12px rgba(234, 88, 12, 0.45)' : '0 2px 5px rgba(0,0,0,0.15)'};
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 13px;
+            ">
+              ${iconEmoji}
+            </div>
+          </div>
+        `;
+        return L.divIcon({
+          html,
+          className: 'custom-map-pin',
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        });
       }
 
       const html = `
@@ -106,37 +143,57 @@ export const MapView: React.FC<MapViewProps> = ({
           data-store-id="${store.id}"
           onclick="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
           ontouchend="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
-          class="relative group cursor-pointer transition-transform transform ${isSelected ? 'scale-125 z-50' : 'hover:scale-110'} select-none"
+          style="transform: translate(-50%, -100%) ${isSelected ? 'scale(1.15)' : 'scale(1)'}; cursor: pointer;"
+          class="transition-transform select-none flex flex-col items-center"
+          title="${store.storeName}"
         >
-          ${
-            store.isMenuTesting
-              ? `<div class="absolute -top-6 -left-6 bg-purple-700 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full shadow-lg border border-purple-300 flex items-center gap-0.5 whitespace-nowrap animate-bounce">
-                  <span>🧪 체험단 모집</span>
-                 </div>`
-              : isBreakTime
-              ? `<div class="absolute -top-6 -left-4 bg-amber-600 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shadow-lg border border-amber-300 flex items-center gap-0.5 whitespace-nowrap animate-bounce">
-                  <span>☕ 교환 가능</span>
-                 </div>`
-              : (store.voucherActive || (store.exchangeItems && store.exchangeItems.some((it: any) => it.isVoucher)))
-              ? `<div class="absolute -top-6 -left-4 bg-amber-600 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shadow-lg border border-amber-300 flex items-center gap-0.5 whitespace-nowrap animate-bounce">
-                  <span>🎟️ 금액권 가능</span>
-                 </div>`
-              : ''
-          }
-          <div class="w-10 h-10 rounded-full ${bgColor} ${borderColor} shadow-xl flex items-center justify-center text-lg text-white border-2">
-            ${iconEmoji}
+          <div style="
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: ${isMyStore ? '#eff6ff' : '#ffffff'};
+            border: 1.5px solid ${borderColor};
+            border-radius: 9999px;
+            padding: 2.5px 7px 2.5px 4px;
+            box-shadow: ${isSelected ? '0 4px 14px rgba(234, 88, 12, 0.4)' : '0 2px 6px rgba(0,0,0,0.12)'};
+            white-space: nowrap;
+          ">
+            <span style="
+              width: 19px;
+              height: 19px;
+              border-radius: 50%;
+              background: ${iconBg};
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 11px;
+              flex-shrink: 0;
+            ">${iconEmoji}</span>
+            <span style="
+              font-size: 11px;
+              font-weight: 800;
+              color: #1e293b;
+              letter-spacing: -0.3px;
+              max-width: 90px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            ">${store.storeName}</span>
           </div>
-          <div class="mt-1 bg-white/90 backdrop-blur px-2 py-0.5 rounded-md shadow-md border border-gray-200 text-[11px] font-bold text-gray-800 text-center truncate max-w-[100px]">
-            ${store.storeName}
-          </div>
+          <div style="
+            width: 0;
+            height: 0;
+            border-left: 3.5px solid transparent;
+            border-right: 3.5px solid transparent;
+            border-top: 4px solid ${borderColor};
+          "></div>
         </div>
       `;
 
       return L.divIcon({
         html,
         className: 'custom-map-pin',
-        iconSize: [40, 55],
-        iconAnchor: [20, 50],
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
       });
     };
 
@@ -161,30 +218,38 @@ export const MapView: React.FC<MapViewProps> = ({
       markersRef.current[store.id] = marker;
     });
 
-  }, [stores, selectedStore, myStore, onSelectStore, onMapClickPinLocation]);
+  }, [stores, selectedStore, myStore, onSelectStore, onMapClickPinLocation, pinStyle]);
 
   return (
     <div className="relative w-full h-[calc(100vh-64px)] overflow-hidden">
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-      {/* Map Legend Overlay */}
-      <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-md px-3 py-2.5 rounded-xl shadow-lg border border-gray-200/80 text-xs flex flex-col gap-1.5">
-        <div className="font-bold text-gray-800 flex items-center gap-1.5 pb-1 border-b border-gray-100">
-          <MapPin className="w-3.5 h-3.5 text-orange-500" />
-          지도 범례 (송정해수욕장 부근)
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-amber-500 ring-2 ring-amber-300 animate-pulse inline-block"></span>
-          <span className="font-semibold text-amber-900">브레이크 타임 (교환가능)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-slate-800 inline-block"></span>
-          <span className="text-gray-600">영업 중 매장</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-blue-600 inline-block"></span>
-          <span className="font-bold text-blue-700">👑 우리 가게 (내 매장)</span>
-        </div>
+      {/* 📍 지도 핀 표시 방식 스위처 (알약 핀 ↔ 초소형 핀) */}
+      <div className="absolute bottom-6 left-4 z-20 flex items-center bg-white/95 backdrop-blur-md rounded-2xl p-1 shadow-lg border border-gray-200/90 text-xs font-black select-none">
+        <button
+          type="button"
+          onClick={() => setPinStyle('PILL')}
+          className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer ${
+            pinStyle === 'PILL'
+              ? 'bg-gray-900 text-white shadow-xs'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+        >
+          <span>🏷️</span>
+          <span>알약 핀</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setPinStyle('MICRO')}
+          className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer ${
+            pinStyle === 'MICRO'
+              ? 'bg-gray-900 text-white shadow-xs'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+        >
+          <span>📍</span>
+          <span>초소형 핀</span>
+        </button>
       </div>
     </div>
   );

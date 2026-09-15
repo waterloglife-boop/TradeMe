@@ -1224,8 +1224,16 @@ export const App: React.FC = () => {
     sendChatMessageToSupabase(storeId, myStore.id, myStore.ownerName, text);
   };
 
+  const isExchangeReady = (store: Store) => {
+    return (
+      store.breakTimeActive ||
+      store.voucherActive ||
+      Boolean(store.exchangeItems && store.exchangeItems.length > 0)
+    );
+  };
+
   const filteredStores = stores.filter((store) => {
-    if (onlyBreakTime && !store.breakTimeActive) return false;
+    if (onlyBreakTime && !isExchangeReady(store)) return false;
     if (onlyMenuTesting && !store.isMenuTesting) return false;
     if (selectedCategory === 'ALL') return true;
     if (selectedCategory === 'FOOD') return ['KOREAN', 'JAPANESE', 'WESTERN', 'CHINESE', 'SNACK', 'CAFE', 'PUB'].includes(store.category);
@@ -1237,6 +1245,7 @@ export const App: React.FC = () => {
   });
 
   const menuTestingStoreCount = stores.filter((s) => s.isMenuTesting).length;
+  const exchangeReadyStoreCount = stores.filter(isExchangeReady).length;
 
   const handleUpdateProfile = (
     ownerName: string,
@@ -1461,8 +1470,14 @@ export const App: React.FC = () => {
           setOnlyBreakTime(next);
           if (next) {
             setOnlyMenuTesting(false);
+            setSyncToastMessage('☕ 물물교환 가능한 매장만 지도에 표시합니다.');
+            setTimeout(() => setSyncToastMessage(null), 2500);
+          } else {
+            setSyncToastMessage('🗺️ 전체 가맹점을 지도에 표시합니다.');
+            setTimeout(() => setSyncToastMessage(null), 2000);
           }
         }}
+        exchangeReadyStoreCount={exchangeReadyStoreCount}
         onlyMenuTesting={onlyMenuTesting}
         onToggleOnlyMenuTesting={() => {
           if (!onlyMenuTesting) {

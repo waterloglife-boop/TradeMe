@@ -33,6 +33,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   
   const [scriptLoaded, setScriptLoaded] = useState<boolean>(false);
   const [authFailed, setAuthFailed] = useState<boolean>(false);
+  const [pinStyle, setPinStyle] = useState<'PILL' | 'MICRO'>('PILL');
 
   const clientId = import.meta.env.VITE_NAVER_CLIENT_ID || '8ek0m4smqn';
 
@@ -148,59 +149,137 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
       markersRef.current = {};
 
       const createMarkerHtml = (store: Store, isMyStore: boolean) => {
-        const isBreakTime = store.breakTimeActive;
         const isSelected = selectedStore?.id === store.id;
 
-        let bgColor = 'background: #1e293b;';
         let iconEmoji = '🍽️';
+        let iconBg = '#f1f5f9';
+        let borderColor = '#cbd5e1';
 
-        if (store.category === 'ACCOMMODATION') iconEmoji = '🏨';
-        if (store.category === 'JAPANESE') iconEmoji = '🍣';
-        if (store.category === 'WESTERN') iconEmoji = '🍝';
-        if (store.category === 'CAFE') iconEmoji = '☕';
-        if (store.category === 'BEAUTY') iconEmoji = '💅';
-        if (store.category === 'PUB') iconEmoji = '🍺';
-        if (isMyStore) iconEmoji = '👑';
+        if (store.category === 'ACCOMMODATION') { iconEmoji = '🏨'; iconBg = '#e0f2fe'; }
+        else if (store.category === 'JAPANESE') { iconEmoji = '🍣'; iconBg = '#fef3c7'; }
+        else if (store.category === 'WESTERN') { iconEmoji = '🍝'; iconBg = '#fee2e2'; }
+        else if (store.category === 'CAFE') { iconEmoji = '☕'; iconBg = '#ffedd5'; }
+        else if (store.category === 'BEAUTY') { iconEmoji = '💅'; iconBg = '#fce7f3'; }
+        else if (store.category === 'PUB') { iconEmoji = '🍺'; iconBg = '#fef9c3'; }
+        else if (store.category === 'RETAIL') { iconEmoji = '🛍️'; iconBg = '#ecfccb'; }
+        else if (store.category === 'SERVICE') { iconEmoji = '🧺'; iconBg = '#e0e7ff'; }
 
-        if (isBreakTime) {
-          bgColor = 'background: linear-gradient(135deg, #f59e0b, #ea580c); box-shadow: 0 0 12px rgba(245, 158, 11, 0.7);';
-        }
+        // 미세하고 일관된 테두리 강조 (지저분한 상단 말풍선 일체 제거!)
         if (store.isMenuTesting) {
-          bgColor = 'background: linear-gradient(135deg, #7c3aed, #4338ca); box-shadow: 0 0 16px rgba(124, 58, 237, 0.8);';
-          iconEmoji = '🧪';
-        }
-        if (isMyStore) {
-          bgColor = 'background: linear-gradient(135deg, #2563eb, #4f46e5);';
+          borderColor = '#9333ea';
+        } else if (store.breakTimeActive) {
+          borderColor = '#f97316';
         }
 
+        if (isMyStore) {
+          iconEmoji = '👑';
+          borderColor = '#2563eb';
+          iconBg = '#dbeafe';
+        }
+
+        if (isSelected) {
+          borderColor = '#ea580c';
+        }
+
+        // 📍 1. 초소형 마이크로 핀 모드 (26px 초소형 원형 핀)
+        if (pinStyle === 'MICRO') {
+          return `
+            <div 
+              data-store-id="${store.id}"
+              onclick="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
+              ontouchend="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
+              style="
+                position: absolute;
+                transform: translate(-50%, -50%) ${isSelected ? 'scale(1.25)' : 'scale(1)'};
+                transition: transform 0.15s ease;
+                cursor: pointer;
+                pointer-events: auto;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                z-index: ${isSelected ? '99' : isMyStore ? '50' : '10'};
+                user-select: none;
+              "
+              title="${store.storeName}"
+            >
+              <div style="
+                width: 26px;
+                height: 26px;
+                border-radius: 50%;
+                background: ${isMyStore ? '#eff6ff' : '#ffffff'};
+                border: 2px solid ${borderColor};
+                box-shadow: ${isSelected ? '0 4px 12px rgba(234, 88, 12, 0.45)' : '0 2px 5px rgba(0,0,0,0.15)'};
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 13px;
+              ">
+                ${iconEmoji}
+              </div>
+            </div>
+          `;
+        }
+
+        // 🏷️ 2. 단정하고 컴팩트한 알약 핀 모드 (높이 27px, 일관된 디자인)
         return `
           <div 
             data-store-id="${store.id}"
             onclick="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
             ontouchend="window.__onSelectStoreFromMap && window.__onSelectStoreFromMap('${store.id}')"
-            style="position: relative; cursor: pointer; transform: ${isSelected ? 'scale(1.2)' : 'scale(1)'}; transition: transform 0.2s; pointer-events: auto; touch-action: manipulation; -webkit-tap-highlight-color: transparent;"
+            style="
+              position: absolute;
+              transform: translate(-50%, -100%) ${isSelected ? 'scale(1.15)' : 'scale(1)'};
+              transition: transform 0.15s ease;
+              cursor: pointer;
+              pointer-events: auto;
+              touch-action: manipulation;
+              -webkit-tap-highlight-color: transparent;
+              z-index: ${isSelected ? '99' : isMyStore ? '50' : '10'};
+              user-select: none;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+            "
+            title="${store.storeName}"
           >
-            ${
-              store.isMenuTesting
-                ? `<div style="position: absolute; top: -22px; left: -14px; background: #6d28d9; color: white; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; box-shadow: 0 2px 8px rgba(109,40,217,0.5); border: 1px solid #ddd6fe;">
-                    🧪 체험단 모집
-                   </div>`
-                : isBreakTime
-                ? `<div style="position: absolute; top: -22px; left: -10px; background: #d97706; color: white; font-weight: bold; font-size: 10px; padding: 2px 6px; border-radius: 10px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3); border: 1px solid #fef3c7;">
-                    ☕ 교환 가능
-                   </div>`
-                : (store.voucherActive || (store.exchangeItems && store.exchangeItems.some((it: any) => it.isVoucher)))
-                ? `<div style="position: absolute; top: -22px; left: -10px; background: #d97706; color: white; font-weight: bold; font-size: 10px; padding: 2px 6px; border-radius: 10px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3); border: 1px solid #fde68a;">
-                    🎟️ 금액권 가능
-                   </div>`
-                : ''
-            }
-            <div style="width: 38px; height: 38px; border-radius: 50%; ${bgColor} border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
-              ${iconEmoji}
+            <div style="
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+              background: ${isMyStore ? '#eff6ff' : '#ffffff'};
+              border: 1.5px solid ${borderColor};
+              border-radius: 9999px;
+              padding: 2.5px 7px 2.5px 4px;
+              box-shadow: ${isSelected ? '0 4px 14px rgba(234, 88, 12, 0.4)' : '0 2px 6px rgba(0,0,0,0.12)'};
+              white-space: nowrap;
+            ">
+              <span style="
+                width: 19px;
+                height: 19px;
+                border-radius: 50%;
+                background: ${iconBg};
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+                flex-shrink: 0;
+              ">${iconEmoji}</span>
+              <span style="
+                font-size: 11px;
+                font-weight: 800;
+                color: #1e293b;
+                letter-spacing: -0.3px;
+                max-width: 90px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              ">${store.storeName}</span>
             </div>
-            <div style="margin-top: 4px; background: rgba(255,255,255,0.95); padding: 2px 6px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 11px; font-weight: bold; color: #1e293b; text-align: center; white-space: nowrap; max-width: 100px; overflow: hidden; text-overflow: ellipsis;">
-              ${store.storeName}
-            </div>
+            <div style="
+              width: 0;
+              height: 0;
+              border-left: 3.5px solid transparent;
+              border-right: 3.5px solid transparent;
+              border-top: 4px solid ${borderColor};
+            "></div>
           </div>
         `;
       };
@@ -212,7 +291,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
           position: new window.naver.maps.LatLng(myStore.lat, myStore.lng),
           map,
           title: myStore.storeName || '내 매장',
-          icon: { content: createMarkerHtml(myStore, true), anchor: new window.naver.maps.Point(20, 45) },
+          icon: { content: createMarkerHtml(myStore, true), anchor: new window.naver.maps.Point(0, 0) },
         });
         const handleMyStoreSelect = (e?: any) => {
           if (e?.domEvent) {
@@ -233,7 +312,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
           position: new window.naver.maps.LatLng(store.lat, store.lng),
           map,
           title: store.storeName,
-          icon: { content: createMarkerHtml(store, false), anchor: new window.naver.maps.Point(20, 45) },
+          icon: { content: createMarkerHtml(store, false), anchor: new window.naver.maps.Point(0, 0) },
         });
         const handleStoreSelect = (e?: any) => {
           if (e?.domEvent) {
@@ -248,7 +327,7 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
     } catch (err) {
       console.error('Naver Maps render notice:', err);
     }
-  }, [scriptLoaded, stores, selectedStore, myStore, onSelectStore, onMapClickPinLocation]);
+  }, [scriptLoaded, stores, selectedStore, myStore, onSelectStore, onMapClickPinLocation, pinStyle]);
 
   // 2-1. 매장 선택 시 해당 매장 위치로 지도 부드럽게 중심 이동
   useEffect(() => {
@@ -318,6 +397,36 @@ export const NaverMapView: React.FC<NaverMapViewProps> = ({
   return (
     <div className="relative w-full h-[calc(100vh-100px)] min-h-[580px] overflow-hidden">
       <div ref={mapContainerRef} className="w-full h-full z-0" />
+
+      {/* 📍 지도 핀 표시 방식 스위처 (알약 핀 ↔ 초소형 핀) */}
+      <div className="absolute bottom-6 left-4 z-20 flex items-center bg-white/95 backdrop-blur-md rounded-2xl p-1 shadow-lg border border-gray-200/90 text-xs font-black select-none">
+        <button
+          type="button"
+          onClick={() => setPinStyle('PILL')}
+          className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer ${
+            pinStyle === 'PILL'
+              ? 'bg-gray-900 text-white shadow-xs'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+          title="매장명과 아이콘이 함께 깔끔하게 표시되는 콤팩트 알약 핀"
+        >
+          <span>🏷️</span>
+          <span>알약 핀</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setPinStyle('MICRO')}
+          className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer ${
+            pinStyle === 'MICRO'
+              ? 'bg-gray-900 text-white shadow-xs'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+          title="매장이 많아져도 겹치지 않는 초소형 미니 핀"
+        >
+          <span>📍</span>
+          <span>초소형 핀</span>
+        </button>
+      </div>
     </div>
   );
 };
