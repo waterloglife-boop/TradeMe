@@ -33,6 +33,7 @@ import {
   subscribeToIncomingChats,
   subscribeToTradeProposals,
   subscribeToVouchers,
+  subscribeToMyPostComments,
   sendChatMessageToSupabase,
   sendTradeProposalToSupabase,
   fetchTradeProposalsFromSupabase,
@@ -643,8 +644,11 @@ export const App: React.FC = () => {
       refreshConversations();
 
       if (alarmEnabled) {
+        const cleanMessage = data.message.includes('<!--TRADE_DATA:')
+          ? '🤝 새로운 물물교환 정식 제안서가 도착했습니다.'
+          : data.message;
         showDeviceNotification(`💬 [${data.senderName}] 새 메시지`, {
-          body: data.message,
+          body: cleanMessage,
           tag: `chat-${data.counterpartStoreId}`,
           url: '/',
         });
@@ -717,13 +721,30 @@ export const App: React.FC = () => {
     });
 
     // 실시간 제안 상태 변경(수락/거절) 감지
-    const unsubProposals = subscribeToTradeProposals(myStore.id, () => {
-      if (alarmEnabled) {
-        showDeviceNotification('🤝 새로운 물물교환 제안 도착!', {
-          body: '이웃 사장님으로부터 맞교환 제안 또는 상태 변경이 도착했습니다.',
-          tag: 'trademe-proposal',
-          url: '/',
-        });
+    const unsubProposals = subscribeToTradeProposals(myStore.id, (row) => {
+      if (alarmEnabled && row) {
+        const isTarget = row.target_store_id === myStore.id;
+        const isRequester = row.requester_store_id === myStore.id;
+
+        if (isTarget && row.status === 'PENDING') {
+          showDeviceNotification('🤝 새로운 물물교환 제안 도착!', {
+            body: `${row.requester_store_name || '이웃 사장님'}으로부터 맞교환 제안이 들어왔습니다.`,
+            tag: `trade-${row.id}`,
+            url: '/',
+          });
+        } else if (isRequester && row.status === 'ACCEPTED') {
+          showDeviceNotification('🎉 물물교환 제안 수락됨!', {
+            body: `${row.target_store_name || '상대 매장'}에서 제안을 수락했습니다! 교환권이 발행되었습니다.`,
+            tag: `trade-${row.id}`,
+            url: '/',
+          });
+        } else if (isRequester && row.status === 'REJECTED') {
+          showDeviceNotification('ℹ️ 물물교환 제안 상태 알림', {
+            body: `${row.target_store_name || '상대 매장'}에서 이번 제안을 사양하셨습니다.`,
+            tag: `trade-${row.id}`,
+            url: '/',
+          });
+        }
       }
       fetchTradeProposalsFromSupabase(myStore.id).then(() => {
         refreshPendingAlertCounts();
@@ -752,6 +773,26 @@ export const App: React.FC = () => {
       unsubVouchers();
     };
   }, [myStore.id, alarmEnabled]);
+
+  // 💬 [사장님 사랑방] 내 게시글에 새 댓글이 달렸을 때 실시간 알림 리스너
+  useEffect(() => {
+    if (!myStore.ownerName && !userOwnerName) return;
+
+    const authorName = myStore.ownerName || userOwnerName;
+    const storeName = myStore.storeName || '';
+
+    const unsubComments = subscribeToMyPostComments(authorName, storeName, (data) => {
+      if (alarmEnabled) {
+        showDeviceNotification(`💬 [사장님 사랑방] 내 글에 새 댓글 도착!`, {
+          body: `${data.comment.author_name || '이웃 사장'}님: "${data.comment.content}"`,
+          tag: `comment-${data.comment.id}`,
+          url: '/',
+        });
+      }
+    });
+
+    return () => unsubComments();
+  }, [myStore.ownerName, myStore.storeName, userOwnerName, alarmEnabled]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

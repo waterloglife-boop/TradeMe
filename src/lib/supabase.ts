@@ -3065,6 +3065,56 @@ export function subscribeToCommunity(onUpdate: () => void) {
 }
 
 /**
+ * ☕ 내가 쓴 사장님 사랑방 게시글에 새 댓글이 달렸을 때 실시간 감지 구독
+ */
+export function subscribeToMyPostComments(
+  myAuthorName: string,
+  myStoreName: string,
+  onNewComment: (data: { comment: any; postTitle: string }) => void
+) {
+  if (!myAuthorName && !myStoreName) return () => {};
+
+  const channel = supabase
+    .channel(`my-comments-${Date.now()}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'community_comments' },
+      async (payload) => {
+        const newComment = payload.new as any;
+        if (!newComment) return;
+
+        // 내가 직접 작성한 댓글은 알림 제외
+        if (newComment.author_name === myAuthorName || (myStoreName && newComment.author_store_name === myStoreName)) {
+          return;
+        }
+
+        try {
+          // 해당 댓글이 달린 원본 게시글 조회
+          const { data: post } = await supabase
+            .from('community_posts')
+            .select('id, title, author_name, author_store_name')
+            .eq('id', newComment.post_id)
+            .single();
+
+          if (post && (post.author_name === myAuthorName || (myStoreName && post.author_store_name === myStoreName))) {
+            onNewComment({
+              comment: newComment,
+              postTitle: post.title || '내 게시글',
+            });
+          }
+        } catch (e) {
+          console.warn('[CommunityComment Subscription Notice]', e);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
  * 🎟️ [상생 교환권 보관함] 데이터 관리 (Phase 3)
  */
 const VOUCHER_STORAGE_KEY = 'trademe_vouchers';
