@@ -1477,10 +1477,11 @@ export function subscribeToTradeChat(
         event: 'INSERT',
         schema: 'public',
         table: 'chat_messages',
-        filter: `trade_id=eq.${tradeId}`,
       },
       (payload) => {
         const newMsg = payload.new as any;
+        if (!newMsg) return;
+        if (newMsg.trade_id !== tradeId && newMsg.sender_store_id !== tradeId) return;
         onNewMessage({
           id: newMsg.id,
           senderId: newMsg.sender_store_id,
@@ -2272,10 +2273,11 @@ export function subscribeToIncomingChats(
         event: 'INSERT',
         schema: 'public',
         table: 'chat_messages',
-        filter: `trade_id=eq.${myStoreId}`,
       },
       (payload) => {
         const newMsg = payload.new as any;
+        if (!newMsg) return;
+        if (newMsg.trade_id !== myStoreId) return;
         if (newMsg.sender_store_id === myStoreId) return;
 
         onNewMessage({
