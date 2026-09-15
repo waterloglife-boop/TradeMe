@@ -1,5 +1,6 @@
 import React from 'react';
 import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, User, LogIn, Edit3, List, Bell, BellOff } from 'lucide-react';
+import { KAKAO_OPEN_CHAT_URL } from '../types/trade';
 
 interface NavbarProps {
   myBreakTimeActive: boolean;
@@ -148,6 +149,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
+            {/* 💬 모바일 카카오톡 단톡방 바로가기 */}
+            <a
+              href={KAKAO_OPEN_CHAT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-0.5 px-2 py-1 rounded-full bg-yellow-300 hover:bg-yellow-400 text-yellow-950 text-[10px] font-black shadow-2xs active:scale-95 transition whitespace-nowrap cursor-pointer border border-yellow-400"
+              title="카카오톡 사장님 소통방"
+            >
+              <span>💬</span>
+              <span>단톡방</span>
+            </a>
+
             {/* 교환 ON / OFF */}
             <button
               type="button"
@@ -168,6 +181,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Desktop Right Action Controls (hidden md:flex) */}
           <div className="hidden md:flex items-center gap-1 lg:gap-1.5 xl:gap-2 flex-shrink-0">
             
+            {/* 💬 카카오톡 오픈채팅 사장님 단톡방 바로가기 */}
+            <a
+              href={KAKAO_OPEN_CHAT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400 hover:from-yellow-400 hover:to-amber-400 text-yellow-950 shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+              title="트레이드미 사장님 공식 카카오톡 단톡방"
+            >
+              <span className="text-xs sm:text-sm">💬</span>
+              <span className="hidden xl:inline">사장님 단톡방</span>
+              <span className="xl:hidden">단톡방</span>
+            </a>
+
             {/* ⭐ 네이버 플레이스 저장 품앗이 버튼 */}
             {onOpenPoomasiModal && (
               <button

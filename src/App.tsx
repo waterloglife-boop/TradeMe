@@ -26,7 +26,7 @@ import { StoreListModal } from './components/StoreListModal';
 import { AdPartnershipModal } from './components/AdPartnershipModal';
 import { AlarmGuideModal } from './components/AlarmGuideModal';
 import { NaverPlacePoomasiModal } from './components/NaverPlacePoomasiModal';
-import { InquiryType } from './types/trade';
+import { InquiryType, KAKAO_OPEN_CHAT_URL } from './types/trade';
 import { playNotificationChime } from './lib/sound';
 import { showDeviceNotification } from './lib/notification';
 import { registerPushSubscription } from './lib/push';
@@ -1623,9 +1623,24 @@ export const App: React.FC = () => {
           </span>
         </button>
 
+        {/* 💬 카카오톡 사장님 소통 단톡방 플로팅 버튼 */}
+        <a
+          href={KAKAO_OPEN_CHAT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 sm:px-3.5 py-2 sm:py-2.5 bg-yellow-300 hover:bg-yellow-400 text-yellow-950 font-black text-xs sm:text-sm rounded-2xl shadow-xl border border-yellow-400/90 backdrop-blur-md transition-all active:scale-95 cursor-pointer group"
+          title="트레이드미 사장님 공식 카카오톡 단톡방 입장"
+        >
+          <span className="w-5 h-5 rounded-full bg-yellow-950 text-yellow-300 flex items-center justify-center text-[10px] font-black group-hover:scale-110 transition-transform">
+            💬
+          </span>
+          <span className="hidden sm:inline">사장님 소통 단톡방</span>
+          <span className="sm:hidden">단톡방</span>
+        </a>
+
         {/* Map Location Click Hint Pill */}
-        <div className="hidden md:flex absolute top-4 right-4 z-20 bg-white/90 backdrop-blur px-3.5 py-2 rounded-xl shadow-lg border border-orange-200 text-xs font-bold text-orange-900 items-center gap-1.5 animate-bounce">
-          <MapPin className="w-4 h-4 text-orange-600" />
+        <div className="hidden lg:flex absolute top-16 right-4 z-20 bg-white/90 backdrop-blur px-3 py-1.5 rounded-xl shadow-md border border-orange-200 text-[11px] font-bold text-orange-900 items-center gap-1.5">
+          <MapPin className="w-3.5 h-3.5 text-orange-600" />
           <span>💡 상단 [물물교환 품목 등록]에서 도로명 주소로 위치를 조율하세요</span>
         </div>
 
@@ -1676,24 +1691,33 @@ export const App: React.FC = () => {
               정성껏 준비한 우리 가게 메뉴와 서비스를 이웃 매장과 교류해보세요
             </p>
 
-            <div className="mt-3.5 flex items-center gap-2 sm:pl-11">
+            <div className="mt-3.5 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:pl-11">
               <button
                 type="button"
                 onClick={() => {
                   setAuthModalNotice(null);
                   setIsAuthModalOpen(true);
                 }}
-                className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 whitespace-nowrap"
               >
                 <span>사장님 3초 가입 / 로그인</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
+              <a
+                href={KAKAO_OPEN_CHAT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2.5 bg-yellow-300 hover:bg-yellow-400 text-yellow-950 font-black text-xs rounded-xl transition-all whitespace-nowrap active:scale-[0.98] flex items-center gap-1 shadow-2xs cursor-pointer"
+                title="카카오톡 단톡방에서 바로 물어보기"
+              >
+                <span>💬 단톡방 질문</span>
+              </a>
               <button
                 type="button"
                 onClick={() => setShowWelcomeCard(false)}
-                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+                className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
               >
-                동네 둘러보기
+                둘러보기
               </button>
             </div>
           </aside>

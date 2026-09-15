@@ -22,7 +22,7 @@ import {
   MapPin,
   Navigation
 } from 'lucide-react';
-import { CommunityCategory, CommunityPost, CommunityComment, Store } from '../types/trade';
+import { CommunityCategory, CommunityPost, CommunityComment, Store, KAKAO_OPEN_CHAT_URL } from '../types/trade';
 import { CommunitySponsoredCard } from './CoupangAffiliateBanner';
 import {
   fetchCommunityPosts,
@@ -424,6 +424,35 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
               </div>
             </button>
           )}
+
+          {/* 💬 카카오톡 사장님 공식 소통 오픈채팅방 배너 */}
+          <a
+            href={KAKAO_OPEN_CHAT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400 hover:from-yellow-400 hover:to-amber-400 text-yellow-950 border border-yellow-400/80 shadow-xs flex items-center justify-between gap-2.5 transition-all active:scale-[0.99] text-left cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="p-2 bg-yellow-950/10 rounded-xl text-lg flex-shrink-0 group-hover:scale-105 transition-transform">💬</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-black text-xs sm:text-sm tracking-tight truncate text-yellow-950">
+                    트레이드미 사장님 공식 카카오톡 단톡방
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-yellow-950 text-yellow-300">
+                    실시간 소통
+                  </span>
+                </div>
+                <p className="text-[11px] text-yellow-900 font-medium truncate mt-0.5">
+                  앱 사용 질문, 물물교환 매장 찾기, 장사 노하우를 실시간으로 나눠보세요!
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-black text-yellow-950 whitespace-nowrap pl-2 bg-yellow-950/10 px-2.5 py-1.5 rounded-xl flex-shrink-0 group-hover:bg-yellow-950/20 transition-colors">
+              <span>단톡방 입장</span>
+              <span>&gt;</span>
+            </div>
+          </a>
 
           {isLoading ? (
             <div className="py-20 flex flex-col items-center justify-center gap-3 text-gray-400">

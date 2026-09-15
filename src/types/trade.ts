@@ -276,3 +276,6 @@ export interface NaverPlacePoomasiRequest {
   reportReason?: string;
 }
 
+// 💬 공식 카카오톡 사장님 소통 및 커뮤니티 오픈채팅방 링크
+export const KAKAO_OPEN_CHAT_URL = 'https://open.kakao.com/o/p9j2qEKi';
+

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
-import { Bug, HelpCircle, Lightbulb, Handshake, Headphones, ArrowUp, ChevronDown } from 'lucide-react';
-import { InquiryType } from '../types/trade';
+import { Bug, HelpCircle, Lightbulb, Handshake, Headphones, ArrowUp, ChevronDown, MessageCircle } from 'lucide-react';
+import { InquiryType, KAKAO_OPEN_CHAT_URL } from '../types/trade';
 
 interface FooterProps {
   onOpenInquiry: (type: InquiryType) => void;
@@ -56,12 +56,28 @@ export const Footer: React.FC<FooterProps> = ({
 
       {/* 🎧 💌 원클릭 문의 및 오류, 제휴·광고 제안 Card */}
       <div id="footer-contact-card" className="max-w-4xl mx-auto bg-white border border-orange-200/80 rounded-2xl p-5 sm:p-6 mb-8 shadow-xs">
-        <h4 className="text-gray-800 font-extrabold text-sm sm:text-base text-center mb-4 flex items-center justify-center gap-2">
+        <h4 className="text-gray-800 font-extrabold text-sm sm:text-base text-center mb-3 flex items-center justify-center gap-2">
           <span className="w-6 h-6 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-xs">
             <Headphones className="w-3.5 h-3.5" />
           </span>
           <span>소통 창구 · 원클릭 문의 및 제휴·광고 제안</span>
         </h4>
+
+        {/* 💬 카카오톡 오픈채팅 실시간 소통 단톡방 바로가기 */}
+        <div className="mb-4 flex justify-center">
+          <a
+            href={KAKAO_OPEN_CHAT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-yellow-400 bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400 hover:from-yellow-400 hover:to-amber-400 text-yellow-950 text-xs sm:text-sm font-black transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xs cursor-pointer group"
+          >
+            <span className="w-5 h-5 rounded-full bg-yellow-950 text-yellow-300 flex items-center justify-center text-[10px] font-black group-hover:scale-110 transition-transform">
+              💬
+            </span>
+            <span>카카오톡 사장님 공식 소통방 입장하기 (실시간 질문·교류)</span>
+            <span className="text-[10px] bg-yellow-950/15 px-2 py-0.5 rounded-md font-bold">오픈채팅 ❯</span>
+          </a>
+        </div>
 
         <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3.5">
           <button
