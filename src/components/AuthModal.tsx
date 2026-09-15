@@ -25,11 +25,16 @@ import {
   Loader2,
   Calendar,
   ShieldAlert,
-  FileText
+  FileText,
+  Headphones,
+  Bug,
+  HelpCircle,
+  Lightbulb,
+  Handshake,
 } from 'lucide-react';
 import { signUpUser, signInUser, verifyNtsBusinessStatus, verifyNtsBusinessValidate, fetchUserProfileFromSupabase, uploadStoreImageToSupabase } from '../lib/supabase';
 import { OperatingHoursPicker } from './OperatingHoursPicker';
-import { Store } from '../types/trade';
+import { Store, InquiryType } from '../types/trade';
 import { geocodeKoreanAddress } from '../utils/location';
 import { Camera, Image as ImageIcon } from 'lucide-react';
 
@@ -63,6 +68,9 @@ interface AuthModalProps {
   pendingTradeCount?: number;
   pendingMenuTestCount?: number;
   noticeMessage?: string | null;
+  onOpenInquiry?: (type: InquiryType) => void;
+  onOpenTerms?: () => void;
+  onOpenPrivacy?: () => void;
 }
 
 // 🇰🇷 국세청 사업자등록번호 10자리 검증 알고리즘 (Modulus-11)
@@ -98,6 +106,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   pendingTradeCount = 0,
   pendingMenuTestCount = 0,
   noticeMessage = null,
+  onOpenInquiry,
+  onOpenTerms,
+  onOpenPrivacy,
 }) => {
   const [mode, setMode] = useState<'MYPAGE' | 'EDIT_PROFILE' | 'LOGIN' | 'SIGNUP'>('MYPAGE');
 
@@ -690,6 +701,81 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
+              </div>
+
+              {/* 🎧 소통 창구 & 법적 고지 / 면책 섹션 */}
+              <div className="mt-8 pt-6 border-t border-gray-200 text-center space-y-4 pb-4">
+                <div className="bg-orange-50/60 border border-orange-200/80 rounded-2xl p-4 shadow-2xs">
+                  <h4 className="text-gray-800 font-extrabold text-xs sm:text-sm text-center mb-3 flex items-center justify-center gap-1.5">
+                    <span className="w-5 h-5 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-xs">
+                      <Headphones className="w-3 h-3" />
+                    </span>
+                    <span>소통 창구 · 원클릭 문의 및 제휴</span>
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpenInquiry?.('BUG')}
+                      className="p-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                    >
+                      <Bug className="w-3 h-3 text-rose-500" />
+                      <span>🪲 버그 신고</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenInquiry?.('INQUIRY')}
+                      className="p-2 rounded-xl border border-sky-200 bg-white hover:bg-sky-50 text-sky-700 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                    >
+                      <HelpCircle className="w-3 h-3 text-sky-500" />
+                      <span>❔ 문의하기</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenInquiry?.('FEATURE')}
+                      className="p-2 rounded-xl border border-amber-200 bg-white hover:bg-amber-50 text-amber-700 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                    >
+                      <Lightbulb className="w-3 h-3 text-amber-500" />
+                      <span>💡 기능 제안</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenInquiry?.('PARTNERSHIP')}
+                      className="p-2 rounded-xl border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-700 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                    >
+                      <Handshake className="w-3 h-3 text-emerald-500" />
+                      <span>🤝 제휴 제안</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 이용약관 & 개인정보처리방침 */}
+                <div className="flex items-center justify-center gap-3 text-xs font-bold text-gray-500">
+                  <button
+                    type="button"
+                    onClick={onOpenTerms}
+                    className="hover:text-orange-600 transition-colors cursor-pointer"
+                  >
+                    이용약관
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    type="button"
+                    onClick={onOpenPrivacy}
+                    className="hover:text-orange-600 text-orange-600 font-extrabold underline underline-offset-2 transition-colors cursor-pointer"
+                  >
+                    개인정보처리방침
+                  </button>
+                </div>
+
+                {/* 사업자 정보 및 면책고지 */}
+                <div className="text-[11px] text-gray-400 space-y-1 leading-relaxed">
+                  <p className="font-bold text-gray-600">
+                    TradeMe (트레이드미) | 대표: 김동욱 | hanmaner@naver.com
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    [면책 고지] 트레이드미는 전자상거래 등에서의 소비자보호에 관한 법률에 따른 통신판매중개자로서 회원 간 물물교환 및 교환권 거래의 당사자가 아니며, 거래 분쟁 및 안전사고에 대한 책임은 당사자에게 있습니다.
+                  </p>
+                </div>
               </div>
 
             </div>
@@ -1508,6 +1594,81 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>{loading ? '처리 중...' : mode === 'LOGIN' ? '로그인 하기' : '사장님 무료 가입 및 시작'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
+
+              {/* 🎧 소통 창구 & 법적 고지 / 면책 섹션 */}
+              <div className="mt-6 pt-6 border-t border-gray-200 text-center space-y-4 pb-2">
+                <div className="bg-orange-50/60 border border-orange-200/80 rounded-2xl p-4 shadow-2xs">
+                  <h4 className="text-gray-800 font-extrabold text-xs sm:text-sm text-center mb-3 flex items-center justify-center gap-1.5">
+                    <span className="w-5 h-5 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-xs">
+                      <Headphones className="w-3 h-3" />
+                    </span>
+                    <span>소통 창구 · 원클릭 문의 및 제휴</span>
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpenInquiry?.('BUG')}
+                      className="p-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                    >
+                      <Bug className="w-3 h-3 text-rose-500" />
+                      <span>🪲 버그 신고</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenInquiry?.('INQUIRY')}
+                      className="p-2 rounded-xl border border-sky-200 bg-white hover:bg-sky-50 text-sky-700 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                    >
+                      <HelpCircle className="w-3 h-3 text-sky-500" />
+                      <span>❔ 문의하기</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenInquiry?.('FEATURE')}
+                      className="p-2 rounded-xl border border-amber-200 bg-white hover:bg-amber-50 text-amber-700 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                    >
+                      <Lightbulb className="w-3 h-3 text-amber-500" />
+                      <span>💡 기능 제안</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenInquiry?.('PARTNERSHIP')}
+                      className="p-2 rounded-xl border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-700 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                    >
+                      <Handshake className="w-3 h-3 text-emerald-500" />
+                      <span>🤝 제휴 제안</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 이용약관 & 개인정보처리방침 */}
+                <div className="flex items-center justify-center gap-3 text-xs font-bold text-gray-500">
+                  <button
+                    type="button"
+                    onClick={onOpenTerms}
+                    className="hover:text-orange-600 transition-colors cursor-pointer"
+                  >
+                    이용약관
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    type="button"
+                    onClick={onOpenPrivacy}
+                    className="hover:text-orange-600 text-orange-600 font-extrabold underline underline-offset-2 transition-colors cursor-pointer"
+                  >
+                    개인정보처리방침
+                  </button>
+                </div>
+
+                {/* 사업자 정보 및 면책고지 */}
+                <div className="text-[11px] text-gray-400 space-y-1 leading-relaxed">
+                  <p className="font-bold text-gray-600">
+                    TradeMe (트레이드미) | 대표: 김동욱 | hanmaner@naver.com
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    [면책 고지] 트레이드미는 전자상거래 등에서의 소비자보호에 관한 법률에 따른 통신판매중개자로서 회원 간 물물교환 및 교환권 거래의 당사자가 아니며, 거래 분쟁 및 안전사고에 대한 책임은 당사자에게 있습니다.
+                  </p>
+                </div>
+              </div>
 
             </form>
           </div>

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Bug, HelpCircle, Lightbulb, Handshake, Headphones } from 'lucide-react';
+import { Bug, HelpCircle, Lightbulb, Handshake, Headphones, ArrowUp } from 'lucide-react';
 import { InquiryType } from '../types/trade';
 
 interface FooterProps {
@@ -33,8 +33,20 @@ export const Footer: React.FC<FooterProps> = ({
   };
 
   return (
-    <footer className="w-full bg-slate-50 border-t border-gray-200 text-gray-600 py-10 px-4 sm:px-6 relative z-10 font-sans">
+    <footer className="w-full bg-slate-50 border-t border-gray-200 text-gray-600 py-10 px-4 sm:px-6 relative z-10 font-sans pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
       
+      {/* 🗺️ 모바일용 상단 지도 복귀 버튼 */}
+      <div className="flex justify-center mb-6 md:hidden">
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-gray-300 text-xs font-bold text-gray-700 shadow-sm active:scale-95 transition-all"
+        >
+          <span>🗺️ 지도 화면으로 돌아가기</span>
+          <ArrowUp className="w-3.5 h-3.5 text-gray-500" />
+        </button>
+      </div>
+
       {/* 🎧 💌 원클릭 문의 및 오류, 제휴·광고 제안 Card */}
       <div className="max-w-4xl mx-auto bg-white border border-orange-200/80 rounded-2xl p-5 sm:p-6 mb-8 shadow-xs">
         <h4 className="text-gray-800 font-extrabold text-sm sm:text-base text-center mb-4 flex items-center justify-center gap-2">
