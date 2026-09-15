@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { Store, ExchangeItem, TradeProposal, ChatMessage, ChatConversationSummary, MenuTestApplication, MenuTestCampaign, CommunityPost, CommunityComment, CommunityCategory, FulfillmentType, IssuedVoucher, CustomerInquiry, InquiryType, AdBannerStat, AdBannerKey } from '../types/trade';
+import { triggerBackgroundPush } from './push';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-trade-me.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-anon-key-12345';
@@ -1458,6 +1459,19 @@ export async function sendChatMessageToSupabase(
     if (error) {
       console.warn('Supabase chat insert notice:', error.message);
     }
+
+    // 📲 앱에서 나가있는 상대방 사장님 스마트폰 상단바로 Google FCM 백그라운드 푸시 발송
+    const cleanMsg = message.includes('<!--TRADE_DATA:')
+      ? '🤝 새로운 물물교환 정식 제안서가 도착했습니다.'
+      : message;
+    triggerBackgroundPush({
+      targetStoreId: tradeId,
+      title: `💬 [${senderName}] 새 메시지`,
+      body: cleanMsg,
+      tag: `chat-${senderStoreId}`,
+      url: '/',
+    });
+
     return { success: true, msgId };
   } catch (err) {
     console.warn('Chat send notice (fallback mode):', err);
@@ -1608,6 +1622,16 @@ export async function sendTradeProposalToSupabase(
         console.warn('Supabase trades fallback notice:', retryRes.error.message);
       }
     }
+
+    // 📲 앱에서 나가있는 상대방 사장님 스마트폰 상단바로 Google FCM 백그라운드 푸시 발송
+    triggerBackgroundPush({
+      targetStoreId: targetStoreId,
+      title: '🤝 새로운 물물교환 제안 도착!',
+      body: `${meta?.myStoreName || '이웃 사장님'}으로부터 맞교환 제안이 들어왔습니다.`,
+      tag: `trade-${tradeId}`,
+      url: '/',
+    });
+
     return { success: true, tradeId, proposal: newProposal };
   } catch (err) {
     console.warn('Trades insert notice (fallback mode):', err);
@@ -1856,6 +1880,14 @@ export async function updateTradeProposalStatus(
         const tgtId = found?.targetStoreId || data?.[0]?.target_store_id;
 
         if (reqId) {
+          triggerBackgroundPush({
+            targetStoreId: reqId,
+            title: '🎉 물물교환 제안 수락됨!',
+            body: '상대 매장에서 제안을 수락했습니다! 교환권이 발행되었습니다.',
+            tag: `trade-accepted-${proposalId}`,
+            url: '/',
+          });
+
           supabase.from('stores').select('trade_count').eq('id', reqId).maybeSingle().then(({ data: s1 }) => {
             const cur1 = Number(s1?.trade_count || 0);
             supabase.from('stores').update({ trade_count: cur1 + 1 }).eq('id', reqId).then(() => {});
@@ -1870,6 +1902,22 @@ export async function updateTradeProposalStatus(
       } catch (errCount) {
         console.warn('Increment trade_count notice:', errCount);
       }
+    } else if (status === 'REJECTED') {
+      try {
+        const raw = localStorage.getItem('trademe_trade_proposals');
+        const list: TradeProposal[] = raw ? JSON.parse(raw) : [];
+        const found = list.find((p) => p.id === proposalId);
+        const reqId = found?.myStoreId || data?.[0]?.requester_store_id;
+        if (reqId) {
+          triggerBackgroundPush({
+            targetStoreId: reqId,
+            title: 'ℹ️ 물물교환 제안 상태 알림',
+            body: '상대 매장에서 이번 제안을 사양하셨습니다.',
+            tag: `trade-rejected-${proposalId}`,
+            url: '/',
+          });
+        }
+      } catch (e) {}
     }
 
     return { success: true };
@@ -2981,7 +3029,7 @@ export async function createPostComment(
     // Sync comments_count in community_posts
     const { data: currentPost } = await supabase
       .from('community_posts')
-      .select('comments_count')
+      .select('comments_count, author_name, store_name, title')
       .eq('id', comment.postId)
       .single();
     const newCount = (currentPost?.comments_count || 0) + 1;
@@ -2989,6 +3037,17 @@ export async function createPostComment(
       .from('community_posts')
       .update({ comments_count: newCount })
       .eq('id', comment.postId);
+
+    // 📲 글 작성자 사장님 스마트폰으로 Google FCM 백그라운드 푸시 발송 (내가 쓴 댓글 제외)
+    if (currentPost && currentPost.author_name && currentPost.author_name !== comment.authorName) {
+      triggerBackgroundPush({
+        targetAuthorName: currentPost.author_name,
+        title: '💬 [사장님 사랑방] 내 글에 새 댓글 도착!',
+        body: `${comment.authorName}님: "${comment.content}"`,
+        tag: `comment-${id}`,
+        url: '/',
+      });
+    }
   } catch (e) {}
 
   return { success: true, data: createdComment };

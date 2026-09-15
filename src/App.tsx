@@ -27,6 +27,7 @@ import { AlarmGuideModal } from './components/AlarmGuideModal';
 import { InquiryType } from './types/trade';
 import { playNotificationChime } from './lib/sound';
 import { showDeviceNotification } from './lib/notification';
+import { registerPushSubscription } from './lib/push';
 import {
   fetchStoresFromSupabase,
   subscribeToTradeChat,
@@ -158,6 +159,9 @@ export const App: React.FC = () => {
     playNotificationChime();
 
     if (isPermissionGranted) {
+      if (myStore.id && myStore.id !== 'my_store') {
+        registerPushSubscription(myStore.id);
+      }
       setSyncToastMessage('🔔 스마트폰 상단바 실시간 알림이 켜졌습니다!');
       showDeviceNotification('🔔 트레이드미 알림 켜짐', {
         body: '스마트폰 상단바 실시간 알림이 성공적으로 연결되었습니다!',
@@ -185,6 +189,10 @@ export const App: React.FC = () => {
     try {
       localStorage.setItem('trademe_alarm_enabled', 'true');
     } catch (e) {}
+
+    if (myStore.id && myStore.id !== 'my_store') {
+      registerPushSubscription(myStore.id);
+    }
 
     const sent = await showDeviceNotification('🔔 트레이드미 알림 테스트', {
       body: '스마트폰 상단바 배너와 진동이 정상 작동합니다! 🎉',
@@ -816,6 +824,13 @@ export const App: React.FC = () => {
     return () => unsubComments();
   }, [myStore.ownerName, myStore.storeName, userOwnerName]);
 
+  // 📲 백그라운드 Web Push (Google FCM) 실기기 구독 자동 등록
+  useEffect(() => {
+    if (myStore.id && myStore.id !== 'my_store') {
+      registerPushSubscription(myStore.id);
+    }
+  }, [myStore.id]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).__testSetSelectedStore = setSelectedStore;
@@ -838,6 +853,7 @@ export const App: React.FC = () => {
 
     if (finalStore) {
       setMyStore(finalStore);
+      registerPushSubscription(finalStore.id);
       if (finalStore.lat && finalStore.lng) {
         setPickedLocation({ lat: finalStore.lat, lng: finalStore.lng });
       }
