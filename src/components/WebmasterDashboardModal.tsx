@@ -466,7 +466,7 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
                   {/* Banner 1 Input Card */}
                   <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1.5">
                     <label className="text-[11px] font-extrabold text-gray-800 flex items-center gap-1.5">
-                      <span>🚀 1. 상단 메인 기획전 배너 (로켓프레시 신선식품 새벽배송)</span>
+                      <span>🚀 1. 상단 메인 배너 (로켓프레시 & 로켓와우 순환)</span>
                     </label>
                     <input
                       type="text"
@@ -480,7 +480,7 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
                   {/* Banner 2 Input Card */}
                   <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1.5">
                     <label className="text-[11px] font-extrabold text-gray-800 flex items-center gap-1.5">
-                      <span>🛍️ 2. 사장님 사랑방 피드 배너 (포장/배달용기)</span>
+                      <span>🌕 2. 사장님 사랑방 피드 배너 (추석 페스타 ~50% 할인)</span>
                     </label>
                     <input
                       type="text"
@@ -494,7 +494,7 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
                   {/* Banner 3 Input Card */}
                   <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1.5">
                     <label className="text-[11px] font-extrabold text-gray-800 flex items-center gap-1.5">
-                      <span>🧼 3. 매장 상세 / 서랍 배너 (주방위생/세제)</span>
+                      <span>🧴 3. 매장 상세 서랍 배너 (2026 생활용품 한가위 선물대전)</span>
                     </label>
                     <input
                       type="text"
@@ -508,7 +508,7 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
                   {/* Banner 4 Input Card */}
                   <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1.5">
                     <label className="text-[11px] font-extrabold text-gray-800 flex items-center gap-1.5">
-                      <span>🖨️ 4. 하단 푸터 & 보관함 배너 (POS 감열지)</span>
+                      <span>⏰ 4. 교환권 보관함 & 푸터 배너 (로켓와우 골든아워 매일 7시 OPEN)</span>
                     </label>
                     <input
                       type="text"

@@ -3623,7 +3623,7 @@ const DEFAULT_BANNER_STATS: AdBannerStat[] = [
     id: 'banner-top-main',
     key: 'TOP_MAIN',
     icon: '🚀',
-    name: '상단 메인 기획전 배너 (로켓프레시 신선식품)',
+    name: '상단 메인 기획전 배너 (로켓프레시 & 로켓와우)',
     targetCategory: '로켓프레시 신선식품 새벽배송 / 산지직송 식재료',
     impressions: 0,
     clicks: 0,
@@ -3635,41 +3635,41 @@ const DEFAULT_BANNER_STATS: AdBannerStat[] = [
   {
     id: 'banner-community',
     key: 'COMMUNITY_FEED',
-    icon: '🛍️',
-    name: '사장님 사랑방 피드 배너 (포장/배달용기)',
-    targetCategory: '원형 탕용기 / 실링용기 / 포장 봉투',
+    icon: '🌕',
+    name: '사장님 사랑방 피드 배너 (추석 페스타 ~50% 할인)',
+    targetCategory: '한가위 추석 선물세트 / 명절 과일·제수용품 (~9/27)',
     impressions: 0,
     clicks: 0,
     ctr: 0,
     estimatedRevenue: 0,
     lastClickedAt: '-',
-    coupangUrl: 'https://link.coupang.com/a/b02_packaging_box',
+    coupangUrl: 'https://link.coupang.com/a/g312wbXxOS',
   },
   {
     id: 'banner-drawer',
     key: 'STORE_DRAWER',
-    icon: '🧼',
-    name: '매장 상세 / 서랍 배너 (주방위생/세제)',
-    targetCategory: '업소용 주방세제 4L / 니트릴장갑 100매',
+    icon: '🧴',
+    name: '매장 상세 서랍 배너 (2026 생활용품 한가위 선물대전)',
+    targetCategory: '와우회원 전용 생활용품 / 샴푸·바디 선물세트 (~9/25)',
     impressions: 0,
     clicks: 0,
     ctr: 0,
     estimatedRevenue: 0,
     lastClickedAt: '-',
-    coupangUrl: 'https://link.coupang.com/a/b03_kitchen_hygiene',
+    coupangUrl: 'https://link.coupang.com/a/g32fzuTLVs',
   },
   {
     id: 'banner-wallet',
     key: 'WALLET_FOOTER',
-    icon: '🖨️',
-    name: '하단 푸터 & 보관함 배너 (POS 감열지)',
-    targetCategory: '신용카드 단말기 롤 영수증 용지 10롤',
+    icon: '⏰',
+    name: '보관함 & 푸터 배너 (로켓와우 골든아워 매일 7시 OPEN)',
+    targetCategory: '로켓와우 회원전용 골드박스 / 타임특가 생필품',
     impressions: 0,
     clicks: 0,
     ctr: 0,
     estimatedRevenue: 0,
     lastClickedAt: '-',
-    coupangUrl: 'https://link.coupang.com/a/b04_pos_receipt_paper',
+    coupangUrl: 'https://link.coupang.com/a/g30QoZWHu0',
   },
 ];
 
@@ -3681,7 +3681,7 @@ export function fetchAdBannerStats(): AdBannerStat[] {
       // 이전 가짜 더미 통계 데이터(284 노출수 또는 2,280원) 자동 초기화
       const isLegacyDummy = parsed.some((b) => b.impressions === 284 || b.estimatedRevenue === 2280);
       if (!isLegacyDummy) {
-        // 기존 더미 URL을 사장님의 실제 로켓프레시 링크로 자동 마이그레이션
+        // 기존 더미 URL들을 사장님의 실제 4대 쿠팡 파트너스 링크로 자동 마이그레이션
         let changed = false;
         parsed = parsed.map((b) => {
           if (b.key === 'TOP_MAIN' && (!b.coupangUrl || b.coupangUrl.includes('b01_food_wholesale'))) {
@@ -3689,9 +3689,39 @@ export function fetchAdBannerStats(): AdBannerStat[] {
             return {
               ...b,
               icon: '🚀',
-              name: '상단 메인 기획전 배너 (로켓프레시 신선식품)',
+              name: '상단 메인 기획전 배너 (로켓프레시 & 로켓와우)',
               targetCategory: '로켓프레시 신선식품 새벽배송 / 산지직송 식재료',
               coupangUrl: 'https://link.coupang.com/a/g30rXXHchE',
+            };
+          }
+          if (b.key === 'COMMUNITY_FEED' && (!b.coupangUrl || b.coupangUrl.includes('b02_packaging_box'))) {
+            changed = true;
+            return {
+              ...b,
+              icon: '🌕',
+              name: '사장님 사랑방 피드 배너 (추석 페스타 ~50% 할인)',
+              targetCategory: '한가위 추석 선물세트 / 명절 과일·제수용품 (~9/27)',
+              coupangUrl: 'https://link.coupang.com/a/g312wbXxOS',
+            };
+          }
+          if (b.key === 'STORE_DRAWER' && (!b.coupangUrl || b.coupangUrl.includes('b03_kitchen_hygiene'))) {
+            changed = true;
+            return {
+              ...b,
+              icon: '🧴',
+              name: '매장 상세 서랍 배너 (2026 생활용품 한가위 선물대전)',
+              targetCategory: '와우회원 전용 생활용품 / 샴푸·바디 선물세트 (~9/25)',
+              coupangUrl: 'https://link.coupang.com/a/g32fzuTLVs',
+            };
+          }
+          if (b.key === 'WALLET_FOOTER' && (!b.coupangUrl || b.coupangUrl.includes('b04_pos_receipt_paper'))) {
+            changed = true;
+            return {
+              ...b,
+              icon: '⏰',
+              name: '보관함 & 푸터 배너 (로켓와우 골든아워 매일 7시 OPEN)',
+              targetCategory: '로켓와우 회원전용 골드박스 / 타임특가 생필품',
+              coupangUrl: 'https://link.coupang.com/a/g30QoZWHu0',
             };
           }
           return b;

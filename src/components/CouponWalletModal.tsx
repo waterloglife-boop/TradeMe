@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Ticket, CheckCircle2, Clock, AlertCircle, RotateCcw, Sparkles, ChevronRight, ShieldCheck, ArrowRight, Store as StoreIcon, AlertTriangle, ShieldAlert, Trash2 } from 'lucide-react';
 import { Store, IssuedVoucher } from '../types/trade';
 import { fetchStoredVouchers, fetchVouchersFromSupabase, redeemVoucherInStorage, restoreVoucherInStorage, deleteVoucherFromStorage } from '../lib/supabase';
+import { WalletFooterSponsoredCard } from './CoupangAffiliateBanner';
 
 interface CouponWalletModalProps {
   isOpen: boolean;
@@ -325,6 +326,9 @@ export const CouponWalletModal: React.FC<CouponWalletModalProps> = ({
               )}
             </div>
           )}
+
+          {/* 🎟️ 쿠팡 파트너스 보관함 스폰서 배너 (로켓와우 골든아워 특가) */}
+          <WalletFooterSponsoredCard />
 
           {/* 🛡️ 통신판매중개자 법적 고지 (전자상거래법 제20조 제2항 준수) */}
           <div className="p-3 bg-gray-100/80 border border-gray-200/80 rounded-2xl text-[11px] text-gray-500 space-y-1">

@@ -12,9 +12,9 @@ import {
   MessageSquare,
   ShieldCheck,
   Tag,
-  Sparkles,
   Loader2,
 } from 'lucide-react';
+import { StoreDrawerSponsoredCard } from './CoupangAffiliateBanner';
 
 interface StoreDetailDrawerProps {
   store: Store | null;
@@ -591,6 +591,11 @@ export const StoreDetailDrawer: React.FC<StoreDetailDrawerProps> = ({
             </div>
           );
         })()}
+
+        {/* 🎁 쿠팡 파트너스 매장 상세 서랍 스폰서 배너 (생활용품 한가위 선물대전) */}
+        <div className="mt-2">
+          <StoreDrawerSponsoredCard />
+        </div>
       </div>
 
       {/* Bottom Footer Action */}
