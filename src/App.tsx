@@ -98,13 +98,18 @@ export const App: React.FC = () => {
   const [pendingTradeCount, setPendingTradeCount] = useState(0);
   const [pendingMenuTestCount, setPendingMenuTestCount] = useState(0);
 
-  // 🔔 실시간 알람 사운드 & 수동 새로고침 State (기본값: OFF / 사전 허용 안내 모달 연동)
+  // 🔔 실시간 알람 사운드 & 수동 새로고침 State (기본값: ON / 허용 시 자동 활성화)
   const [alarmEnabled, setAlarmEnabled] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('trademe_alarm_enabled');
-      return saved === 'true'; // 기본값: 알람 OFF
+      if (saved === 'false') return false; // 명시적으로 끈 경우에만 OFF
+      if (saved === 'true') return true;
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        return true;
+      }
+      return true; // 실시간 1:1 거래 및 채팅 알람 기본 ON
     } catch (e) {
-      return false;
+      return true;
     }
   });
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState<boolean>(false);
@@ -175,6 +180,11 @@ export const App: React.FC = () => {
         }
       } catch (e) {}
     }
+
+    setAlarmEnabled(true);
+    try {
+      localStorage.setItem('trademe_alarm_enabled', 'true');
+    } catch (e) {}
 
     const sent = await showDeviceNotification('🔔 트레이드미 알림 테스트', {
       body: '스마트폰 상단바 배너와 진동이 정상 작동합니다! 🎉',
@@ -636,6 +646,17 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [myStore.id, stores.length]);
 
+  // 🔔 안정적인 실시간 웹소켓 구독 유지를 위한 Ref (채널 빈번한 재연결 및 누락 방지)
+  const alarmEnabledRef = useRef(alarmEnabled);
+  useEffect(() => {
+    alarmEnabledRef.current = alarmEnabled;
+  }, [alarmEnabled]);
+
+  const chatTargetStoreRef = useRef(chatTargetStore);
+  useEffect(() => {
+    chatTargetStoreRef.current = chatTargetStore;
+  }, [chatTargetStore]);
+
   // 🔔 [실시간 1:1 메시지 수신 리스너]
   useEffect(() => {
     if (!myStore.id) return;
@@ -643,7 +664,7 @@ export const App: React.FC = () => {
     const unsubscribe = subscribeToIncomingChats(myStore.id, (data) => {
       refreshConversations();
 
-      if (alarmEnabled) {
+      if (alarmEnabledRef.current) {
         const cleanMessage = data.message.includes('<!--TRADE_DATA:')
           ? '🤝 새로운 물물교환 정식 제안서가 도착했습니다.'
           : data.message;
@@ -665,14 +686,15 @@ export const App: React.FC = () => {
       }
 
       // 현재 열려있는 대화방이면 말풍선 바로 추가
-      if (chatTargetStore?.id === data.counterpartStoreId) {
+      if (chatTargetStoreRef.current?.id === data.counterpartStoreId) {
         setMessagesMap((prev) => ({
           ...prev,
           [data.counterpartStoreId]: [...(prev[data.counterpartStoreId] || []), data.rawMsg],
         }));
       } else {
         // 아니면 상단에 실시간 알림 토스트 팝업
-        const senderStore = stores.find((s) => s.id === data.counterpartStoreId) || {
+        const currentStores = storesRef.current;
+        const senderStore = currentStores.find((s) => s.id === data.counterpartStoreId) || {
           id: data.counterpartStoreId,
           ownerName: data.senderName,
           storeName: data.senderName + ' 매장',
@@ -704,7 +726,7 @@ export const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [myStore.id, chatTargetStore?.id, stores, alarmEnabled]);
+  }, [myStore.id]);
 
   // 🤝 [실시간 물물교환 제안 & 상생 교환권 클라우드 동기화 리스너]
   useEffect(() => {
@@ -722,7 +744,7 @@ export const App: React.FC = () => {
 
     // 실시간 제안 상태 변경(수락/거절) 감지
     const unsubProposals = subscribeToTradeProposals(myStore.id, (row) => {
-      if (alarmEnabled && row) {
+      if (alarmEnabledRef.current && row) {
         const isTarget = row.target_store_id === myStore.id;
         const isRequester = row.requester_store_id === myStore.id;
 
@@ -756,7 +778,7 @@ export const App: React.FC = () => {
 
     // 실시간 교환권 발행 감지
     const unsubVouchers = subscribeToVouchers(myStore.id, () => {
-      if (alarmEnabled) {
+      if (alarmEnabledRef.current) {
         showDeviceNotification('🎟️ 상생 교환권 도착!', {
           body: '새로운 1:1 모바일 교환권이 보관함에 발행되었습니다.',
           tag: 'trademe-voucher',
@@ -772,7 +794,7 @@ export const App: React.FC = () => {
       unsubProposals();
       unsubVouchers();
     };
-  }, [myStore.id, alarmEnabled]);
+  }, [myStore.id]);
 
   // 💬 [사장님 사랑방] 내 게시글에 새 댓글이 달렸을 때 실시간 알림 리스너
   useEffect(() => {
@@ -782,7 +804,7 @@ export const App: React.FC = () => {
     const storeName = myStore.storeName || '';
 
     const unsubComments = subscribeToMyPostComments(authorName, storeName, (data) => {
-      if (alarmEnabled) {
+      if (alarmEnabledRef.current) {
         showDeviceNotification(`💬 [사장님 사랑방] 내 글에 새 댓글 도착!`, {
           body: `${data.comment.author_name || '이웃 사장'}님: "${data.comment.content}"`,
           tag: `comment-${data.comment.id}`,
@@ -792,7 +814,7 @@ export const App: React.FC = () => {
     });
 
     return () => unsubComments();
-  }, [myStore.ownerName, myStore.storeName, userOwnerName, alarmEnabled]);
+  }, [myStore.ownerName, myStore.storeName, userOwnerName]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

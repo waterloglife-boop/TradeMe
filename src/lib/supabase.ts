@@ -1950,32 +1950,30 @@ export function subscribeToVouchers(
         event: 'INSERT',
         schema: 'public',
         table: 'issued_vouchers',
-        filter: `receiver_store_id=eq.${myStoreId}`,
       },
       (payload) => {
         const row = payload.new as any;
-        if (row) {
-          const voucher: IssuedVoucher = {
-            id: row.id,
-            tradeId: row.trade_id,
-            senderStoreId: row.sender_store_id,
-            senderStoreName: row.sender_store_name,
-            senderOwnerName: row.sender_owner_name,
-            senderStoreImageUrl: row.sender_store_image_url,
-            receiverStoreId: row.receiver_store_id,
-            receiverStoreName: row.receiver_store_name,
-            type: row.type || 'AMOUNT',
-            title: row.title,
-            description: row.description,
-            amount: Number(row.amount) || 0,
-            fulfillmentTypes: row.fulfillment_types || ['PICKUP', 'ON_SITE'],
-            issuedAt: row.issued_at,
-            expiresAt: row.expires_at,
-            status: row.status || 'AVAILABLE',
-            usedAt: row.used_at || undefined,
-          };
-          onNewVoucher(voucher);
-        }
+        if (!row || row.receiver_store_id !== myStoreId) return;
+        const voucher: IssuedVoucher = {
+          id: row.id,
+          tradeId: row.trade_id,
+          senderStoreId: row.sender_store_id,
+          senderStoreName: row.sender_store_name,
+          senderOwnerName: row.sender_owner_name,
+          senderStoreImageUrl: row.sender_store_image_url,
+          receiverStoreId: row.receiver_store_id,
+          receiverStoreName: row.receiver_store_name,
+          type: row.type || 'AMOUNT',
+          title: row.title,
+          description: row.description,
+          amount: Number(row.amount) || 0,
+          fulfillmentTypes: row.fulfillment_types || ['PICKUP', 'ON_SITE'],
+          issuedAt: row.issued_at,
+          expiresAt: row.expires_at,
+          status: row.status || 'AVAILABLE',
+          usedAt: row.used_at || undefined,
+        };
+        onNewVoucher(voucher);
       }
     )
     .subscribe();
