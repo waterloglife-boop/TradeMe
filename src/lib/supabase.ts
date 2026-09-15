@@ -3622,15 +3622,15 @@ const DEFAULT_BANNER_STATS: AdBannerStat[] = [
   {
     id: 'banner-top-main',
     key: 'TOP_MAIN',
-    icon: '🏆',
-    name: '상단 메인 기획전 배너 (식자재/도매)',
-    targetCategory: '업소용 식용유 18L / 쌀 20kg / 식료품',
+    icon: '🚀',
+    name: '상단 메인 기획전 배너 (로켓프레시 신선식품)',
+    targetCategory: '로켓프레시 신선식품 새벽배송 / 산지직송 식재료',
     impressions: 0,
     clicks: 0,
     ctr: 0,
     estimatedRevenue: 0,
     lastClickedAt: '-',
-    coupangUrl: 'https://link.coupang.com/a/b01_food_wholesale',
+    coupangUrl: 'https://link.coupang.com/a/g30rXXHchE',
   },
   {
     id: 'banner-community',
@@ -3677,10 +3677,28 @@ export function fetchAdBannerStats(): AdBannerStat[] {
   try {
     const raw = localStorage.getItem(AD_STATS_STORAGE_KEY);
     if (raw) {
-      const parsed: AdBannerStat[] = JSON.parse(raw);
+      let parsed: AdBannerStat[] = JSON.parse(raw);
       // 이전 가짜 더미 통계 데이터(284 노출수 또는 2,280원) 자동 초기화
       const isLegacyDummy = parsed.some((b) => b.impressions === 284 || b.estimatedRevenue === 2280);
       if (!isLegacyDummy) {
+        // 기존 더미 URL을 사장님의 실제 로켓프레시 링크로 자동 마이그레이션
+        let changed = false;
+        parsed = parsed.map((b) => {
+          if (b.key === 'TOP_MAIN' && (!b.coupangUrl || b.coupangUrl.includes('b01_food_wholesale'))) {
+            changed = true;
+            return {
+              ...b,
+              icon: '🚀',
+              name: '상단 메인 기획전 배너 (로켓프레시 신선식품)',
+              targetCategory: '로켓프레시 신선식품 새벽배송 / 산지직송 식재료',
+              coupangUrl: 'https://link.coupang.com/a/g30rXXHchE',
+            };
+          }
+          return b;
+        });
+        if (changed) {
+          localStorage.setItem(AD_STATS_STORAGE_KEY, JSON.stringify(parsed));
+        }
         return parsed;
       }
     }

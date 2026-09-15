@@ -466,7 +466,7 @@ export const WebmasterDashboardModal: React.FC<WebmasterDashboardModalProps> = (
                   {/* Banner 1 Input Card */}
                   <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1.5">
                     <label className="text-[11px] font-extrabold text-gray-800 flex items-center gap-1.5">
-                      <span>🏆 1. 상단 메인 기획전 배너 (식자재/도매)</span>
+                      <span>🚀 1. 상단 메인 기획전 배너 (로켓프레시 신선식품 새벽배송)</span>
                     </label>
                     <input
                       type="text"
