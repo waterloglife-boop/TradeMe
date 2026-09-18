@@ -26,6 +26,7 @@ import { StoreListModal } from './components/StoreListModal';
 import { AdPartnershipModal } from './components/AdPartnershipModal';
 import { AlarmGuideModal } from './components/AlarmGuideModal';
 import { NaverPlacePoomasiModal } from './components/NaverPlacePoomasiModal';
+import { ReviewExtensionModal } from './components/ReviewExtensionModal';
 import { InquiryType, KAKAO_OPEN_CHAT_URL } from './types/trade';
 import { playNotificationChime } from './lib/sound';
 import { showDeviceNotification } from './lib/notification';
@@ -356,6 +357,7 @@ export const App: React.FC = () => {
   const [inquiryDefaultType, setInquiryDefaultType] = useState<InquiryType>('INQUIRY');
   const [inquiryPrefill, setInquiryPrefill] = useState<{ defaultType?: InquiryType; defaultTitle?: string; defaultContent?: string } | null>(null);
   const [isPoomasiModalOpen, setIsPoomasiModalOpen] = useState(false);
+  const [isReviewExtensionModalOpen, setIsReviewExtensionModalOpen] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [bannedStoreIds, setBannedStoreIds] = useState<string[]>([]);
@@ -1578,6 +1580,7 @@ export const App: React.FC = () => {
         voucherCount={voucherWalletCount}
         onOpenStoreListModal={() => setIsStoreListModalOpen(true)}
         onOpenPoomasiModal={() => setIsPoomasiModalOpen(true)}
+        onOpenReviewExtensionModal={() => setIsReviewExtensionModalOpen(true)}
         alarmEnabled={alarmEnabled}
         onToggleAlarm={handleToggleAlarm}
         isRefreshing={isRefreshing}
@@ -1598,6 +1601,29 @@ export const App: React.FC = () => {
 
       {/* 🏆 쿠팡 파트너스 & 광고주 모집 홈 상단 슬림 기획전 띠배너 (식자재/도매) */}
       <TopMainSlimBanner onOpenAdPartnership={() => handleOpenAdPartnership('TOP_BANNER')} />
+
+      {/* 🤖 배민 & 네이버 AI 리뷰 자동 답글 크롬 확장 프로그램 무료 배포 띠배너 */}
+      <div className="w-full bg-gradient-to-r from-purple-900 via-indigo-950 to-purple-900 text-white px-3 sm:px-4 py-2 border-b border-purple-800/60 shadow-inner flex items-center justify-between gap-2 z-10">
+        <div 
+          onClick={() => setIsReviewExtensionModalOpen(true)}
+          className="flex items-center gap-2 max-w-[78%] sm:max-w-[85%] cursor-pointer group truncate"
+        >
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-400 to-orange-500 text-gray-950 shadow-sm flex-shrink-0 animate-pulse">
+            사장님 무료 혜택
+          </span>
+          <span className="text-xs sm:text-sm font-bold truncate group-hover:text-amber-200 transition-colors">
+            ✨ 배달의민족 · 네이버 플레이스 <b>AI 리뷰 자동 답글 프로그램</b> 무료 배포 중! (로그인 시 즉시 이용)
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsReviewExtensionModalOpen(true)}
+          className="flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-black bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border border-purple-400/40 shadow-xs transition active:scale-95 flex-shrink-0 cursor-pointer"
+        >
+          <span>무료 받기</span>
+          <span className="hidden sm:inline">&gt;</span>
+        </button>
+      </div>
 
       {/* Main Map View */}
       <main className="relative flex-1">
@@ -2078,6 +2104,19 @@ export const App: React.FC = () => {
             defaultTitle: props.defaultTitle,
             defaultContent: props.defaultContent,
           });
+        }}
+      />
+
+      {/* 🤖 배민 & 네이버 AI 리뷰 자동 답글 크롬 확장 프로그램 모달 */}
+      <ReviewExtensionModal
+        isOpen={isReviewExtensionModalOpen}
+        onClose={() => setIsReviewExtensionModalOpen(false)}
+        isLoggedIn={isLoggedIn}
+        userOwnerName={userOwnerName}
+        onOpenAuthModal={() => {
+          setIsReviewExtensionModalOpen(false);
+          setAuthModalNotice('💡 AI 리뷰 답글 확장 프로그램은 트레이드미 회원 전용 무료 혜택입니다. 로그인하거나 간편 가입해 보세요!');
+          setIsAuthModalOpen(true);
         }}
       />
 

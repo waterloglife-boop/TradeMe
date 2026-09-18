@@ -30,6 +30,7 @@ interface NavbarProps {
   voucherCount?: number;
   onOpenStoreListModal?: () => void;
   onOpenPoomasiModal?: () => void;
+  onOpenReviewExtensionModal?: () => void;
   alarmEnabled?: boolean;
   onToggleAlarm?: () => void;
   isRefreshing?: boolean;
@@ -61,6 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   voucherCount = 0,
   onOpenStoreListModal,
   onOpenPoomasiModal,
+  onOpenReviewExtensionModal,
   alarmEnabled = true,
   onToggleAlarm,
   isRefreshing = false,
@@ -149,6 +151,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
+            {/* 🤖 모바일 AI 리뷰 답글기 바로가기 */}
+            {onOpenReviewExtensionModal && (
+              <button
+                type="button"
+                onClick={onOpenReviewExtensionModal}
+                className="flex items-center gap-0.5 px-2 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[10px] font-black shadow-2xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                title="배민·네이버 AI 리뷰 답글기 (무료)"
+              >
+                <span>🤖</span>
+                <span>AI답글</span>
+              </button>
+            )}
+
             {/* 💬 모바일 카카오톡 단톡방 바로가기 */}
             <a
               href={KAKAO_OPEN_CHAT_URL}
@@ -205,6 +220,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-xs sm:text-sm">⭐</span>
                 <span className="hidden xl:inline">플레이스 품앗이</span>
                 <span className="xl:hidden">품앗이</span>
+              </button>
+            )}
+
+            {/* 🤖 AI 리뷰 답글 확장프로그램 버튼 */}
+            {onOpenReviewExtensionModal && (
+              <button
+                type="button"
+                onClick={onOpenReviewExtensionModal}
+                className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                title="배민·네이버 AI 리뷰 답글 크롬 확장 프로그램 (무료)"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
+                <span className="hidden xl:inline">AI 리뷰 답글기</span>
+                <span className="xl:hidden">AI 답글</span>
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-white/20 text-yellow-200">
+                  무료
+                </span>
               </button>
             )}
 
