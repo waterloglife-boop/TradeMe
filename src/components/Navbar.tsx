@@ -1,5 +1,5 @@
-import React from 'react';
-import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, User, LogIn, Edit3, List, Bell, BellOff } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { RefreshCw, Plus, Store, Clock, Utensils, Bed, ShoppingBag, Sparkles, User, LogIn, Edit3, List, Bell, BellOff, ChevronDown, ExternalLink } from 'lucide-react';
 import { KAKAO_OPEN_CHAT_URL } from '../types/trade';
 
 interface NavbarProps {
@@ -66,8 +66,21 @@ export const Navbar: React.FC<NavbarProps> = ({
   alarmEnabled = true,
   onToggleAlarm,
   isRefreshing = false,
-  onRefreshAll,
 }) => {
+  // 🌟 사장님 혜택 & 소통 통합 드롭다운 메뉴 State
+  const [isBenefitsMenuOpen, setIsBenefitsMenuOpen] = useState(false);
+  const benefitsMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (benefitsMenuRef.current && !benefitsMenuRef.current.contains(event.target as Node)) {
+        setIsBenefitsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <header 
       className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm pt-safe"
@@ -97,8 +110,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Mobile Right Controls: Refresh, Alarm toggle, and BreakTime toggle (md:hidden) */}
-          <div className="flex items-center gap-1.5 md:hidden flex-shrink-0">
+          {/* Mobile Right Controls: 혜택·소통 모아보기, BreakTime, Refresh, Alarm (md:hidden) */}
+          <div className="flex items-center gap-1 sm:gap-1.5 md:hidden flex-shrink-0">
             {/* 🔄 모바일 새로고침 버튼 */}
             {onRefreshAll && (
               <button
@@ -117,64 +130,31 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onToggleAlarm}
-                title={alarmEnabled ? "실시간 알람 소리 켜짐 (터치 시 끄기)" : "실시간 백그라운드 푸시 알람 켜기 (터치 시 설정 안내)"}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full border cursor-pointer select-none transition-all active:scale-95 ${
+                title={alarmEnabled ? "실시간 알람 켜짐 (터치 시 끄기)" : "실시간 알람 켜기"}
+                className={`p-1.5 rounded-full border cursor-pointer select-none transition-all active:scale-95 ${
                   alarmEnabled
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
                     : 'bg-amber-50 border-amber-300 text-amber-900 shadow-xs'
                 }`}
               >
                 {alarmEnabled ? (
-                  <>
-                    <Bell className="w-3 h-3 text-emerald-600 animate-pulse" />
-                    <span className="text-[10px] font-black">알람 ON</span>
-                  </>
+                  <Bell className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
                 ) : (
-                  <>
-                    <Bell className="w-3 h-3 text-amber-600 animate-bounce" />
-                    <span className="text-[10px] font-black">알람 켜기</span>
-                  </>
+                  <BellOff className="w-3.5 h-3.5 text-amber-600" />
                 )}
               </button>
             )}
 
-            {/* ⭐ 모바일 플레이스 품앗이 바로가기 */}
-            {onOpenPoomasiModal && (
-              <button
-                type="button"
-                onClick={onOpenPoomasiModal}
-                className="flex items-center gap-0.5 px-2 py-1 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black shadow-2xs active:scale-95 transition whitespace-nowrap cursor-pointer"
-                title="네이버 플레이스 저장 품앗이"
-              >
-                <span>⭐</span>
-                <span>품앗이</span>
-              </button>
-            )}
-
-            {/* 🤖 모바일 AI 리뷰 답글기 바로가기 */}
-            {onOpenReviewExtensionModal && (
-              <button
-                type="button"
-                onClick={onOpenReviewExtensionModal}
-                className="flex items-center gap-0.5 px-2 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[10px] font-black shadow-2xs active:scale-95 transition whitespace-nowrap cursor-pointer"
-                title="배민·네이버 AI 리뷰 답글기 (무료)"
-              >
-                <span>🤖</span>
-                <span>AI답글</span>
-              </button>
-            )}
-
-            {/* 💬 모바일 카카오톡 단톡방 바로가기 */}
-            <a
-              href={KAKAO_OPEN_CHAT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-0.5 px-2 py-1 rounded-full bg-yellow-300 hover:bg-yellow-400 text-yellow-950 text-[10px] font-black shadow-2xs active:scale-95 transition whitespace-nowrap cursor-pointer border border-yellow-400"
-              title="카카오톡 사장님 소통방"
+            {/* ✨ 모바일 사장님 혜택 & 소통 메뉴 열기 */}
+            <button
+              type="button"
+              onClick={() => setIsBenefitsMenuOpen(!isBenefitsMenuOpen)}
+              className="flex items-center gap-0.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-600 text-white text-[10px] font-black shadow-2xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+              title="사장님 혜택 & 커뮤니티 모아보기"
             >
-              <span>💬</span>
-              <span>단톡방</span>
-            </a>
+              <Sparkles className="w-3 h-3 text-yellow-300 animate-pulse" />
+              <span>혜택·소통</span>
+            </button>
 
             {/* 교환 ON / OFF */}
             <button
@@ -194,71 +174,121 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Desktop Right Action Controls (hidden md:flex) */}
-          <div className="hidden md:flex items-center gap-1 lg:gap-1.5 xl:gap-2 flex-shrink-0">
+          <div className="hidden md:flex items-center gap-1.5 lg:gap-2 flex-shrink-0">
             
-            {/* 💬 카카오톡 오픈채팅 사장님 단톡방 바로가기 */}
-            <a
-              href={KAKAO_OPEN_CHAT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-400 hover:from-yellow-400 hover:to-amber-400 text-yellow-950 shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
-              title="트레이드미 사장님 공식 카카오톡 단톡방"
-            >
-              <span className="text-xs sm:text-sm">💬</span>
-              <span className="hidden xl:inline">사장님 단톡방</span>
-              <span className="xl:hidden">단톡방</span>
-            </a>
-
-            {/* ⭐ 네이버 플레이스 저장 품앗이 버튼 */}
-            {onOpenPoomasiModal && (
+            {/* 🌟 사장님 혜택 & 소통 통합 드롭다운 (단톡방+품앗이+AI리뷰+사랑방) */}
+            <div className="relative" ref={benefitsMenuRef}>
               <button
                 type="button"
-                onClick={onOpenPoomasiModal}
-                className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
-                title="네이버 플레이스 저장 품앗이"
-              >
-                <span className="text-xs sm:text-sm">⭐</span>
-                <span className="hidden xl:inline">플레이스 품앗이</span>
-                <span className="xl:hidden">품앗이</span>
-              </button>
-            )}
-
-            {/* 🤖 AI 리뷰 답글 확장프로그램 버튼 */}
-            {onOpenReviewExtensionModal && (
-              <button
-                type="button"
-                onClick={onOpenReviewExtensionModal}
-                className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
-                title="배민·네이버 AI 리뷰 답글 크롬 확장 프로그램 (무료)"
+                onClick={() => setIsBenefitsMenuOpen(!isBenefitsMenuOpen)}
+                className="flex items-center gap-1 px-2.5 lg:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                title="사장님 혜택 및 커뮤니티 모아보기"
               >
                 <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
-                <span className="hidden xl:inline">AI 리뷰 답글기</span>
-                <span className="xl:hidden">AI 답글</span>
-                <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-white/20 text-yellow-200">
-                  무료
-                </span>
+                <span>사장님 혜택·소통</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isBenefitsMenuOpen ? 'rotate-180' : ''}`} />
               </button>
-            )}
 
-            {/* ☕ 사장님 사랑방 커뮤니티 버튼 */}
-            {onOpenCommunityModal && (
-              <button
-                onClick={onOpenCommunityModal}
-                className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
-                title="사장님 사랑방 커뮤니티"
-              >
-                <span className="text-xs sm:text-sm">☕</span>
-                <span className="hidden xl:inline">사장님 사랑방</span>
-                <span className="xl:hidden">사랑방</span>
-              </button>
-            )}
+              {isBenefitsMenuOpen && (
+                <div className="absolute right-0 mt-2 w-72 lg:w-80 bg-white rounded-2xl shadow-2xl border border-gray-200/90 py-2 z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+                  <div className="px-3.5 py-2 text-[11px] font-extrabold text-gray-500 border-b border-gray-100 flex items-center justify-between bg-gray-50/70">
+                    <span>✨ 사장님 전용 혜택 & 소통</span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-purple-100 text-purple-700">TradeMe Plus</span>
+                  </div>
+
+                  <div className="p-1.5 space-y-1">
+                    {/* 1. AI 리뷰 답글기 */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsBenefitsMenuOpen(false);
+                        onOpenReviewExtensionModal?.();
+                      }}
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-purple-50 flex items-center gap-3 transition group cursor-pointer"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center font-black text-lg flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                        🤖
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-gray-900 group-hover:text-purple-700">AI 리뷰 답글기</span>
+                          <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-purple-100 text-purple-700">무료 배포</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 truncate mt-0.5">배민·네이버 리뷰 3초 자동 생성 (크롬 확장)</p>
+                      </div>
+                    </button>
+
+                    {/* 2. 네이버 플레이스 품앗이 */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsBenefitsMenuOpen(false);
+                        onOpenPoomasiModal?.();
+                      }}
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-emerald-50 flex items-center gap-3 transition group cursor-pointer"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black text-lg flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                        ⭐
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-gray-900 group-hover:text-emerald-700">플레이스 품앗이</span>
+                          <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-700">순위 UP</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 truncate mt-0.5">사장님끼리 네이버 저장 맞품앗이</p>
+                      </div>
+                    </button>
+
+                    {/* 3. 사장님 사랑방 커뮤니티 */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsBenefitsMenuOpen(false);
+                        onOpenCommunityModal?.();
+                      }}
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-amber-50 flex items-center gap-3 transition group cursor-pointer"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center font-black text-lg flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                        ☕
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-gray-900 group-hover:text-amber-700">사장님 사랑방</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 truncate mt-0.5">골목 사장님들의 자유로운 이야기 & 정보 공유</p>
+                      </div>
+                    </button>
+
+                    {/* 4. 카카오톡 단톡방 */}
+                    <a
+                      href={KAKAO_OPEN_CHAT_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsBenefitsMenuOpen(false)}
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-yellow-50 flex items-center gap-3 transition group cursor-pointer"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-400 text-yellow-950 flex items-center justify-center font-black text-lg flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                        💬
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-gray-900 group-hover:text-yellow-900">공식 카카오톡 단톡방</span>
+                          <ExternalLink className="w-3 h-3 text-gray-400" />
+                        </div>
+                        <p className="text-[11px] text-gray-500 truncate mt-0.5">사장님들과의 실시간 소통 & Q&A (새 창)</p>
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* 💬 1:1 사장님 대화함 버튼 */}
             {onOpenChatListModal && (
               <button
                 type="button"
                 onClick={onOpenChatListModal}
-                className="relative flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                className="relative flex items-center gap-1 px-2.5 lg:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
                 title="1:1 사장님 대화함"
               >
                 <span className="text-xs sm:text-sm">💬</span>
@@ -281,7 +311,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onOpenCouponWallet && (
               <button
                 onClick={onOpenCouponWallet}
-                className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-700 hover:to-orange-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
+                className="flex items-center gap-1 px-2.5 lg:px-3 py-1 sm:py-1.5 text-xs font-black rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-xs active:scale-95 transition whitespace-nowrap cursor-pointer"
                 title="내 교환권 보관함"
               >
                 <span className="text-xs sm:text-sm">🎟️</span>
@@ -296,7 +326,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {/* Break Time Toggle Box */}
-            <div className={`flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-full border transition-all ${
+            <div className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl border transition-all ${
               myBreakTimeActive
                 ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-xs'
                 : 'bg-gray-100 border-gray-200 text-gray-600'
@@ -304,10 +334,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex items-center gap-1">
                 <span className={`w-2 h-2 rounded-full ${myBreakTimeActive ? 'bg-amber-500 animate-ping' : 'bg-gray-400'}`}></span>
                 <Clock className={`w-3.5 h-3.5 ${myBreakTimeActive ? 'text-amber-600' : 'text-gray-400'}`} />
-                <span className="text-xs font-semibold hidden 2xl:inline">
-                  내 가게 교환가능:
-                </span>
-                <span className="text-xs font-semibold hidden md:inline 2xl:hidden">
+                <span className="text-xs font-bold hidden 2xl:inline">
                   교환:
                 </span>
               </div>
@@ -326,49 +353,40 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }`}
                 />
               </button>
-              <span className={`text-[10px] sm:text-xs font-bold ${myBreakTimeActive ? 'text-amber-700' : 'text-gray-500'}`}>
+              <span className={`text-[10px] sm:text-xs font-black ${myBreakTimeActive ? 'text-amber-700' : 'text-gray-500'}`}>
                 {myBreakTimeActive ? 'ON' : 'OFF'}
               </span>
             </div>
 
-            {/* 🔄 데스크톱 새로고침 버튼 */}
+            {/* 🔄 데스크톱 새로고침 버튼 (미니 아이콘형) */}
             {onRefreshAll && (
               <button
                 type="button"
                 onClick={onRefreshAll}
                 disabled={isRefreshing}
                 title="최신 매장 및 거래 데이터 새로고침"
-                className="flex items-center gap-1 px-2 lg:px-2.5 py-1 sm:py-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold transition active:scale-95 cursor-pointer shadow-2xs"
+                className="p-1.5 lg:p-2 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 transition active:scale-95 cursor-pointer shadow-2xs"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-orange-600' : 'text-gray-500'}`} />
-                <span className="hidden 2xl:inline">{isRefreshing ? '동기화 중...' : '새로고침'}</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-orange-600' : 'text-gray-600'}`} />
               </button>
             )}
 
-            {/* 🔔 데스크톱 알람 ON/OFF 버튼 */}
+            {/* 🔔 데스크톱 알람 ON/OFF 버튼 (미니 아이콘형) */}
             {onToggleAlarm && (
               <button
                 type="button"
                 onClick={onToggleAlarm}
-                title={alarmEnabled ? "실시간 거래 및 대화 알람 소리 켜짐 (클릭 시 끄기)" : "실시간 백그라운드 푸시 알람 켜기 (클릭 시 설정 안내)"}
-                className={`flex items-center gap-1 px-2 lg:px-2.5 py-1 sm:py-1.5 text-xs font-bold rounded-xl transition shadow-2xs active:scale-95 border cursor-pointer ${
+                title={alarmEnabled ? "실시간 거래 및 대화 알람 켜짐 (클릭 시 끄기)" : "실시간 알람 켜기"}
+                className={`p-1.5 lg:p-2 rounded-xl border transition shadow-2xs active:scale-95 cursor-pointer ${
                   alarmEnabled
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
                     : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-xs'
                 }`}
               >
                 {alarmEnabled ? (
-                  <>
-                    <Bell className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-                    <span className="hidden xl:inline">알람 ON</span>
-                    <span className="xl:hidden font-black text-[10px]">ON</span>
-                  </>
+                  <Bell className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
                 ) : (
-                  <>
-                    <Bell className="w-3.5 h-3.5 text-amber-600 animate-bounce" />
-                    <span className="hidden xl:inline">알람 켜기</span>
-                    <span className="xl:hidden font-black text-[10px]">켜기</span>
-                  </>
+                  <BellOff className="w-3.5 h-3.5 text-amber-600" />
                 )}
               </button>
             )}
