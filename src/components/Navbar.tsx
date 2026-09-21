@@ -66,6 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   alarmEnabled = true,
   onToggleAlarm,
   isRefreshing = false,
+  onRefreshAll,
 }) => {
   // 🌟 사장님 혜택 & 소통 통합 드롭다운 메뉴 State
   const [isBenefitsMenuOpen, setIsBenefitsMenuOpen] = useState(false);
