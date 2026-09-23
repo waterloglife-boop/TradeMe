@@ -168,51 +168,96 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const data = await res.json();
 
+      let isEmailNotConfirmed = false;
       if (!res.ok) {
-        let errorMsg = '이메일 또는 비밀번호가 올바르지 않습니다.';
-        if (data.msg === 'Invalid login credentials' || data.error_description === 'Invalid login credentials') {
-          errorMsg = '이메일 또는 비밀번호가 일치하지 않습니다.';
-        } else if (data.msg) {
-          errorMsg = data.msg;
+        // Supabase에서 비밀번호는 맞았으나 이메일 인증 메일 링크를 안 누른 상태인 경우
+        const rawMsg = data.msg || data.error_description || data.error_code || '';
+        if (
+          rawMsg === 'Email not confirmed' ||
+          data.error_code === 'email_not_confirmed' ||
+          rawMsg.toLowerCase().includes('email not confirmed')
+        ) {
+          isEmailNotConfirmed = true;
+        } else {
+          let errorMsg = '이메일 또는 비밀번호가 올바르지 않습니다.';
+          if (data.msg === 'Invalid login credentials' || data.error_description === 'Invalid login credentials') {
+            errorMsg = '이메일 또는 비밀번호가 일치하지 않습니다.';
+          } else if (data.msg) {
+            errorMsg = data.msg;
+          }
+          throw new Error(errorMsg);
         }
-        throw new Error(errorMsg);
       }
 
-      // 2. 로그인 성공 시 사장님 매장 정보 조회
-      const user = data.user;
-      let storeName = user.user_metadata?.store_name || '';
-      let ownerName = user.user_metadata?.owner_name || '사장님';
+      // 2. 사장님 프로필 및 매장 정보 조회
+      let userId = '';
+      let userEmail = email;
+      let storeName = '';
+      let ownerName = '사장님';
       let category = '';
       let address = '';
+      let accessToken = data.access_token || '';
 
-      try {
-        const storeRes = await fetch(`${SUPABASE_URL}/rest/v1/stores?user_id=eq.${user.id}&select=*`, {
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${data.access_token}`
+      if (isEmailNotConfirmed) {
+        // 이메일 미인증 상태이지만 비밀번호는 검증되었으므로 public.profiles에서 조회
+        try {
+          const profRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(email)}&select=*`, {
+            headers: {
+              'apikey': SUPABASE_ANON_KEY
+            }
+          });
+          if (profRes.ok) {
+            const profiles = await profRes.json();
+            if (profiles && profiles.length > 0) {
+              const p = profiles[0];
+              userId = p.id;
+              userEmail = p.email || email;
+              storeName = p.store_name || '';
+              ownerName = p.owner_name || '사장님';
+              address = p.address || '';
+            }
           }
-        });
-        if (storeRes.ok) {
-          const stores = await storeRes.json();
-          if (stores && stores.length > 0) {
-            const s = stores[0];
-            storeName = s.store_name || storeName;
-            ownerName = s.owner_name || ownerName;
-            category = s.category || '';
-            address = s.address || '';
-          }
+        } catch (profErr) {
+          console.warn('[TradeMe Profile fetch warn]:', profErr);
         }
-      } catch (err) {
-        console.warn('[TradeMe Store fetch warn]:', err);
+      } else if (data.user) {
+        userId = data.user.id;
+        userEmail = data.user.email || email;
+        storeName = data.user.user_metadata?.store_name || '';
+        ownerName = data.user.user_metadata?.owner_name || '사장님';
+      }
+
+      // stores 테이블에서 매장 상호명 및 상세 정보 추가 조회
+      if (userId) {
+        try {
+          const storeRes = await fetch(`${SUPABASE_URL}/rest/v1/stores?user_id=eq.${userId}&select=*`, {
+            headers: {
+              'apikey': SUPABASE_ANON_KEY,
+              ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
+            }
+          });
+          if (storeRes.ok) {
+            const stores = await storeRes.json();
+            if (stores && stores.length > 0) {
+              const s = stores[0];
+              storeName = s.store_name || storeName;
+              ownerName = s.owner_name || ownerName;
+              category = s.category || '';
+              address = s.address || address;
+            }
+          }
+        } catch (err) {
+          console.warn('[TradeMe Store fetch warn]:', err);
+        }
       }
 
       if (!storeName) storeName = '내 매장';
 
       const tradeMeAuth = {
         isLoggedIn: true,
-        email: user.email,
-        userId: user.id,
-        accessToken: data.access_token,
+        email: userEmail,
+        userId: userId || ('tm-user-' + Date.now()),
+        accessToken: accessToken || 'session-email-verified',
         storeName,
         ownerName,
         category,
