@@ -189,10 +189,11 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
 - 이모티콘: ${selectedEmojiGuide}
 - 분량: 공백 포함 최대 ${charLimit}자 이내 (손님 글 길이에 맞추어 무리하게 길게 늘리지 말고 자연스럽게 완결)
 
-[절대 금지 규칙 - 반드시 준수]
-1. 상호명, 닉네임, 별점(5/5), 주문메뉴, 손님 리뷰 등을 제목이나 메타데이터로 절대 따라 적거나 나열하지 마세요.
-2. 답글은 오직 1개만 작성하세요. 똑같은 답글이나 다른 버전을 2번 반복해서 쓰지 마세요.
-3. 따옴표(""), 불릿 기호(-), 영어 설명 없이 오직 손님에게 보낼 순수 한글 답글 본문만 바로 작성하세요.`;
+[출력 형식 엄격 규칙 - 절대 위반 금지]
+1. 출력은 오직 손님에게 보낼 "순수 한국어 답글 본문"이어야 합니다.
+2. 머리말 기호(*, -), 불릿, 영어 단어, 영문 번역, 따옴표("")를 절대 출력하지 마세요.
+3. '* Customer:', '* Ordered Menu:', '* Review Content:', 'Address the customer:' 등 손님 정보나 주문 정보를 분석/나열하는 메타데이터 라벨을 절대로 출력하지 마세요.
+4. 어떤 생각이나 분석 과정도 거치지 말고, 곧바로 "${customerName}, 안녕하세요!" 등의 첫인사 한국어 문장으로 첫 글자를 시작하세요.`;
   }
 
   // 5. Google Gemini API 호출 (다중 모델 폴백 및 자동 탐색)
@@ -207,15 +208,26 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
   const lines = cleanText.split('\n');
   const filteredLines = [];
 
+  // 영문 메타데이터 라벨 정규식 (* Customer:, * Ordered Menu:, Review Content: 등)
+  const metaLabelRegex = /^[\s*•\-]*\b(Customer|Client|User|Ordered\s*Menu|Menu|Review\s*Content|Review|Rating|Score|Address(\s*the\s*customer)?|Tone|Persona|Analysis|Note|Notes|Translation|Context|Situation|Response|Reply|Task)\b\s*[:：]/i;
+
   for (let line of lines) {
-    const trimmed = line.trim();
+    let trimmed = line.trim();
     if (!trimmed) {
       filteredLines.push('');
       continue;
     }
 
+    // 앞머리에 닉네임과 불릿이 결합된 오염 방어 (예: "yeseo486님, * Customer: ...")
+    trimmed = trimmed.replace(/^[^\s,，\n]+님[,，\s]*[*•\-]/, '*');
+
+    // (0) 영문 메타 라벨 제거 (예: "* Customer:", "* Ordered Menu:", "* Review Content:", "* Address the customer:")
+    if (metaLabelRegex.test(trimmed)) {
+      continue;
+    }
+
     // (1) 5/5, 5점 등 별점 단독 라인 제거
-    if (/^(\d+\s*[\/／]\s*\d+|\d+\s*점|별점\s*[:：]?\s*\d+)\s*$/.test(trimmed)) {
+    if (/^[\s*•\-]*(\d+\s*[\/／]\s*\d+|\d+\s*점|별점\s*[:：]?\s*\d+)\s*$/.test(trimmed)) {
       continue;
     }
 
@@ -230,22 +242,24 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
     }
 
     // (4) 손님 리뷰를 그대로 복붙 인용한 라인 제거 (예: "콩불 너무 맛있습니다")
-    const unquoted = trimmed.replace(/^["'“”`]+|["'“”`]+$/g, '').trim();
+    const unquoted = trimmed.replace(/^["'“”`*•\-]+|["'“”`]+$/g, '').trim();
     if (reviewText && (unquoted === reviewText.trim() || (reviewText.includes(unquoted) && unquoted.length >= 4))) {
       continue;
     }
 
-    // (5) 프롬프트 라벨 형태 제거 (예: "가게 상호:", "별점:", "답글:")
-    if (/^(가게\s*상호|손님\s*닉네임|별점|주문\s*메뉴|손님\s*리뷰|답글|말투|상호명)\s*[:：]/i.test(trimmed)) {
+    // (5) 한글 프롬프트 라벨 형태 제거 (예: "가게 상호:", "별점:", "답글:", "주문 메뉴:")
+    if (/^[\s*•\-]*(\d+\s*[\/／]\s*\d+|\d+\s*점|별점|가게\s*상호|손님\s*닉네임|주문\s*메뉴|손님\s*리뷰|답글|말투|상호명)\s*[:：]/i.test(trimmed)) {
       continue;
     }
 
-    // (6) 순수 영문 메타 라인 (Role:, Strategy:, Here is your... 등) 제거
-    // 주의: 손님 닉네임에 영문이 포함된 경우(예: yeseo486) 한글 답글 본문 라인이 삭제되지 않도록
-    // 한글([가-힣])이 전혀 없으면서 영문이 4글자 이상인 라인만 영문 메타 설명으로 판정하여 제거
-    const hasKorean = /[가-힣]/.test(trimmed);
+    // (6) 불릿(*, -)으로 시작하면서 영문이 4자 이상 포함된 라인(메타데이터/영문분석) 제거
     const englishCount = (trimmed.match(/[a-zA-Z]/g) || []).length;
-    if (!hasKorean && englishCount >= 4) {
+    if (/^[\s*•\-]/.test(trimmed) && englishCount >= 4) {
+      continue;
+    }
+
+    // (7) 순수 영문 메타 라인 제거 (한글이 전혀 없고 영문이 4자 이상인 경우)
+    if (!/[가-힣]/.test(trimmed) && englishCount >= 4) {
       continue;
     }
 
