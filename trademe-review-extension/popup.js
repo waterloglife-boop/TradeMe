@@ -341,6 +341,14 @@ document.addEventListener('DOMContentLoaded', () => {
       (res) => {
         renderAuthState(res.tradeMeAuth);
 
+        try {
+          const appVersionText = document.getElementById('appVersionText');
+          if (appVersionText && chrome?.runtime?.getManifest) {
+            const manifest = chrome.runtime.getManifest();
+            appVersionText.innerText = `v${manifest.version || '1.3.1'} (트레이드미 회원 전용)`;
+          }
+        } catch (e) {}
+
         if (res.apiKey) {
           apiKeyInput.value = res.apiKey;
         }
