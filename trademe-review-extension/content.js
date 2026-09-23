@@ -148,30 +148,49 @@
     // =======================================================================
     // 1) 고객 닉네임 추출
     let customerName = '';
-    // textarea에 이미 닉네임이 입력되어 있는 경우 ('숙희님,' 등)
-    if (textarea && textarea.value) {
+
+    // 1-1) 쿠팡이츠 닉네임 패턴: "하*부 2회 주문", "이*미 15회 주문" 등
+    const coupangNickMatch = cleanFullText.match(/([가-힣a-zA-Z0-9*]{2,12})\s*(\d+\s*회\s*주문|\d+\s*번째\s*주문)/);
+    if (coupangNickMatch && coupangNickMatch[1]) {
+      const candidate = coupangNickMatch[1].trim();
+      if (!candidate.includes('배달') && !candidate.includes('포장') && !candidate.includes('수령') && candidate !== '고객') {
+        customerName = candidate;
+      }
+    }
+
+    // 1-2) 배민 닉네임 패턴: "알뜰배달 yeseo486", "배민배달 숙희" 등
+    if (!customerName) {
+      const baeminNickMatch = cleanFullText.match(/(?:알뜰배달|배민배달|가게배달|배민1|포장)\s*([a-zA-Z0-9가-힣*]{2,15})/);
+      if (baeminNickMatch && baeminNickMatch[1]) {
+        const candidate = baeminNickMatch[1].trim();
+        if (!candidate.includes('주문') && !candidate.includes('리뷰') && candidate !== '고객') {
+          customerName = candidate;
+        }
+      }
+    }
+
+    // 1-3) textarea에 이미 닉네임이 입력되어 있는 경우 ('숙희님,' 등)
+    if (!customerName && textarea && textarea.value) {
       const match = textarea.value.trim().match(/^([^\s,，\n]+)(?:님)?/);
       if (match && match[1].length <= 15 && !match[1].includes('*') && !match[1].includes('Role') && !match[1].includes('문구')) {
         const candidate = match[1].replace(/님$/, '').trim();
-        // '고객', '손님' 등 일반 대명사는 실제 닉네임이 아니므로 제외하고 DOM 탐색 계속
         if (candidate && candidate !== '고객' && candidate !== '손님') {
           customerName = candidate;
         }
       }
     }
+
+    // 1-4) 텍스트 줄 단위 탐색
     if (!customerName) {
-      // 텍스트 줄 중 '알뜰배달 숙희' 등 형태 탐색
       const lines = cleanFullText.split('\n').map(s => s.trim()).filter(Boolean);
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (line.includes('배달') || line.includes('포장')) {
-          // '알뜰배달 숙희' 처럼 한 줄에 붙어있는 경우
           const stripped = line.replace(/^(알뜰배달|배민배달|가게배달|배민1|포장)\s*/, '').trim();
           if (stripped && stripped.length <= 15 && !stripped.includes('리뷰') && !stripped.includes('주문') && !stripped.includes('문구') && !stripped.includes('고객')) {
             customerName = stripped;
             break;
           }
-          // '알뜰배달' 태그 바로 다음 줄에 '숙희' 닉네임이 분리되어 있는 경우
           if (i + 1 < lines.length) {
             const nextLine = lines[i + 1].trim();
             if (nextLine && nextLine.length <= 15 && !nextLine.includes('리뷰') && !nextLine.includes('주문') && !nextLine.includes('별점') && !nextLine.includes('★') && !nextLine.includes('년') && !nextLine.includes('월') && !nextLine.includes('고객')) {
@@ -182,29 +201,39 @@
         }
       }
     }
+
+    // 1-5) 닉네임 DOM 셀렉터 탐색
     if (!customerName) {
       const nickEl = clone.querySelector('[class*="nick" i], [class*="author" i], [class*="user" i], strong, b, h4, h5');
       if (nickEl) {
         const t = nickEl.innerText.trim();
-        if (t && t.length <= 15 && !t.includes('주문') && !t.includes('리뷰') && !t.includes('별점') && !t.includes('고객')) {
-          customerName = t.replace(/^(알뜰배달|배민배달|가게배달|배민1)\s*/, '').trim();
+        if (t && t.length <= 15 && !t.includes('리뷰') && !t.includes('별점') && !t.includes('고객')) {
+          const stripped = t.replace(/^(알뜰배달|배민배달|가게배달|배민1)\s*/, '').replace(/\s*\d+\s*회\s*주문.*$/, '').trim();
+          if (stripped && stripped !== '주문') {
+            customerName = stripped;
+          }
         }
       }
     }
 
     // 2) 별점 추출 (1~5점)
     let rating = 5;
-    const starAria = clone.querySelector('[aria-label*="점"], [aria-label*="star" i], [title*="점"]');
-    if (starAria) {
-      const match = (starAria.getAttribute('aria-label') || starAria.getAttribute('title') || '').match(/(\d)/);
-      if (match) rating = parseInt(match[1], 10);
+    const starChars = cleanFullText.match(/★+/);
+    if (starChars && starChars[0].length >= 1 && starChars[0].length <= 5) {
+      rating = starChars[0].length;
     } else {
-      const fullStars = clone.querySelectorAll('.star-fill, svg.fill-current, [class*="star" i][class*="active" i]');
-      if (fullStars.length > 0 && fullStars.length <= 5) {
-        rating = fullStars.length;
+      const starAria = clone.querySelector('[aria-label*="점"], [aria-label*="star" i], [title*="점"]');
+      if (starAria) {
+        const match = (starAria.getAttribute('aria-label') || starAria.getAttribute('title') || '').match(/(\d)/);
+        if (match) rating = parseInt(match[1], 10);
       } else {
-        const ratingMatch = cleanFullText.match(/(\d)\s*점/);
-        if (ratingMatch) rating = parseInt(ratingMatch[1], 10);
+        const fullStars = clone.querySelectorAll('.star-fill, svg.fill-current, [class*="star" i][class*="active" i]');
+        if (fullStars.length > 0 && fullStars.length <= 5) {
+          rating = fullStars.length;
+        } else {
+          const ratingMatch = cleanFullText.match(/(\d)\s*점/);
+          if (ratingMatch) rating = parseInt(ratingMatch[1], 10);
+        }
       }
     }
 
@@ -225,19 +254,18 @@
       if (nextEl && nextEl.innerText.trim()) {
         menu = nextEl.innerText.trim();
       } else {
-        menu = menuLabelEl.innerText.replace(/^주문\s*메뉴\s*/, '').trim();
+        menu = menuLabelEl.innerText.replace(/^주문\s*메뉴\s*[:：]?\s*/, '').trim();
       }
 
       // 손님 리뷰 본문 추출: 주문메뉴 바로 이전의 텍스트 요소 탐색
       let prev = menuLabelEl.previousElementSibling;
       while (prev) {
         const pt = prev.innerText.trim();
-        // 날짜, 별점, 리뷰번호, 배달리뷰 태그 등 메타데이터가 아닌 실제 고객 텍스트만 추출
-        const isMeta = pt.includes('리뷰번호') || pt.includes('주문') || pt.includes('고객') ||
+        const isMeta = pt.includes('리뷰번호') || pt.includes('주문번호') || pt.includes('수령방식') ||
                        pt.includes('알뜰배달') || pt.includes('배민배달') || pt.includes('가게배달') ||
                        pt.includes('배민1') || pt.includes('포장') || pt.includes('★') ||
                        pt.includes('배달리뷰') || pt === '좋아요' || pt === '빨라요' || pt === '아쉬워요' ||
-                       (/\d{4}년\s*\d{1,2}월/.test(pt)) || (customerName && pt === customerName);
+                       (/\d{4}[.\-년]\s*\d{1,2}/.test(pt)) || (customerName && pt === customerName);
         if (pt && !isMeta && pt.length >= 2) {
           text = pt;
           break;
@@ -251,21 +279,51 @@
       const mMatch = cleanFullText.match(/주문\s*메뉴\s*[:：]?\s*([^\n\r]+)/);
       if (mMatch) menu = mMatch[1].replace(/^(주문\s*메뉴|메뉴)\s*[:：]?\s*/, '').trim();
     }
+    if (!menu) {
+      const lines = cleanFullText.split('\n').map(s => s.trim()).filter(Boolean);
+      const menuIdx = lines.findIndex(l => l.includes('주문메뉴') || l.includes('주문 내역'));
+      if (menuIdx !== -1) {
+        const line = lines[menuIdx].replace(/주문\s*메뉴\s*[:：]?\s*/, '').trim();
+        if (line) {
+          menu = line;
+        } else if (menuIdx + 1 < lines.length) {
+          menu = lines[menuIdx + 1].trim();
+        }
+      }
+    }
+
     if (!text) {
       const lines = cleanFullText.split('\n').map(s => s.trim()).filter(Boolean);
       for (let i = 0; i < lines.length; i++) {
         if (lines[i].includes('주문메뉴') && i > 0) {
           for (let j = i - 1; j >= 0; j--) {
             const line = lines[j];
-            const isMeta = line.includes('리뷰번호') || line.includes('★') || line.includes('배달') ||
-                           line.includes('고객') || line.includes('주문') || line.includes('좋아요') ||
-                           line.includes('빨라요') || line.includes('아쉬워요') || (/\d{4}년/.test(line)) ||
-                           (customerName && line === customerName);
+            const isMeta = line.includes('리뷰번호') || line.includes('주문번호') || line.includes('★') ||
+                           line.includes('배달') || line.includes('고객') || line.includes('좋아요') ||
+                           line.includes('빨라요') || line.includes('아쉬워요') || (/\d{4}[.\-년]/.test(line)) ||
+                           (customerName && line.includes(customerName));
             if (!isMeta && line.length >= 2) {
               text = line;
               break;
             }
           }
+          break;
+        }
+      }
+    }
+
+    // 텍스트 최종 Fallback: 남아있는 유의미한 첫 고객 문장 찾기
+    if (!text) {
+      const lines = cleanFullText.split('\n').map(s => s.trim()).filter(Boolean);
+      for (const line of lines) {
+        const isMeta = line.includes('리뷰번호') || line.includes('주문번호') || line.includes('★') ||
+                       line.includes('배달') || line.includes('고객') || line.includes('좋아요') ||
+                       line.includes('빨라요') || line.includes('아쉬워요') || line.includes('수령방식') ||
+                       line.includes('접기') || line.includes('더보기') || (/\d{4}[.\-년]/.test(line)) ||
+                       (customerName && line.includes(customerName)) || (menu && line.includes(menu)) ||
+                       line.length <= 1;
+        if (!isMeta) {
+          text = line;
           break;
         }
       }
@@ -471,8 +529,72 @@
   }
 
   // =========================================================================
-  // 4. 배민/쿠팡이츠 DOM 스캔 및 버튼 주입
+  // 4. 배민/쿠팡이츠/네이버 DOM 스캔 및 버튼 주입
   // =========================================================================
+
+  // 특정 textarea에 정확히 매칭되는 단일 리뷰 컨테이너 정밀 탐색
+  function findReviewContainerForTextarea(textarea) {
+    // 1) 테이블 행(tr), 리스트(li), 카드 단위 탐색
+    const row = textarea.closest('tr, li, [class*="review-item" i], [class*="review_item" i], [class*="review-card" i], [class*="review" i]');
+    
+    if (row) {
+      const rowText = row.innerText || '';
+      const orderCountInRow = (rowText.match(/주문번호|주문메뉴|리뷰번호/g) || []).length;
+      
+      // A. 답글 입력창이 해당 리뷰 내부에 인라인으로 포함된 경우 (주문메뉴/주문번호가 1개만 있음)
+      if (orderCountInRow === 1) {
+        return row;
+      }
+
+      // B. 쿠팡이츠 등 답글 입력창이 리뷰 바로 아래의 별도 행(tr)이나 블록으로 분리된 경우:
+      // 바로 이전 형제 요소(previousElementSibling)들을 거슬러 올라가며 손님 리뷰가 적힌 행을 탐색!
+      let prev = row.previousElementSibling;
+      while (prev) {
+        const pt = prev.innerText || '';
+        const prevOrderCount = (pt.match(/주문번호|주문메뉴|리뷰번호/g) || []).length;
+        if (prevOrderCount >= 1 || pt.includes('주문메뉴') || pt.includes('주문번호') || pt.includes('수령방식') || pt.includes('배달리뷰')) {
+          return prev;
+        }
+        prev = prev.previousElementSibling;
+      }
+    }
+
+    // 2) 계층적 부모 탐색 (단일 리뷰 범위 초과 방지)
+    let cur = textarea.parentElement;
+    let bestCandidate = null;
+    while (cur && cur !== document.body) {
+      const t = cur.innerText || '';
+      const orderCount = (t.match(/주문번호|리뷰번호|사장님\s*댓글/g) || []).length;
+
+      // 주문번호/댓글등록이 2개 이상이면 여러 리뷰를 묶는 큰 목록(table/tbody/div.list)으로 올라간 것이므로 즉시 중단!
+      if (orderCount > 1) {
+        break;
+      }
+
+      if (t.includes('주문메뉴') || t.includes('리뷰번호') || t.includes('배달리뷰') || t.includes('영수증') || t.includes('방문자') || t.includes('스마트플레이스')) {
+        bestCandidate = cur;
+        break;
+      }
+      cur = cur.parentElement;
+    }
+
+    if (bestCandidate) return bestCandidate;
+
+    // 3) Fallback: 직전 형제 탐색
+    let p = textarea.parentElement;
+    while (p && p !== document.body) {
+      if (p.previousElementSibling) {
+        const pt = p.previousElementSibling.innerText || '';
+        if (pt.includes('주문메뉴') || pt.includes('주문번호') || pt.includes('리뷰번호')) {
+          return p.previousElementSibling;
+        }
+      }
+      p = p.parentElement;
+    }
+
+    return textarea.closest('[class*="review" i], [class*="item" i], [class*="card" i], [class*="box" i], li, tr') || textarea.parentElement;
+  }
+
   function injectAiButtons() {
     // 페이지 내의 모든 답글 textarea 탐색
     const textareas = document.querySelectorAll('textarea');
@@ -481,20 +603,7 @@
       // 이미 버튼이 삽입된 경우 스킵
       if (textarea.dataset.trmInjected === 'true') return;
 
-      // textarea를 감싸고 있는 전체 리뷰 컨테이너 정밀 탐색
-      let container = null;
-      let cur = textarea.parentElement;
-      while (cur && cur !== document.body) {
-        const t = cur.innerText || '';
-        if (t.includes('주문메뉴') || t.includes('리뷰번호') || t.includes('배달리뷰') || t.includes('영수증') || t.includes('방문자') || t.includes('예약') || t.includes('스마트플레이스') || t.includes('네이버')) {
-          container = cur;
-          break;
-        }
-        cur = cur.parentElement;
-      }
-      if (!container) {
-        container = textarea.closest('[class*="review" i], [class*="item" i], [class*="card" i], [class*="box" i], li, tr, div[tabindex]') || textarea.parentElement;
-      }
+      const container = findReviewContainerForTextarea(textarea);
       if (!container) return;
 
       textarea.dataset.trmInjected = 'true';
@@ -518,14 +627,44 @@
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        generateAndFillReply(textarea, container, btn, statusBadge);
+        // 클릭 시점에 최신 리뷰 컨테이너를 다시 한 번 동적으로 확인하여 정확도 100% 보장
+        const currentContainer = findReviewContainerForTextarea(textarea) || container;
+        generateAndFillReply(textarea, currentContainer, btn, statusBadge);
       });
 
       toolbar.appendChild(btn);
       toolbar.appendChild(statusBadge);
 
-      // textarea 바로 위에 삽입
-      textarea.parentNode.insertBefore(toolbar, textarea);
+      // 🎯 [프레임 이탈 방지 핵심]:
+      // textarea의 부모 래퍼(테두리 상자, 0/300 카운터 박스 등) 내부가 아닌,
+      // 래퍼 바깥(바로 위)에 삽입하여 입력창 내부 렌더링 프레임이 깨지거나 textarea가 아래로 밀려나지 않도록 보호!
+      let targetInsert = textarea;
+      let curParent = textarea.parentElement;
+      while (curParent && curParent !== document.body) {
+        if (
+          curParent === container ||
+          curParent.tagName === 'TR' ||
+          curParent.tagName === 'TD' ||
+          curParent.tagName === 'LI' ||
+          curParent.tagName === 'FORM' ||
+          (curParent.className && /review|list|table/i.test(curParent.className))
+        ) {
+          break;
+        }
+
+        const style = window.getComputedStyle(curParent);
+        const hasBorder = style && style.borderWidth !== '0px' && style.borderStyle !== 'none';
+        const hasCounter = curParent.innerText && /\d+\s*\/\s*\d+/.test(curParent.innerText);
+        const isWrapperClass = /(textarea|input|editor|field|box|reply|comment-form)/i.test(curParent.className || '');
+
+        if (hasBorder || hasCounter || isWrapperClass) {
+          targetInsert = curParent;
+        }
+
+        curParent = curParent.parentElement;
+      }
+
+      targetInsert.parentNode.insertBefore(toolbar, targetInsert);
     });
   }
 

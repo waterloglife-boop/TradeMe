@@ -240,9 +240,12 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
       continue;
     }
 
-    // (6) 영문 메타 라인 (Role:, Strategy: 등) 제거
+    // (6) 순수 영문 메타 라인 (Role:, Strategy:, Here is your... 등) 제거
+    // 주의: 손님 닉네임에 영문이 포함된 경우(예: yeseo486) 한글 답글 본문 라인이 삭제되지 않도록
+    // 한글([가-힣])이 전혀 없으면서 영문이 4글자 이상인 라인만 영문 메타 설명으로 판정하여 제거
+    const hasKorean = /[가-힣]/.test(trimmed);
     const englishCount = (trimmed.match(/[a-zA-Z]/g) || []).length;
-    if (englishCount >= 4) {
+    if (!hasKorean && englishCount >= 4) {
       continue;
     }
 
@@ -296,8 +299,10 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
   }
 
   // 6-4. 배달앱 전용 첫 머리 닉네임 보정: 손님 닉네임이 없으면 자연스럽게 추가 (네이버는 제외)
-  if (!isNaver && customerName && !cleanText.startsWith(customerName) && !cleanText.startsWith(customerName.replace(/님$/, '')) && !cleanText.startsWith('고객님')) {
-    cleanText = `${customerName}, ` + cleanText;
+  if (!isNaver && customerName && cleanText) {
+    if (!cleanText.startsWith(customerName) && !cleanText.startsWith(customerName.replace(/님$/, '')) && !cleanText.startsWith('고객님')) {
+      cleanText = `${customerName}, ` + cleanText;
+    }
   }
 
   // 7-1. 이모티콘 미사용 모드일 경우 잔여 이모지 완전 제거
