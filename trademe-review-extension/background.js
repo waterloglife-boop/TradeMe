@@ -77,6 +77,20 @@ async function handleGenerateReply(payload) {
   const charLimit = Number(payload.charLimit) || 300;
   const emojiLevel = payload.emojiLevel || 'MEDIUM';
 
+  // 3-1. 손님이 리뷰 글을 적지 않았거나, 단순 이모티콘/별점만 등록한 경우:
+  // 사용자가 요청한 따뜻하고 정중한 표준 감사 답글을 즉시 반환 (API 호출 불필요)
+  if (!hasReviewText) {
+    if (isNaver) {
+      let reply = `안녕하세요 고객님! 저희 매장에 방문해 주시고 소중한 별점 평가를 남겨주셔서 진심으로 감사드립니다 😊 다음 방문 때도 만족스러운 음식과 서비스로 뵐 수 있길 바라며, 재방문 기다리고 있겠습니다. 늘 행복하세요!`;
+      if (emojiLevel === 'NONE') reply = reply.replace(/😊/g, '').trim();
+      return reply;
+    } else {
+      let reply = `안녕하세요 고객님! 주문해 주셔서 진심으로 감사드립니다 😊 다음 주문 때도 더욱 맛있는 음식으로 정성껏 찾아뵙겠습니다. 오늘도 행복하고 편안한 하루 보내세요!`;
+      if (emojiLevel === 'NONE') reply = reply.replace(/😊/g, '').trim();
+      return reply;
+    }
+  }
+
   // 이모티콘 사용 강도 지침
   const emojiGuideMap = {
     NONE: '이모티콘(이모지, 하트 등)은 일절 쓰지 말고 100% 텍스트로만 깔끔하고 정중하게 작성해.',
@@ -104,20 +118,24 @@ async function handleGenerateReply(payload) {
 - 매장 상호: ${storeName || '저희 매장'}
 - 이용 방식: ${isTakeout ? '포장(테이크아웃)' : '매장 식사'}
 ${visitInfo ? `- 방문 정보: ${visitInfo}\n` : ''}- 주문 메뉴/키워드: ${orderedMenu}
-- 손님 작성 리뷰: ${hasReviewText ? `"${reviewText}"` : '(글 내용 없이 별점과 방문 인증을 남겨주신 손님입니다)'}
+- 손님 작성 리뷰: "${reviewText}"
 - 사장님 말투/캐릭터: ${selectedPersonaGuide}
 ${contextNotes.length > 0 ? `- 전달사항: ${contextNotes.join(', ')}\n` : ''}- 이모티콘 활용: ${selectedEmojiGuide}
 
 [답글 작성 지침 - 고품질 1:1 맞춤 답글 필수]:
 1. [첫인사]: 닉네임 없이 "안녕하세요 고객님!"으로 다정하게 시작하세요.
-2. [본론 - 손님 리뷰 1:1 맞춤 화답 (가장 중요, 핵심)]:
-   ${hasReviewText ? `- 손님이 남겨주신 리뷰("${reviewText}")와 메뉴/키워드(${orderedMenu})를 꼼꼼히 반영하세요.
-   - 손님이 언급한 구체적인 내용(예: 맛 표현, 가성비, 맵기 조절, 함께 식사한 사람, 만족한 점 등)을 답글에서 직접 짚어주며 요리한 사장님으로서의 보람과 진심 어린 감사를 전하세요.
-   - 뻔하거나 상투적인 1줄 복사-붙여넣기 느낌을 절대 주지 마세요. 손님의 리뷰에 대화하듯 공감하는 정성스러운 2~3문장의 본문을 작성하세요.` : `- 매장에 직접 방문/포장해 주시고 바쁜 일상 속에서도 소중한 방문 인증과 별점을 남겨주셔서 큰 힘이 된다는 감사를 전하세요.`}
+2. [본론 - 손님 리뷰 1:1 맞춤 화답]:
+   - 손님이 남겨주신 리뷰("${reviewText}")와 메뉴/키워드(${orderedMenu})를 꼼꼼히 반영하세요.
+   - 손님이 언급한 구체적인 내용(예: 맛 표현, 가성비, 맵기 조절, 함께 식사한 사람, 만족한 점 등)에 대해 요리한 사장님으로서의 보람과 진심 어린 감사를 전하세요.
+   - 뻔하거나 상투적인 1줄 복사-붙여넣기 느낌을 절대 주지 마세요. 손님의 리뷰에 대화하듯 공감하는 정성스러운 2~3문장의 본문을 작성하세요.
 ${visitCount >= 2 ? `   - 벌써 ${visitCount}번째나 잊지 않고 저희 매장을 찾아주신 단골 고객님께 깊은 감사와 감동을 특별히 표현하세요.\n` : ''}3. [마무리]:
    - 앞으로도 변함없는 맛과 정성으로 보답하겠다는 다짐을 전하세요.
    - 언제든 생각나실 때 편하게 또 찾아주시길 바라는 따뜻한 재방문 환영과 감사 인사로 마침표(.)나 느낌표(!)로 확신 있게 맺어 주세요. (절대로 질문이나 물음표로 끝내지 마세요.)
-4. [분량]: 공백 포함 180자~${charLimit}자 내외로 풍성하고 성의 있게 작성하세요. (절대 1~2줄로 짧게 끝내지 마세요!)
+4. [절대 준수 - 손님 리뷰 원문 복사 금지]:
+   - 손님이 작성한 리뷰 본문을 답글 안에 따옴표("")로 인용하거나 그대로 복사하여 적지 마세요.
+   - "Customer Review:", "Review:", "Re-order:" 같은 영문 라벨을 절대 적지 마세요.
+   - 손님 리뷰 글을 본문에 다시 출력할 필요가 전혀 없으며, 오직 그에 대한 사장님의 답변/화답 문장만 바로 작성하세요.
+5. [분량]: 공백 포함 180자~${charLimit}자 내외로 풍성하고 성의 있게 작성하세요. (절대 1~2줄로 짧게 끝내지 마세요!)
 
 오직 손님에게 보낼 순수 한국어 답글 본문만 작성하세요.`;
   } else {
@@ -128,20 +146,24 @@ ${visitCount >= 2 ? `   - 벌써 ${visitCount}번째나 잊지 않고 저희 매
 [손님 주문 및 리뷰 정보]
 - 매장 상호: ${storeName || '저희 매장'}
 - 주문 메뉴: ${orderedMenu}
-${orderCount >= 2 ? `- 주문 이력: 저희 매장에서 벌써 ${orderCount}번째 주문해 주신 귀한 단골 고객님입니다!\n` : (orderCount === 1 ? '- 주문 이력: 저희 매장을 처음 찾아주신 소중한 첫 주문 고객님입니다!\n' : '')}- 손님 작성 리뷰: ${hasReviewText ? `"${reviewText}"` : '(글 내용 없이 별점과 만족 이모티콘을 남겨주신 손님입니다)'}
+${orderCount >= 2 ? `- 주문 이력: 저희 매장에서 벌써 ${orderCount}번째 주문해 주신 귀한 단골 고객님입니다!\n` : (orderCount === 1 ? '- 주문 이력: 저희 매장을 처음 찾아주신 소중한 첫 주문 고객님입니다!\n' : '')}- 손님 작성 리뷰: "${reviewText}"
 - 사장님 말투/캐릭터: ${selectedPersonaGuide}
 ${contextNotes.length > 0 ? `- 전달사항: ${contextNotes.join(', ')}\n` : ''}- 이모티콘 활용: ${selectedEmojiGuide}
 
 [답글 작성 지침 - 고품질 1:1 맞춤 답글 필수]:
 1. [첫인사]: 닉네임 없이 "안녕하세요 고객님!"으로 다정하게 시작하세요.
-2. [본론 - 손님 리뷰 1:1 맞춤 화답 (가장 중요, 핵심)]:
-   ${hasReviewText ? `- 손님이 남겨주신 리뷰("${reviewText}")와 주문 메뉴(${orderedMenu})를 꼼꼼히 반영하세요.
-   - 손님이 언급한 핵심 표현(예: 구체적인 맛, 양, 맵기, 식사 상황, 칭찬 포인트 등)을 답글에서 직접 짚어주며 요리한 사장님으로서의 보람과 진심 어린 감사를 전하세요.
-   - 뻔하거나 상투적인 1줄 복사-붙여넣기 느낌을 절대 주지 마세요. 손님의 리뷰에 대화하듯 공감하는 정성스러운 2~3문장의 본문을 작성하세요.` : `- 주문해주신 메뉴(${orderedMenu})를 맛있게 즐기셨기를 바라며, 바쁜 일상 속에서도 별점으로 따뜻한 응원을 보내주셔서 큰 힘이 된다는 진심 어린 감사를 전하세요.`}
+2. [본론 - 손님 리뷰 1:1 맞춤 화답]:
+   - 손님이 남겨주신 리뷰("${reviewText}")와 주문 메뉴(${orderedMenu})를 꼼꼼히 반영하세요.
+   - 손님이 언급한 핵심 표현(예: 구체적인 맛, 양, 맵기, 식사 상황, 칭찬 포인트 등)에 대해 요리한 사장님으로서의 보람과 진심 어린 감사를 전하세요.
+   - 뻔하거나 상투적인 1줄 복사-붙여넣기 느낌을 절대 주지 마세요. 손님의 리뷰에 대화하듯 공감하는 정성스러운 2~3문장의 본문을 작성하세요.
 ${orderCount >= 2 ? `   - 벌써 ${orderCount}번째나 잊지 않고 저희 매장을 다시 찾아주신 단골 고객님께 깊은 감사와 감동의 마음을 특별히 표현하세요.\n` : ''}3. [마무리]:
    - 앞으로도 변함없이 푸짐하고 맛있는 음식으로 정성을 다하겠다는 다짐을 전하세요.
    - 다음번에도 꼭 다시 찾아주시길 바라는 따뜻한 재주문 환영과 감사 인사로 마침표(.)나 느낌표(!)로 확신 있게 맺어 주세요. (절대로 질문이나 물음표로 끝내지 마세요.)
-4. [분량]: 공백 포함 180자~280자 내외로 풍성하고 성의 있게 작성하세요. (절대 1~2줄로 짧게 끝내지 마세요!)
+4. [절대 준수 - 손님 리뷰 원문 복사 금지]:
+   - 손님이 작성한 리뷰 본문을 답글 안에 따옴표("")로 인용하거나 그대로 복사하여 적지 마세요.
+   - "Customer Review:", "Review:", "Re-order:" 같은 영문 라벨을 절대 적지 마세요.
+   - 손님 리뷰 글을 본문에 다시 출력할 필요가 전혀 없으며, 오직 그에 대한 사장님의 답변/화답 문장만 바로 작성하세요.
+5. [분량]: 공백 포함 180자~280자 내외로 풍성하고 성의 있게 작성하세요. (절대 1~2줄로 짧게 끝내지 마세요!)
 
 오직 손님에게 보낼 순수 한국어 답글 본문만 작성하세요.`;
   }
@@ -166,11 +188,40 @@ ${orderCount >= 2 ? `   - 벌써 ${orderCount}번째나 잊지 않고 저희 매
     .replace(/\(\d+\s*stars?\)/gi, '')
     .trim();
 
+  // 6-0.1. 손님 리뷰 복사/인용구 및 영문 라벨 (Customer Review, Re-order 등) 즉시 박멸
+  if (hasReviewText) {
+    const escapedReview = reviewText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // 따옴표로 감싸진 손님 리뷰 인용구 (예: "3인분인데 양 많아요..." .) 통째로 삭제
+    cleanText = cleanText.replace(new RegExp(`["'“”][^"'“”]*${escapedReview}[^"'“”]*["'“”][.]?\\s*`, 'gi'), '');
+    cleanText = cleanText.replace(new RegExp(`["'“”]${escapedReview}["'“”][.]?\\s*`, 'gi'), '');
+    if (reviewText.length >= 8) {
+      const snippet = reviewText.slice(0, 12).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      cleanText = cleanText.replace(new RegExp(`["'“”][^"'“”]*${snippet}[^"'“”]*["'“”][.]?\\s*`, 'gi'), '');
+    }
+    // 시작 부분에 따옴표가 있든 없든 손님 리뷰를 그대로 출력하고 마침표 찍은 형태 제거
+    cleanText = cleanText.replace(new RegExp(`^(?:안녕하세요\\s*고객님!?[,\\s]*)?["'“”]?${escapedReview}["'“”]?[.]?\\s*`, 'gmi'), '');
+    // 첫인사 직후 바로 따옴표로 시작하는 4글자 이상의 인용구 (예: 안녕하세요 고객님! "3인분인데..." .) 통째로 제거
+    cleanText = cleanText.replace(/^(?:안녕하세요\s*고객님!?[,\\s]*)?["'“”][^"'“”]{4,}["'“”]\s*[.·•-]?\s*/i, '');
+  }
+
+  // 영문 메타 라벨 라인 통째로 삭제 (Customer Review:, Re-order: 등)
+  cleanText = cleanText.replace(/^[^\n]*(?:Customer\s*Review|Re-?order|Review\s*Content|Ordered\s*Menu)[^\n]*\n?/gmi, '');
+  cleanText = cleanText.replace(/(?:Customer\s*Review|Re-?order|Review\s*Content)[:：]\s*["'“”]?[^"\n]*["'“”]?[.]?/gi, '');
+
+  // 주문 메뉴명이 첫인사 앞/뒤에 단독 라벨 형태로 찍힌 잔여물 정리
+  if (orderedMenu && orderedMenu !== '주문하신 메뉴' && orderedMenu !== '매장 방문' && orderedMenu !== '포장 주문') {
+    const escapedMenu = orderedMenu.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    cleanText = cleanText.replace(new RegExp(`^(?:안녕하세요\\s*고객님!?[,\\s]*)?${escapedMenu}\\s*[.·•-]?\\s*`, 'gmi'), '');
+  }
+
+  // 중복된 "안녕하세요 고객님!" 정리
+  cleanText = cleanText.replace(/^(?:안녕하세요\s*고객님[!\s.]*){2,}/, '안녕하세요 고객님! ');
+
   // 6-1. 라인별 메타데이터 / 영문 번역 라인 필터링
   const lines = cleanText.split('\n');
   const filteredLines = [];
 
-  const metaLabelRegex = /^[\s*•\-]*\b(Customer|Client|User|Ordered\s*Menu|Menu|Review\s*Content|Review|Rating|Score|Address(\s*the\s*customer)?|Tone|Persona|Analysis|Note|Notes|Translation|Context|Situation|Response|Reply|Task|Constraint|Greeting|Ending|Rule|Instruction)\b\s*[:：]/i;
+  const metaLabelRegex = /^[\s*•\-]*\b(Customer\s*Review|Customer|Client|User|Ordered\s*Menu|Menu|Review\s*Content|Review|Re-?order|Rating|Score|Address(\s*the\s*customer)?|Tone|Persona|Analysis|Note|Notes|Translation|Context|Situation|Response|Reply|Task|Constraint|Greeting|Ending|Rule|Instruction)\b\s*[:：]/i;
 
   for (let line of lines) {
     let trimmed = line.trim();
@@ -336,7 +387,7 @@ ${orderCount >= 2 ? `   - 벌써 ${orderCount}번째나 잊지 않고 저희 매
   cleanText = finalParagraphs.join('\n\n').trim();
 
   // 6-3. 불필요한 닉네임 호칭 및 별점 호칭 최종 정제
-  cleanText = cleanText.replace(/^(?!고객님)[가-힣a-zA-Z0-9*]{2,10}님[,，\s]*/, '');
+  cleanText = cleanText.replace(/^(?!고객님)[가-힣a-zA-Z0-9*]{1,15}\s*님(?:[,\s]*고객님)?[,，\s]*/, '');
   cleanText = cleanText.replace(/^별점\s*\d+점님!?[,，\s]*/i, '');
   cleanText = cleanText.trim();
 
@@ -344,8 +395,9 @@ ${orderCount >= 2 ? `   - 벌써 ${orderCount}번째나 잊지 않고 저희 매
   if (cleanText && !cleanText.startsWith('안녕하세요') && !cleanText.startsWith('고객님') && !cleanText.startsWith('반갑습니다') && !cleanText.startsWith('사장님')) {
     cleanText = '안녕하세요 고객님! ' + cleanText;
   }
+  cleanText = cleanText.replace(/^안녕하세요!(?!\s*고객님)/, '안녕하세요 고객님!');
   // 중복된 "안녕하세요 고객님!" 정리
-  cleanText = cleanText.replace(/^(?:안녕하세요\s*고객님[!\s]*){2,}/, '안녕하세요 고객님! ');
+  cleanText = cleanText.replace(/^(?:안녕하세요\s*고객님[!\s.]*){2,}/, '안녕하세요 고객님! ');
 
   // 6-5. 물음표 끝맺음 감지 및 재주문 환영 확신형 마무리 멘트로 자동 치환 (질문형 종결 원천 차단)
   if (cleanText.endsWith('?') || /[가-힣]+[까|나|가]\?\s*$/.test(cleanText)) {

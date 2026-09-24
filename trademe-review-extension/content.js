@@ -158,9 +158,33 @@
       // 1) 포장 여부 파악
       const isTakeout = cleanFullText.includes('포장주문') || cleanFullText.includes('포장');
 
-      // 2) 방문 횟수 파악 (1번째 방문, 2번째 방문 등)
-      const visitMatch = cleanFullText.match(/(?:^|[^\d])(\d{1,3})\s*번째\s*방문/);
-      const visitCount = visitMatch ? parseInt(visitMatch[1], 10) : 0;
+      // 2) 방문 횟수 파악 (DOM 요소 단위 직접 탐색 우선)
+      let visitCount = 0;
+      const allEls = container.querySelectorAll('span, em, p, div, a');
+      for (const el of allEls) {
+        const t = (el.innerText || el.textContent || '').trim();
+        const m = t.match(/^(\d{1,2})\s*번째\s*방문$/);
+        if (m) {
+          visitCount = parseInt(m[1], 10);
+          break;
+        }
+      }
+
+      // fallback: 전체 텍스트에서 '사진 15', '리뷰 43' 등을 확실히 제거한 후 매칭
+      if (!visitCount) {
+        const textWithoutPhotos = cleanFullText
+          .replace(/사진\s*\d+/g, ' ')
+          .replace(/리뷰\s*\d+/g, ' ');
+        const visitMatch = textWithoutPhotos.match(/(?:^|[^\d])(\d{1,2})\s*번째\s*방문/);
+        if (visitMatch) {
+          visitCount = parseInt(visitMatch[1], 10);
+        }
+      }
+
+      // 30회 초과는 HTML 인라인 결합 오류(예: 15 + 1 = 151번째)이므로 안전하게 1회로 보정
+      if (visitCount > 30) {
+        visitCount = 1;
+      }
 
       // 3) 별점 (1~5점 정밀 추출)
       const rating = extractRatingFromLiveContainer(container, cleanFullText);
