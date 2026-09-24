@@ -49,6 +49,96 @@
     });
   }
 
+  // 라이브 DOM 기반 별점 정밀 감지 (1~5점 정확 판별)
+  function extractRatingFromLiveContainer(container, cleanFullText) {
+    if (!container) return 5;
+
+    // 1. 텍스트 내 직접 표기 검사 (예: "4점", "5점", "별점 4", "별점: 4")
+    const starScoreMatch = (cleanFullText || '').match(/(?:별점|평점)\s*[:：]?\s*([1-5])(?:\.0)?/i) ||
+                           (cleanFullText || '').match(/([1-5])(?:\.0)?\s*점\b/);
+    if (starScoreMatch) {
+      const s = parseInt(starScoreMatch[1], 10);
+      if (s >= 1 && s <= 5) return s;
+    }
+
+    // 2. ★ 유니코드 문자열 카운트 (예: "★★★★☆" = 4점, "★★★★" = 4점)
+    const filledStars = (cleanFullText || '').match(/★+/);
+    if (filledStars && filledStars[0].length >= 1 && filledStars[0].length <= 5) {
+      return filledStars[0].length;
+    }
+
+    // 3. live container 내부의 aria-label, title, data-rating 등 속성 정밀 검사
+    const ratingAttrs = container.querySelectorAll(
+      '[aria-label*="점"], [aria-label*="star" i], [title*="점"], [title*="star" i], [data-rating], [data-score], [data-value]'
+    );
+    for (const el of ratingAttrs) {
+      const str = el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('data-rating') || el.getAttribute('data-score') || el.getAttribute('data-value') || '';
+      const m = str.match(/([1-5])(?:\.0)?/);
+      if (m) {
+        const val = parseInt(m[1], 10);
+        if (val >= 1 && val <= 5) return val;
+      }
+    }
+
+    // 4. 별점 게이지 너비 (width: 80% = 4점, width: 100% = 5점, width: 60% = 3점)
+    const widthElements = container.querySelectorAll('[style*="width"]');
+    for (const el of widthElements) {
+      const styleWidth = el.style.width || '';
+      const widthMatch = styleWidth.match(/(\d+)%/);
+      if (widthMatch) {
+        const percent = parseInt(widthMatch[1], 10);
+        if (percent >= 10 && percent <= 100) {
+          const starCalc = Math.round(percent / 20);
+          if (starCalc >= 1 && starCalc <= 5) return starCalc;
+        }
+      }
+    }
+
+    // 5. live SVG 별 아이콘 검사 (배민/쿠팡이츠 등 5개 SVG 중 채워진 별 vs 빈 별)
+    try {
+      const svgs = Array.from(container.querySelectorAll('svg'));
+      const starSvgs = svgs.filter(svg => {
+        const cls = (svg.getAttribute('class') || '') + ' ' + (svg.parentElement ? (svg.parentElement.getAttribute('class') || '') : '');
+        const aria = (svg.getAttribute('aria-label') || '') + ' ' + (svg.getAttribute('name') || '');
+        return /star|별|rating|score/i.test(cls) || /star|별/i.test(aria) || (svg.querySelector('path[d*="M"]') && svg.parentElement && /star|rating|review/i.test(svg.parentElement.className));
+      });
+
+      if (starSvgs.length >= 1 && starSvgs.length <= 5) {
+        let filledCount = 0;
+        for (const svg of starSvgs) {
+          const fillAttr = (svg.getAttribute('fill') || '').toLowerCase();
+          const cls = (svg.getAttribute('class') || '').toLowerCase();
+          const parentCls = (svg.parentElement ? svg.parentElement.getAttribute('class') || '' : '').toLowerCase();
+          const compColor = (window.getComputedStyle(svg).fill || window.getComputedStyle(svg).color || '').toLowerCase();
+
+          const isFilledClass = /fill|active|on|selected|yellow|gold/.test(cls) || /fill|active|on|selected|yellow|gold/.test(parentCls);
+          const isGrayClass = /empty|inactive|off|gray|disabled|blank/.test(cls) || /empty|inactive|off|gray|disabled|blank/.test(parentCls);
+
+          if (isGrayClass) continue;
+          if (isFilledClass) {
+            filledCount++;
+            continue;
+          }
+
+          if (fillAttr && fillAttr !== 'none' && !fillAttr.includes('e0e0e0') && !fillAttr.includes('ddd') && !fillAttr.includes('ccc') && !fillAttr.includes('transparent')) {
+            filledCount++;
+          } else if (compColor && !compColor.includes('rgba(0, 0, 0, 0)') && !compColor.includes('none')) {
+            if (/rgb\(25[0-5]|rgb\(24\d|#ff|#fe|#f5/i.test(compColor)) {
+              filledCount++;
+            }
+          }
+        }
+        if (filledCount >= 1 && filledCount <= 5) {
+          return filledCount;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return 5;
+  }
+
   // =========================================================================
   // 1. 리뷰 데이터 추출 헬퍼
   // =========================================================================
@@ -72,18 +162,8 @@
       const visitMatch = cleanFullText.match(/(\d+)\s*번째\s*방문/);
       const visitCount = visitMatch ? parseInt(visitMatch[1], 10) : 0;
 
-      // 3) 별점 (1~5점)
-      let rating = 5;
-      const starMatch = cleanFullText.match(/★\s*(\d)/) || cleanFullText.match(/별점\s*(\d)/);
-      if (starMatch) {
-        rating = parseInt(starMatch[1], 10);
-      } else {
-        const starAria = clone.querySelector('[aria-label*="점"], [aria-label*="star" i], [title*="점"]');
-        if (starAria) {
-          const match = (starAria.getAttribute('aria-label') || starAria.getAttribute('title') || '').match(/(\d)/);
-          if (match) rating = parseInt(match[1], 10);
-        }
-      }
+      // 3) 별점 (1~5점 정밀 추출)
+      const rating = extractRatingFromLiveContainer(container, cleanFullText);
 
       // 4) 메뉴 (예: "★5 · 셀프마라탕" -> "셀프마라탕")
       let menu = '';
@@ -217,25 +297,8 @@
     }
 
     // 2) 별점 추출 (1~5점)
-    let rating = 5;
-    const starChars = cleanFullText.match(/★+/);
-    if (starChars && starChars[0].length >= 1 && starChars[0].length <= 5) {
-      rating = starChars[0].length;
-    } else {
-      const starAria = clone.querySelector('[aria-label*="점"], [aria-label*="star" i], [title*="점"]');
-      if (starAria) {
-        const match = (starAria.getAttribute('aria-label') || starAria.getAttribute('title') || '').match(/(\d)/);
-        if (match) rating = parseInt(match[1], 10);
-      } else {
-        const fullStars = clone.querySelectorAll('.star-fill, svg.fill-current, [class*="star" i][class*="active" i]');
-        if (fullStars.length > 0 && fullStars.length <= 5) {
-          rating = fullStars.length;
-        } else {
-          const ratingMatch = cleanFullText.match(/(\d)\s*점/);
-          if (ratingMatch) rating = parseInt(ratingMatch[1], 10);
-        }
-      }
-    }
+    // 2) 별점 정밀 추출 (1~5점)
+    const rating = extractRatingFromLiveContainer(container, cleanFullText);
 
     // 3) 주문 메뉴 & 손님 리뷰 본문 정밀 추출 (DOM 구조 기반)
     let menu = '';
@@ -534,65 +597,77 @@
 
   // 특정 textarea에 정확히 매칭되는 단일 리뷰 컨테이너 정밀 탐색
   function findReviewContainerForTextarea(textarea) {
-    // 1) 테이블 행(tr), 리스트(li), 카드 단위 탐색
-    const row = textarea.closest('tr, li, [class*="review-item" i], [class*="review_item" i], [class*="review-card" i], [class*="review" i]');
-    
-    if (row) {
-      const rowText = row.innerText || '';
-      const orderCountInRow = (rowText.match(/주문번호|주문메뉴|리뷰번호/g) || []).length;
-      
-      // A. 답글 입력창이 해당 리뷰 내부에 인라인으로 포함된 경우 (주문메뉴/주문번호가 1개만 있음)
-      if (orderCountInRow === 1) {
-        return row;
+    if (!textarea) return null;
+
+    // 헬퍼: 해당 요소가 "단일 리뷰" 컨테이너인지 정밀 판별
+    function isSingleReviewContainer(el) {
+      if (!el || el === document.body || el === document.documentElement) return false;
+      const t = el.innerText || '';
+      // 리뷰 구분 마커 카운트
+      const orderMatches = t.match(/(?:주문\s*번호|리뷰\s*번호|주문\s*메뉴|\d+\s*회\s*주문|\d+\s*번째\s*방문|수령\s*방식|배달\s*리뷰)/g) || [];
+      const textareaCount = el.querySelectorAll ? el.querySelectorAll('textarea').length : 0;
+
+      // 마커가 2개 이상이거나 textarea가 2개 이상이면 여러 리뷰를 묶은 전체 목록(table, list 등)이므로 탈락
+      if (orderMatches.length > 1 || textareaCount > 1) {
+        return false;
       }
 
-      // B. 쿠팡이츠 등 답글 입력창이 리뷰 바로 아래의 별도 행(tr)이나 블록으로 분리된 경우:
-      // 바로 이전 형제 요소(previousElementSibling)들을 거슬러 올라가며 손님 리뷰가 적힌 행을 탐색!
-      let prev = row.previousElementSibling;
-      while (prev) {
-        const pt = prev.innerText || '';
-        const prevOrderCount = (pt.match(/주문번호|주문메뉴|리뷰번호/g) || []).length;
-        if (prevOrderCount >= 1 || pt.includes('주문메뉴') || pt.includes('주문번호') || pt.includes('수령방식') || pt.includes('배달리뷰')) {
-          return prev;
-        }
-        prev = prev.previousElementSibling;
-      }
+      // 단일 리뷰의 필수 특징: 메뉴, 별점, 주문정보, 방문정보 등 중 하나 이상 포함
+      const hasReviewInfo = t.includes('주문') || t.includes('메뉴') || t.includes('★') ||
+                            t.includes('별점') || t.includes('점') || t.includes('방문') ||
+                            t.includes('배달') || t.includes('포장') || t.includes('영수증');
+      return hasReviewInfo;
     }
 
-    // 2) 계층적 부모 탐색 (단일 리뷰 범위 초과 방지)
+    // 1) textarea의 부모 계층을 1단계씩 거슬러 올라가며 단일 리뷰 컨테이너인지 탐색 (인라인 형태)
     let cur = textarea.parentElement;
-    let bestCandidate = null;
     while (cur && cur !== document.body) {
-      const t = cur.innerText || '';
-      const orderCount = (t.match(/주문번호|리뷰번호|사장님\s*댓글/g) || []).length;
-
-      // 주문번호/댓글등록이 2개 이상이면 여러 리뷰를 묶는 큰 목록(table/tbody/div.list)으로 올라간 것이므로 즉시 중단!
-      if (orderCount > 1) {
-        break;
+      if (isSingleReviewContainer(cur)) {
+        let parent = cur.parentElement;
+        if (parent && isSingleReviewContainer(parent)) {
+          return parent;
+        }
+        return cur;
       }
-
-      if (t.includes('주문메뉴') || t.includes('리뷰번호') || t.includes('배달리뷰') || t.includes('영수증') || t.includes('방문자') || t.includes('스마트플레이스')) {
-        bestCandidate = cur;
+      const curText = cur.innerText || '';
+      const orderCount = (curText.match(/(?:주문\s*번호|리뷰\s*번호|주문\s*메뉴|\d+\s*회\s*주문)/g) || []).length;
+      if (orderCount > 1) {
         break;
       }
       cur = cur.parentElement;
     }
 
-    if (bestCandidate) return bestCandidate;
-
-    // 3) Fallback: 직전 형제 탐색
-    let p = textarea.parentElement;
-    while (p && p !== document.body) {
-      if (p.previousElementSibling) {
-        const pt = p.previousElementSibling.innerText || '';
-        if (pt.includes('주문메뉴') || pt.includes('주문번호') || pt.includes('리뷰번호')) {
-          return p.previousElementSibling;
+    // 2) 쿠팡이츠 등 답글 입력창이 리뷰 바로 아래 행(tr)이나 별도 블록으로 분리된 경우:
+    // textarea를 감싸고 있는 행/블록의 이전 형제(previousElementSibling)들을 순차 역탐색!
+    const directRow = textarea.closest('tr, li') || textarea.parentElement;
+    if (directRow) {
+      let prev = directRow.previousElementSibling;
+      let steps = 0;
+      while (prev && steps < 5) {
+        if (isSingleReviewContainer(prev)) {
+          return prev;
         }
+        prev = prev.previousElementSibling;
+        steps++;
       }
-      p = p.parentElement;
     }
 
-    return textarea.closest('[class*="review" i], [class*="item" i], [class*="card" i], [class*="box" i], li, tr') || textarea.parentElement;
+    // 3) 특정 클래스명 기반 탐색 (단, 단일 리뷰여야 함)
+    const candidates = [
+      textarea.closest('tr'),
+      textarea.closest('li'),
+      textarea.closest('[class*="review-item" i]'),
+      textarea.closest('[class*="review_item" i]'),
+      textarea.closest('[class*="review-card" i]'),
+      textarea.closest('[class*="reviewCard" i]'),
+      textarea.closest('[data-review-id]')
+    ];
+    for (const c of candidates) {
+      if (c && isSingleReviewContainer(c)) return c;
+    }
+
+    // 4) 최종 안전 fallback: textarea의 직계 부모 또는 행
+    return textarea.closest('tr, li, form') || textarea.parentElement || textarea;
   }
 
   function injectAiButtons() {
@@ -635,33 +710,17 @@
       toolbar.appendChild(btn);
       toolbar.appendChild(statusBadge);
 
-      // 🎯 [프레임 이탈 방지 핵심]:
-      // textarea의 부모 래퍼(테두리 상자, 0/300 카운터 박스 등) 내부가 아닌,
-      // 래퍼 바깥(바로 위)에 삽입하여 입력창 내부 렌더링 프레임이 깨지거나 textarea가 아래로 밀려나지 않도록 보호!
+      // 🎯 [프레임 이탈 방지]:
+      // textarea의 부모가 작은 글자수 카운터 래퍼인 경우 그 래퍼 바로 위에,
+      // 그 외에는 textarea 바로 위에 툴바를 삽입하여 프레임 이탈 방지
       let targetInsert = textarea;
-      let curParent = textarea.parentElement;
-      while (curParent && curParent !== document.body) {
-        if (
-          curParent === container ||
-          curParent.tagName === 'TR' ||
-          curParent.tagName === 'TD' ||
-          curParent.tagName === 'LI' ||
-          curParent.tagName === 'FORM' ||
-          (curParent.className && /review|list|table/i.test(curParent.className))
-        ) {
-          break;
+      const p = textarea.parentElement;
+      if (p && p !== container && p !== document.body && !['TR', 'TD', 'TH', 'BODY'].includes(p.tagName)) {
+        const hasCounterOnly = p.children.length <= 4 && /\d+\s*[\/／]\s*\d+/.test(p.innerText);
+        const isImmediateInputWrap = p.children.length <= 3 && p.classList && /(textarea|input-wrap|editor|field)/i.test(p.className);
+        if (hasCounterOnly || isImmediateInputWrap) {
+          targetInsert = p;
         }
-
-        const style = window.getComputedStyle(curParent);
-        const hasBorder = style && style.borderWidth !== '0px' && style.borderStyle !== 'none';
-        const hasCounter = curParent.innerText && /\d+\s*\/\s*\d+/.test(curParent.innerText);
-        const isWrapperClass = /(textarea|input|editor|field|box|reply|comment-form)/i.test(curParent.className || '');
-
-        if (hasBorder || hasCounter || isWrapperClass) {
-          targetInsert = curParent;
-        }
-
-        curParent = curParent.parentElement;
       }
 
       targetInsert.parentNode.insertBefore(toolbar, targetInsert);

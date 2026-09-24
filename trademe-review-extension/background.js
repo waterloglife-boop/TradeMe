@@ -176,23 +176,27 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
     }
 
     prompt = `당신은 배달앱(배달의민족, 쿠팡이츠, 요기요)의 친절하고 음식에 진심인 사장님입니다.
-손님이 남겨주신 소중한 리뷰를 읽고, 사장님이 손님에게 직접 전송할 다정하고 감사한 답글을 작성하세요.
+손님이 남겨주신 소중한 리뷰를 읽고, 사장님이 손님에게 직접 전송할 다정하고 감사한 답글을 딱 1개만 작성하세요.
 
 [손님 리뷰 정보]
-- 손님 호칭: ${customerName}
 - 주문 메뉴: ${orderedMenu}
 - 별점: ${starScore}점
 - 손님 작성 리뷰: ${reviewText ? '"' + reviewText + '"' : '(별점만 등록)'}
+${reviewSituationGuide}
 
 [답글 작성 가이드]
+- 첫인사 및 호칭 (매우 중요): 배달앱 화면 상단에 손님 닉네임이 기본 표시되므로, 닉네임(예: 문*성님, in꽃님 등)을 본문에 다시 부르지 마세요! 닉네임 없이 "안녕하세요 고객님!" 또는 "안녕하세요! 사장입니다"로 자연스럽고 반갑게 첫인사를 시작하세요.
+- 별점 언급 주의: 별점 점수 숫자('5점 만점', '별 5개', '4점' 등)를 직접 답글에 언급하지 마세요. 대신 '소중한 별점과 정성스러운 리뷰 남겨주셔서 진심으로 감사드립니다'처럼 점수 수치를 빼고 자연스럽게 감사 인사를 전하세요.
 - 사장님 말투: ${selectedPersonaGuide}
 ${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') : ''}
 - 이모티콘: ${selectedEmojiGuide}
 - 분량: 공백 포함 최대 ${charLimit}자 이내 (손님 글 길이에 맞추어 자연스럽게 완결)
 
 [필수 규칙 - 엄격 준수]
-1. 영어 번역, 영어 설명, 머리말 기호(*, -)는 절대 쓰지 말고 100% 한국어로만 작성하세요.
-2. 손님 정보 요약이나 분석 없이, 곧바로 "${customerName}, 안녕하세요!"로 시작하는 답글 본문 첫 문장부터 바로 작성하세요.`;
+- 답글은 반드시 딱 1개만 작성하세요. 다른 버전이나 옵션(옵션 1, 옵션 2)을 추가로 연달아 작성하지 마세요.
+- 손님 닉네임을 구태여 앞에 붙이지 말고 "안녕하세요 고객님!" 또는 "안녕하세요! 사장입니다"로 시작하세요.
+- 영어 번역, 영어 지침(Start immediately...), 머리말 기호(*, -, 1., 2.)는 절대 쓰지 말고 100% 한국어로만 작성하세요.
+- 따옴표, 불릿, 프롬프트 지침 등을 따라 적지 말고 손님에게 보낼 순수 한글 답글 본문만 출력하세요.`;
   }
 
   // 5. Google Gemini API 호출 (다중 모델 폴백 및 자동 탐색)
@@ -215,56 +219,65 @@ ${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') 
       continue;
     }
 
-    // 앞머리에 닉네임과 불릿이 결합된 오염 방어 (예: "yeseo486님, * Customer: ...")
+    // 앞머리에 닉네임과 불릿 또는 번호가 결합된 오염 방어 (예: "yeseo486님, * Customer: ...", "문*성님, 2. Start...")
     trimmed = trimmed.replace(/^[^\s,，\n]+님[,，\s]*[*•\-]/, '*');
+    trimmed = trimmed.replace(/^[^\s,，\n]+님[,，\s]*\d+[.)]\s*/, '');
 
     // (A) 영문 번역 괄호 제거 (예: "(Generous portion and tastes good)", "(Oishii-ye/Delicious)")
     trimmed = trimmed.replace(/\([a-zA-Z\s/,\-']{3,}\)/g, '').trim();
 
-    // (B) 영문 메타 라벨 제거
+    // (B) 프롬프트 에코 라인 제거 (예: "2. Start immediately with...", "Output:", "Rule 1:", "Instruction:")
+    if (/^\d+[.)]\s*(Start|Output|Rule|Write|Please|Customer|Response|Reply|Instruction|Translate)/i.test(trimmed)) {
+      continue;
+    }
+    if (/\bStart immediately with\b/i.test(trimmed)) {
+      continue;
+    }
+
+    // (C) 영문 메타 라벨 제거
     if (metaLabelRegex.test(trimmed)) {
       continue;
     }
 
-    // (C) 영문 위주의 번역 라인 제거 (손님 닉네임 외 영단어가 2개 이상이고 인사/감사 문장이 없는 경우)
+    // (D) 영문 위주의 번역 라인 제거 (손님 닉네임 외 영단어가 2개 이상이고 인사/감사 문장이 없는 경우)
     const words = trimmed.match(/[a-zA-Z]{2,}/g) || [];
     const nonNickWords = words.filter(w => !customerName || !customerName.toLowerCase().includes(w.toLowerCase()));
     if (nonNickWords.length >= 2 && !trimmed.includes('안녕') && !trimmed.includes('감사')) {
       continue;
     }
 
-    // (D) 별점 메타 라인 제거 (예: "5 stars, ...", "5/5", "5점")
+    // (E) 별점 메타 라인 제거 (예: "5 stars, ...", "5/5", "5점")
     if (/^\d+\s*stars?\b/i.test(trimmed) || /^[\s*•\-]*(\d+\s*[\/／]\s*\d+|\d+\s*점|별점\s*[:：]?\s*\d+)\s*$/.test(trimmed)) {
       continue;
     }
 
-    // (E) 고객 리뷰 복붙 인용 단독 라인 제거 (예: '"양도 많고 맛도 있어요~"')
+    // (F) 고객 리뷰 복붙 인용 단독 라인 제거 (예: '"양도 많고 맛도 있어요~"')
     if (/^["'“”][^"'“”]+["'“”][.]?$/.test(trimmed) && !trimmed.includes('안녕') && !trimmed.includes('감사')) {
       continue;
     }
 
-    // (F) 상호명 단독 라인 제거
+    // (G) 상호명 단독 라인 제거
     if (storeName && (trimmed === storeName || (trimmed.includes(storeName) && trimmed.length <= storeName.length + 15 && !trimmed.includes('안녕') && !trimmed.includes('감사')))) {
       continue;
     }
 
-    // (G) 손님 닉네임만 단독으로 적힌 라인 제거
+    // (H) 손님 닉네임만 단독으로 적힌 라인 제거
     if (trimmed === customerName || trimmed === customerName.replace(/님$/, '') || (/^[^\s,，\n]+님\s*$/.test(trimmed) && trimmed.length <= 8 && !trimmed.includes('안녕') && !trimmed.includes('감사'))) {
       continue;
     }
 
-    // (H) 한글 프롬프트 라벨 형태 제거
+    // (I) 한글 프롬프트 라벨 형태 제거
     if (/^[\s*•\-]*(\d+\s*[\/／]\s*\d+|\d+\s*점|별점|가게\s*상호|손님\s*닉네임|주문\s*메뉴|손님\s*리뷰|답글|말투|상호명)\s*[:：]/i.test(trimmed)) {
       continue;
     }
 
-    // (I) 불릿으로 시작하면서 영문이 포함된 라인 제거
+    // (J) 불릿으로 시작하면서 영문이 포함된 라인 제거
     const englishCount = (trimmed.match(/[a-zA-Z]/g) || []).length;
     if (/^[\s*•\-]/.test(trimmed) && englishCount >= 3) {
       continue;
     }
 
-    // (J) 순수 영문 메타 라인 제거
+    // (K) 순수 영문 메타 라인 제거
     if (!/[가-힣]/.test(trimmed) && englishCount >= 4) {
       continue;
     }
@@ -274,7 +287,7 @@ ${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') 
 
   cleanText = filteredLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 
-  // 6-2. 단락 분리 및 진짜 답글(사장님 본문) 정밀 추출 (앞쪽 찌꺼기 단락 스킵)
+  // 6-2. 단락 분리 및 진짜 답글(사장님 본문) 정밀 추출 (앞쪽 찌꺼기 단락 스킵 및 중복 버전 2 차단)
   const rawParagraphs = cleanText.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
   let finalParagraphs = [];
   let foundGreeting = false;
@@ -283,8 +296,24 @@ ${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') 
     let tp = p.replace(/^["'“”`]+|["'“”`]+$/g, '').trim();
     if (!tp) continue;
 
+    // 프롬프트 에코 잔여물 필터링
+    if (/^(Start immediately|Please write|Option \d|Version \d|답글 \d|버전 \d)/i.test(tp)) {
+      continue;
+    }
+    if (/^\d+[.)]\s*(Start|Output|Rule|Write|Please)/i.test(tp)) {
+      continue;
+    }
+
     // 단락 내 잔여 영문 번역 괄호 제거
     tp = tp.replace(/\([a-zA-Z\s/,\-']{3,}\)/g, '').trim();
+
+    // 앞머리에 손님 닉네임이 달려있다면 제거 (예: "문*성님, 안녕하세요!" -> "안녕하세요!", "in꽃님, " -> "")
+    // 단, "고객님"은 사장님의 정중한 일반 호칭이므로 유지
+    tp = tp.replace(/^(?!고객님)[가-힣a-zA-Z0-9*]{2,10}님[,，\s]*/, '');
+
+    // 혹시 닉네임 제거 후 "2. Start immediately with..." 같은 잔여물이 드러났다면 제거
+    tp = tp.replace(/^\d+[.)]\s*(Start immediately with.*?[.!]?|Output.*?[.!]?)\s*/i, '').trim();
+    if (!tp) continue;
 
     // 기존 단락과의 중복 비교
     const isDuplicate = finalParagraphs.some(existing => {
@@ -294,7 +323,16 @@ ${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') 
     if (isDuplicate) continue;
 
     // 사장님의 인사 문장 여부 확인
-    const isGreeting = /^(고객님|[^\s,，\n]+님|어머나|안녕하세요|반갑습니다|사장님)/.test(tp) || tp.includes('안녕하세요') || tp.includes('감사합니다');
+    const isGreeting = /^(고객님|[^\s,，\n]+님|어머나|안녕하세요|반갑습니다|사장님)/.test(tp) || tp.startsWith('안녕하세요') || tp.includes('안녕하세요');
+
+    // 🎯 [중복 리뷰 차단 핵심 로직]:
+    // 이미 앞선 단락들이 존재하고, 앞선 단락의 총 길이가 일정 이상(40자 이상)이며,
+    // 현재 단락이 또 다시 "안녕하세요", "고객님", "반갑습니다" 같은 새로운 첫인사로 시작한다면
+    // 이는 AI가 2번째 옵션/버전의 답글을 연달아 작성한 것이므로 여기서 즉시 중단(break)!
+    const accumulatedLength = finalParagraphs.join('\n\n').length;
+    if (finalParagraphs.length > 0 && accumulatedLength >= 40 && isGreeting) {
+      break;
+    }
 
     if (isGreeting || foundGreeting) {
       foundGreeting = true;
@@ -314,18 +352,14 @@ ${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') 
 
   cleanText = finalParagraphs.join('\n\n').trim();
 
-  // 6-3. 네이버 스마트플레이스 전용 첫 머리 정제: "별점5점님", "hjy****님" 등 닉네임 호칭 제거
-  if (isNaver) {
-    cleanText = cleanText.replace(/^별점\s*\d+점님!?[,，\s]*/i, '');
-    cleanText = cleanText.replace(/^(?!고객님)[^\s,，\n]+님!?[,，\s]*/, '');
-    cleanText = cleanText.trim();
-  }
+  // 6-3. 불필요한 닉네임 호칭 및 별점 호칭 최종 정제
+  cleanText = cleanText.replace(/^(?!고객님)[가-힣a-zA-Z0-9*]{2,10}님[,，\s]*/, '');
+  cleanText = cleanText.replace(/^별점\s*\d+점님!?[,，\s]*/i, '');
+  cleanText = cleanText.trim();
 
-  // 6-4. 배달앱 전용 첫 머리 닉네임 보정: 손님 닉네임이 없으면 자연스럽게 추가 (네이버는 제외)
-  if (!isNaver && customerName && cleanText) {
-    if (!cleanText.startsWith(customerName) && !cleanText.startsWith(customerName.replace(/님$/, '')) && !cleanText.startsWith('고객님')) {
-      cleanText = `${customerName}, ` + cleanText;
-    }
+  // 6-4. 첫 문장이 첫인사 없이 시작하는 경우 "안녕하세요 고객님!"으로 자연스럽게 보정
+  if (cleanText && !cleanText.startsWith('안녕하세요') && !cleanText.startsWith('고객님') && !cleanText.startsWith('반갑습니다') && !cleanText.startsWith('사장님')) {
+    cleanText = '안녕하세요 고객님! ' + cleanText;
   }
 
   // 7-1. 이모티콘 미사용 모드일 경우 잔여 이모지 완전 제거
