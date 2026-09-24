@@ -94,21 +94,10 @@
         </div>
       </div>
 
-      <!-- Nav Tabs -->
-      <div class="tab-nav">
-        <button type="button" id="tabBtnSettings" class="tab-btn active">⚙️ 답글 맞춤 설정</button>
-        <button type="button" id="tabBtnTest" class="tab-btn">⚡ 3초 체험 테스트존</button>
-      </div>
+      <!-- Main Content Area (군더더기 없는 심플 단일 설정) -->
+      <main class="main-content" style="padding-top: 12px;">
 
-      <!-- Main Content Area -->
-      <main class="main-content">
-
-      <!-- ======================================================== -->
-      <!-- TAB 1: 설정 (Settings) -->
-      <!-- ======================================================== -->
-      <section id="tabSettings" class="tab-pane active">
-        
-        <!-- API Key Card -->
+        <!-- 1. API Key Card -->
         <div class="card">
           <div class="card-header">
             <label for="apiKeyInput" class="label font-bold">
@@ -125,13 +114,13 @@
           <p class="helper-text">※ 개인 무료 한도(분당 15회, 일 1,500회)로 평생 0원 무료 이용 가능합니다.</p>
         </div>
 
-        <!-- Store Name -->
+        <!-- 2. Store Name -->
         <div class="card">
           <label for="storeNameInput" class="label font-bold">매장 상호명 (가게 이름)</label>
-          <input type="text" id="storeNameInput" class="input" placeholder="예: 을지로 바삭돈까스, 청년피자">
+          <input type="text" id="storeNameInput" class="input" placeholder="예: 마라워크, 을지로 바삭돈까스">
         </div>
 
-        <!-- Persona Selection -->
+        <!-- 3. Persona Selection (말투) -->
         <div class="card">
           <label class="label font-bold">사장님 캐릭터 (답글 말투)</label>
           <div class="persona-grid">
@@ -173,184 +162,59 @@
           </div>
         </div>
 
-        <!-- Situation Variables (체크박스 변수) -->
+        <!-- 4. Emoji Usage Level (이모티콘 강도) -->
         <div class="card">
-          <label class="label font-bold">오늘의 상황 변수 (체크 시 답글에 자동 반영)</label>
-          
-          <div class="context-list">
-            <!-- 날씨 -->
-            <div class="context-item">
-              <label class="checkbox-label">
-                <input type="checkbox" id="ctxWeather">
-                <span class="font-bold">🌧️ 날씨 / 계절 인사</span>
-              </label>
-              <input type="text" id="ctxWeatherText" class="input-sub" placeholder="예: 환절기 감기 조심하세요, 비 오는 날 안전배달">
-            </div>
-
-            <!-- 신메뉴 홍보 -->
-            <div class="context-item">
-              <label class="checkbox-label">
-                <input type="checkbox" id="ctxNewMenu">
-                <span class="font-bold">✨ 신메뉴 / 인기 사이드 홍보</span>
-              </label>
-              <input type="text" id="ctxNewMenuText" class="input-sub" placeholder="예: 이번 주 출시한 바삭 치즈볼도 꼭 드셔보세요!">
-            </div>
-
-            <!-- 배민 단골 재주문 유도 (한 달 다회 주문 촉진) -->
-            <div class="context-item highlight-item">
-              <label class="checkbox-label">
-                <input type="checkbox" id="ctxMonthlyReorder">
-                <span class="font-bold">🔁 배민 단골 재주문 유도 (한 달 다회 주문 촉진)</span>
-              </label>
-              <input type="text" id="ctxMonthlyReorderText" class="input-sub" placeholder="예: 이번 달에도 언제든 생각나실 때 찾아주세요, 첫 주문처럼 정성껏 모시겠습니다!">
-              <p class="helper-text-sub">💡 배민은 1달 안에도 여러 번 주문·리뷰가 가능합니다. 단골 고객의 이번 달 연속 재주문을 쏙 유도합니다.</p>
-            </div>
-
-            <!-- 배달 지연 사과 -->
-            <div class="context-item">
-              <label class="checkbox-label">
-                <input type="checkbox" id="ctxDelay">
-                <span class="font-bold">🛵 배달 지연 / 라이더 배차 양해 사과</span>
-              </label>
-              <p class="helper-text-sub">피크시간대 지연 배달에 대해 정중한 양해 문구를 추가합니다.</p>
-            </div>
-
-            <!-- 단골 리뷰 이벤트 -->
-            <div class="context-item">
-              <label class="checkbox-label">
-                <input type="checkbox" id="ctxReviewEvent">
-                <span class="font-bold">🎁 단골 약속 (재주문 닉네임 서비스)</span>
-              </label>
-              <p class="helper-text-sub">다음 주문 시 요청사항에 닉네임 남겨주시면 서비스 약속 멘트를 더합니다.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Character Count Limit (글자 수 제한) -->
-        <div class="card">
-          <div class="card-header">
-            <label for="charLimitSelect" class="label font-bold">
-              📏 답글 글자 수 상한선 (최대 길이)
-            </label>
-            <span class="link-btn" style="cursor: default; pointer-events: none;">쿠팡이츠 300자 맞춤</span>
-          </div>
-          <select id="charLimitSelect" class="input">
-            <option value="300" selected>⚡ 공백 포함 300자 이내 (쿠팡이츠 기준 / 간결형)</option>
-            <option value="500">📝 공백 포함 500자 이내 (기본 권장)</option>
-            <option value="700">💖 공백 포함 700자 이내 (풍성한 정성형)</option>
-            <option value="1000">👑 공백 포함 1,000자 이내 (배달의민족·요기요 기준)</option>
-          </select>
-          <p class="helper-text-sub" style="margin-left: 2px; margin-top: 6px;">
-            💡 설정한 글자 수는 <strong>최대 상한선</strong>입니다. 손님 글이 짧을 때는 억지 반복 없이 알맞은 길이로 깔끔하게 작성됩니다.
-          </p>
-        </div>
-
-        <!-- Emoji Usage Level (이모티콘 사용 강도) -->
-        <div class="card">
-          <div class="card-header">
-            <label for="emojiLevelSelect" class="label font-bold">
-              ✨ 이모티콘 사용 강도 조절
-            </label>
-            <span class="link-btn" style="cursor: default; pointer-events: none;">취향 맞춤</span>
-          </div>
+          <label for="emojiLevelSelect" class="label font-bold">이모티콘 사용 강도 조절</label>
           <select id="emojiLevelSelect" class="input">
             <option value="NONE">🚫 미사용 (이모티콘 없이 정중하고 깔끔한 텍스트만)</option>
-            <option value="LOW">🌿 조금 사용 (전체 답글에 1~2개만 은은하게 포인트)</option>
+            <option value="LOW">🌿 조금 사용 (전체 답글에 1~2개 은은한 포인트)</option>
             <option value="MEDIUM" selected>😊 보통 사용 (문맥에 맞게 2~3개 자연스럽게 - 권장)</option>
             <option value="HIGH">🥰 많이 사용 (하트와 이모티콘 듬뿍 애정 가득)</option>
           </select>
-          <p class="helper-text-sub" style="margin-left: 2px; margin-top: 6px;">
-            💡 과한 이모티콘이 부담스러우실 때는 '미사용'이나 '조금 사용'을 선택해 보세요.
-          </p>
         </div>
 
-        <!-- Submit Mode -->
+        <!-- 5. Automation Mode Selection (완전 자동 vs 반자동) -->
         <div class="card">
-          <label class="label font-bold">답글 등록 모드</label>
+          <label class="label font-bold">답글 자동화 모드 선택</label>
           <div class="mode-toggle-group">
             <label class="mode-item">
               <input type="radio" name="autoSubmit" value="false" checked>
               <div class="mode-box">
-                <span class="mode-badge">🛡️ 안전 검토 모드 (강력 추천)</span>
-                <p class="mode-desc">AI가 입력창에 글자를 쏙 채워주면, 사장님이 1초 확인 후 [등록] 클릭</p>
+                <span class="mode-badge">🛡️ 반자동 모드 (입력만 자동 채움)</span>
+                <p class="mode-desc">AI가 입력창에 답글을 쏙 채워주면, 사장님이 1초 확인 후 직접 [등록] 클릭</p>
               </div>
             </label>
             <label class="mode-item">
               <input type="radio" name="autoSubmit" value="true">
               <div class="mode-box">
-                <span class="mode-badge">🚀 완전 자동 등록 모드</span>
-                <p class="mode-desc">AI 답글 타이핑 후 0.7초 뒤 배민 [등록] 버튼까지 스스로 쾅 클릭</p>
+                <span class="mode-badge">🚀 완전 자동 모드 (등록까지 원클릭)</span>
+                <p class="mode-desc">AI가 답글을 작성하고 0.7초 뒤 [등록/저장] 버튼까지 스스로 쾅 클릭</p>
               </div>
             </label>
           </div>
         </div>
 
-        <!-- Save Button -->
-        <div class="save-bar">
-          <button type="button" id="saveSettingsBtn" class="btn-primary">
+        <!-- 6. Length Guide (300자 이하 기본 최적화) -->
+        <div class="card info-card" style="background: #f1f5f9; border-color: #cbd5e1; padding: 10px 14px;">
+          <p style="font-size: 11px; color: #475569; font-weight: 600; line-height: 1.5;">
+            📏 <strong>답글 글자 수:</strong> 쿠팡이츠·배달의민족 규격에 맞춰 <strong>공백 포함 300자 이하</strong>로 자동 최적화 작성됩니다.
+          </p>
+        </div>
+
+        <!-- 7. Save Button -->
+        <div class="save-bar" style="margin-top: 14px; margin-bottom: 12px;">
+          <button type="button" id="saveSettingsBtn" class="btn-primary" style="padding: 12px; font-size: 14px;">
             💾 설정 저장하기
           </button>
         </div>
 
-      </section>
-
-      <!-- ======================================================== -->
-      <!-- TAB 2: 테스트존 (Test Playground) -->
-      <!-- ======================================================== -->
-      <section id="tabTest" class="tab-pane">
-        <div class="test-card">
-          <div class="test-header">
-            <span class="test-icon">🧪</span>
-            <div>
-              <h3 class="test-title">배민 접속 전 3초 즉석 테스트</h3>
-              <p class="test-subtitle">샘플 리뷰를 고르고 AI가 어떻게 답글을 쓰는지 확인해 보세요.</p>
-            </div>
-          </div>
-
-          <!-- Sample Select -->
-          <div class="form-group">
-            <label class="label font-bold">샘플 리뷰 선택</label>
-            <select id="sampleSelect" class="input">
-              <option value="5_PRAISE">⭐⭐⭐⭐⭐ [5점 극찬] 너무 바삭하고 맛있어요! 벌써 3번째 주문</option>
-              <option value="1_CLAIM">⭐ [1점 클레임] 배달 1시간 넘게 걸려 다 식었고 소스도 빠졌네요</option>
-              <option value="3_NORMAL">⭐⭐⭐ [3점 보통] 양은 많은데 간이 제 입맛엔 조금 짰어요</option>
-              <option value="5_NO_TEXT">⭐⭐⭐⭐⭐ [5점 별점만 등록] (글 내용 없음 - 감사 인사)</option>
-              <option value="1_NO_TEXT">⭐ [1점 별점만 등록] (글 내용 없음 - 아쉬움/피드백 요청)</option>
-              <option value="NAVER_TAKEOUT">🟢 [네이버 포장/1번째] 포장주문 1번째 방문 (글 없음 - 포장&첫인연 감사)</option>
-              <option value="NAVER_RECEIPT">🟢 [네이버 영수증/1번째] 매장 1번째 방문 (백탕 아이도 잘먹었어요)</option>
-              <option value="NAVER_REGULAR">🟢 [네이버 단골/3번째] 매장 3번째 방문 (언제 와도 늘 만족)</option>
-            </select>
-          </div>
-
-          <div class="review-preview-box">
-            <span class="preview-label">손님 리뷰 내용:</span>
-            <p id="sampleReviewText" class="preview-text"></p>
-          </div>
-
-          <button type="button" id="runTestBtn" class="btn-primary btn-generate">
-            <span>✨ AI 맞춤 답글 생성하기</span>
-          </button>
-
-          <!-- Result Box -->
-          <div id="testResultCard" class="result-card" style="display: none;">
-            <div class="result-header">
-              <span class="result-badge">AI 추천 답글</span>
-              <button type="button" id="copyResultBtn" class="btn-copy">📋 복사하기</button>
-            </div>
-            <p id="testResultText" class="result-text"></p>
-            <span id="testTimeTaken" class="time-badge">⚡ 0.5초 소요</span>
-          </div>
-
-        </div>
-      </section>
-
-    </main>
+      </main>
     </div>
 
     <!-- Footer -->
     <footer class="footer">
       <span>트레이드미(TradeMe) 소상공인 솔루션</span>
-      <span id="appVersionText">v1.4.2 (트레이드미 회원 전용)</span>
+      <span id="appVersionText">v1.4.3 (트레이드미 회원 전용)</span>
     </footer>
 
   </div>

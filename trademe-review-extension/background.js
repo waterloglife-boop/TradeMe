@@ -472,9 +472,16 @@ ${orderCount >= 2 ? `   - 벌써 ${orderCount}번째나 잊지 않고 저희 매
   return cleanText;
 }
 
+// 서비스 워커 부팅 시 캐시된 정상 동작 모델 URL 복원 (초고속 1초 응답 보장)
+let cachedWorkingModelUrl = null;
+chrome.storage.local.get(['cachedWorkingModelUrl'], (res) => {
+  if (res.cachedWorkingModelUrl) {
+    cachedWorkingModelUrl = res.cachedWorkingModelUrl;
+  }
+});
+
 /**
- * 구글 Gemini API 호출기
- * 계정/리전별 모델 지원 차이를 극복하기 위해 다중 엔드포인트 폴백 및 ListModels 자동 탐색을 수행합니다.
+ * 구글 Gemini API 호출기 (초고속 캐싱 & 다중 엔드포인트 자동 탐색)
  */
 async function callGeminiApi(apiKey, prompt) {
   const cleanKey = apiKey.trim();
@@ -488,13 +495,48 @@ async function callGeminiApi(apiKey, prompt) {
 
   const requestHeaders = { 'Content-Type': 'application/json' };
 
-  // 1차 시도 후보군 (안정적인 v1 공식 엔드포인트 우선)
+  // 타임아웃 헬퍼 (지연 무한 대기 방지: 5초)
+  async function fetchWithTimeout(url, options, timeoutMs = 5000) {
+    const controller = new AbortController();
+    const timerId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timerId);
+      return response;
+    } catch (e) {
+      clearTimeout(timerId);
+      throw e;
+    }
+  }
+
+  // 0. 캐시된 검증 모델이 있으면 1순위로 즉시 호출 (0.8초~1.5초 내 초고속 완료!)
+  if (cachedWorkingModelUrl) {
+    const directUrl = cachedWorkingModelUrl.replace(/key=[^&]+/, `key=${cleanKey}`);
+    try {
+      const res = await fetchWithTimeout(directUrl, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: requestBody
+      }, 5000);
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (text) return text;
+      }
+    } catch (e) {
+      cachedWorkingModelUrl = null;
+    }
+  }
+
+  // 1차 시도 후보군 (현재 구글 AI 스튜디오 표준인 v1beta 모델 최우선 배치)
   const candidateUrls = [
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
     `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
     `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${cleanKey}`,
     `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${cleanKey}`
   ];
 
@@ -502,24 +544,26 @@ async function callGeminiApi(apiKey, prompt) {
 
   for (const url of candidateUrls) {
     try {
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: requestHeaders,
         body: requestBody
-      });
+      }, 4500);
 
       if (res.ok) {
         const data = await res.json();
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (text) return text;
+        if (text) {
+          cachedWorkingModelUrl = url;
+          chrome.storage.local.set({ cachedWorkingModelUrl: url });
+          return text;
+        }
       } else {
         const errData = await res.json().catch(() => ({}));
         lastError = errData?.error?.message || `HTTP ${res.status}`;
-        // 404/Not Found는 다음 모델로 즉시 전환
         if (res.status === 404 || (lastError && lastError.includes('not found'))) {
           continue;
         }
-        // 잘못된 API 키나 권한 문제는 즉시 사용자에게 고지
         if (res.status === 400 && lastError && (lastError.includes('API_KEY_INVALID') || lastError.includes('key not valid'))) {
           throw new Error(`구글 Gemini API 키가 유효하지 않습니다. 확인 후 다시 입력해 주세요.`);
         }
@@ -532,8 +576,8 @@ async function callGeminiApi(apiKey, prompt) {
 
   // 2차 시도: 사용자의 API 키로 접근 가능한 모델 목록(ListModels)을 동적 조회하여 실행
   try {
-    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${cleanKey}`)
-      .then(r => r.ok ? r : fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`));
+    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`)
+      .then(r => r.ok ? r : fetch(`https://generativelanguage.googleapis.com/v1/models?key=${cleanKey}`));
 
     if (listRes.ok) {
       const listData = await listRes.json();
@@ -542,21 +586,21 @@ async function callGeminiApi(apiKey, prompt) {
         .map(m => m.name);
 
       for (const modelName of availableModels) {
-        const directUrl = `https://generativelanguage.googleapis.com/v1/${modelName}:generateContent?key=${cleanKey}`;
-        const res = await fetch(directUrl, {
+        const directUrl = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${cleanKey}`;
+        const res = await fetchWithTimeout(directUrl, {
           method: 'POST',
           headers: requestHeaders,
           body: requestBody
-        }).then(r => r.ok ? r : fetch(`https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${cleanKey}`, {
-          method: 'POST',
-          headers: requestHeaders,
-          body: requestBody
-        }));
+        }, 5000).catch(() => null);
 
-        if (res.ok) {
+        if (res && res.ok) {
           const data = await res.json();
           const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (text) return text;
+          if (text) {
+            cachedWorkingModelUrl = directUrl;
+            chrome.storage.local.set({ cachedWorkingModelUrl: directUrl });
+            return text;
+          }
         }
       }
     }

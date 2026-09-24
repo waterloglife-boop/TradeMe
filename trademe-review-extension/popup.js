@@ -21,94 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const tradeMeLogoutBtn = document.getElementById('tradeMeLogoutBtn');
 
   // 2. 메인 설정 DOM 요소
-  const tabBtnSettings = document.getElementById('tabBtnSettings');
-  const tabBtnTest = document.getElementById('tabBtnTest');
-  const tabSettings = document.getElementById('tabSettings');
-  const tabTest = document.getElementById('tabTest');
-
   const apiKeyInput = document.getElementById('apiKeyInput');
   const toggleApiKeyBtn = document.getElementById('toggleApiKeyBtn');
   const storeNameInput = document.getElementById('storeNameInput');
-
-  const ctxWeather = document.getElementById('ctxWeather');
-  const ctxWeatherText = document.getElementById('ctxWeatherText');
-  const ctxNewMenu = document.getElementById('ctxNewMenu');
-  const ctxNewMenuText = document.getElementById('ctxNewMenuText');
-  const ctxMonthlyReorder = document.getElementById('ctxMonthlyReorder');
-  const ctxMonthlyReorderText = document.getElementById('ctxMonthlyReorderText');
-  const ctxDelay = document.getElementById('ctxDelay');
-  const ctxReviewEvent = document.getElementById('ctxReviewEvent');
-  const charLimitSelect = document.getElementById('charLimitSelect');
   const emojiLevelSelect = document.getElementById('emojiLevelSelect');
-
   const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-
-  // 3. Test Playground Elements
-  const sampleSelect = document.getElementById('sampleSelect');
-  const sampleReviewText = document.getElementById('sampleReviewText');
-  const runTestBtn = document.getElementById('runTestBtn');
-  const testResultCard = document.getElementById('testResultCard');
-  const testResultText = document.getElementById('testResultText');
-  const testTimeTaken = document.getElementById('testTimeTaken');
-  const copyResultBtn = document.getElementById('copyResultBtn');
-
-  // 샘플 리뷰 프리셋
-  const samplePresets = {
-    '5_PRAISE': {
-      rating: 5,
-      menu: '수제 치즈돈까스 세트 + 미니우동',
-      text: '치즈가 진짜 폭포처럼 늘어나고 고기도 두툼해서 너무 맛있어요! 배달도 빠르고 따뜻하게 와서 온 가족이 감탄하면서 먹었습니다. 벌써 3번째 주문인데 다음 주에 또 시킬게요~ 사장님 대박나세요!!'
-    },
-    '1_CLAIM': {
-      rating: 1,
-      menu: '특 로스카츠 정식 + 사이다',
-      text: '배달 예정 시간보다 40분이나 늦게 와서 튀김옷이 눅눅하게 다 젖어있네요. 게다가 주문했던 사이다 음료도 누락되어서 안 왔습니다. 점심시간 다 놓치고 기분만 상했네요. 다시는 안 시킵니다.'
-    },
-    '3_NORMAL': {
-      rating: 3,
-      menu: '안심돈까스 도시락',
-      text: '고기 양도 푸짐하고 포장도 깔끔해서 좋았는데, 소스 간이 제 입맛에는 조금 많이 짰어요. 국물도 약간 미지근해서 아쉬웠습니다. 그래도 고기 자체는 부드럽고 괜찮았습니다.'
-    },
-    '5_NO_TEXT': {
-      customerName: '영희',
-      rating: 5,
-      menu: '통모짜 치즈카츠 단품',
-      text: ''
-    },
-    '1_NO_TEXT': {
-      customerName: '익명고객',
-      rating: 1,
-      menu: '옛날 왕돈까스 도시락',
-      text: ''
-    },
-    'NAVER_TAKEOUT': {
-      platform: 'NAVER',
-      customerName: '',
-      isTakeout: true,
-      visitCount: 1,
-      rating: 5,
-      menu: '셀프마라탕 (음식이 맛있어요)',
-      text: ''
-    },
-    'NAVER_RECEIPT': {
-      platform: 'NAVER',
-      customerName: '',
-      isTakeout: false,
-      visitCount: 1,
-      rating: 5,
-      menu: '셀프마라탕, 백탕',
-      text: '처음 시켜먹었는데 너무 맛있어서 다음에 또 올 것 같아요! 백탕으로 약간 얼얼맛 선택했는데 아이도 정말 잘 먹네요.'
-    },
-    'NAVER_REGULAR': {
-      platform: 'NAVER',
-      customerName: '',
-      isTakeout: false,
-      visitCount: 3,
-      rating: 5,
-      menu: '매장 방문 (영수증 인증)',
-      text: '벌써 세 번째 방문인데 올 때마다 사장님도 너무 친절하시고 국물 맛도 깊어서 늘 감탄합니다. 최고예요!'
-    }
-  };
 
   // ========================================================
   // A. 인증 상태 렌더링 (로그인 화면 vs 메인 화면 전환)
@@ -306,24 +223,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ========================================================
-  // C. 탭 전환 및 일반 설정 관리
+  // C. 설정 관리 (초간결 5대 핵심 설정만 유지)
   // ========================================================
-  tabBtnSettings.addEventListener('click', () => {
-    tabBtnSettings.classList.add('active');
-    tabBtnTest.classList.remove('active');
-    tabSettings.classList.add('active');
-    tabTest.classList.remove('active');
-  });
 
-  tabBtnTest.addEventListener('click', () => {
-    tabBtnTest.classList.add('active');
-    tabBtnSettings.classList.remove('active');
-    tabTest.classList.add('active');
-    tabSettings.classList.remove('active');
-    updateSamplePreview();
-  });
-
-  // 2. API Key 보기/숨기기 토글
+  // 1. API Key 보기/숨기기 토글
   toggleApiKeyBtn.addEventListener('click', () => {
     if (apiKeyInput.type === 'password') {
       apiKeyInput.type = 'text';
@@ -334,10 +237,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 3. 기존 저장된 설정 불러오기
+  // 2. 기존 저장된 설정 불러오기
   function loadSettings() {
     chrome.storage.local.get(
-      ['tradeMeAuth', 'apiKey', 'storeName', 'persona', 'charLimit', 'emojiLevel', 'autoSubmit', 'contexts'],
+      ['tradeMeAuth', 'apiKey', 'storeName', 'persona', 'emojiLevel', 'autoSubmit'],
       (res) => {
         renderAuthState(res.tradeMeAuth);
 
@@ -345,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const appVersionText = document.getElementById('appVersionText');
           if (appVersionText && chrome?.runtime?.getManifest) {
             const manifest = chrome.runtime.getManifest();
-            appVersionText.innerText = `v${manifest.version || '1.3.1'} (트레이드미 회원 전용)`;
+            appVersionText.innerText = `v${manifest.version || '1.4.3'} (트레이드미 회원 전용)`;
           }
         } catch (e) {}
 
@@ -369,55 +272,27 @@ document.addEventListener('DOMContentLoaded', () => {
           if (autoRadio) autoRadio.checked = true;
         }
 
-        if (res.charLimit) {
-          charLimitSelect.value = String(res.charLimit);
-        } else {
-          charLimitSelect.value = '300';
-        }
-
         if (res.emojiLevel) {
           emojiLevelSelect.value = res.emojiLevel;
         } else {
           emojiLevelSelect.value = 'MEDIUM';
-        }
-
-        if (res.contexts) {
-          ctxWeather.checked = !!res.contexts.weather;
-          ctxWeatherText.value = res.contexts.weatherText || '환절기 감기 조심하세요';
-          ctxNewMenu.checked = !!res.contexts.newMenu;
-          ctxNewMenuText.value = res.contexts.newMenuText || '';
-          ctxMonthlyReorder.checked = !!res.contexts.monthlyReorder;
-          ctxMonthlyReorderText.value = res.contexts.monthlyReorderText || '이번 달에도 언제든 생각나실 때 찾아주세요, 첫 주문처럼 정성껏 모시겠습니다!';
-          ctxDelay.checked = !!res.contexts.delayApology;
-          ctxReviewEvent.checked = !!res.contexts.reviewEvent;
         }
       }
     );
   }
   loadSettings();
 
-  // 4. 설정 저장하기
+  // 3. 설정 저장하기
   saveSettingsBtn.addEventListener('click', () => {
     const apiKey = apiKeyInput.value.trim();
     const storeName = storeNameInput.value.trim();
     const persona = document.querySelector('input[name="persona"]:checked')?.value || 'CHEF';
-    const charLimit = Number(charLimitSelect.value) || 300;
+    const charLimit = 300; // 쿠팡이츠·배민 기준 300자 이하 기본 고정
     const emojiLevel = emojiLevelSelect.value || 'MEDIUM';
     const autoSubmit = document.querySelector('input[name="autoSubmit"]:checked')?.value === 'true';
 
-    const contexts = {
-      weather: ctxWeather.checked,
-      weatherText: ctxWeatherText.value.trim(),
-      newMenu: ctxNewMenu.checked,
-      newMenuText: ctxNewMenuText.value.trim(),
-      monthlyReorder: ctxMonthlyReorder.checked,
-      monthlyReorderText: ctxMonthlyReorderText.value.trim(),
-      delayApology: ctxDelay.checked,
-      reviewEvent: ctxReviewEvent.checked
-    };
-
     chrome.storage.local.set(
-      { apiKey, storeName, persona, charLimit, emojiLevel, autoSubmit, contexts },
+      { apiKey, storeName, persona, charLimit, emojiLevel, autoSubmit },
       () => {
         saveSettingsBtn.innerText = '✅ 저장 완료!';
         saveSettingsBtn.style.background = '#16a34a';
@@ -436,116 +311,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1500);
       }
     );
-  });
-
-  // 5. 테스트존 샘플 프리뷰 업데이트
-  function updateSamplePreview() {
-    const selectedKey = sampleSelect.value;
-    const sample = samplePresets[selectedKey];
-    if (sample) {
-      const extraTags = [];
-      if (sample.platform === 'NAVER') {
-        if (sample.isTakeout) extraTags.push('포장주문');
-        else extraTags.push('매장방문');
-        if (sample.visitCount) extraTags.push(`${sample.visitCount}번째 방문`);
-      }
-      const tagStr = extraTags.length > 0 ? ` [${extraTags.join(' · ')}]` : '';
-      if (!sample.text) {
-        sampleReviewText.innerText = `[별점: ${sample.rating}점 / 주문: ${sample.menu}]${tagStr}\n(※ 손님이 리뷰 글 없이 별점만 등록함)`;
-      } else {
-        sampleReviewText.innerText = `[별점: ${sample.rating}점 / 주문: ${sample.menu}]${tagStr}\n"${sample.text}"`;
-      }
-    }
-  }
-
-  sampleSelect.addEventListener('change', updateSamplePreview);
-  updateSamplePreview();
-
-  // 6. 테스트존 즉석 답글 생성 실행
-  runTestBtn.addEventListener('click', async () => {
-    const apiKey = apiKeyInput.value.trim();
-    if (!apiKey) {
-      alert('⚠️ 먼저 [답글 맞춤 설정] 탭에서 구글 Gemini API 키를 입력하고 저장해 주세요!');
-      tabBtnSettings.click();
-      apiKeyInput.focus();
-      return;
-    }
-
-    const storeName = storeNameInput.value.trim() || '우리 동네 맛집';
-    const persona = document.querySelector('input[name="persona"]:checked')?.value || 'CHEF';
-    const contexts = {
-      weather: ctxWeather.checked,
-      weatherText: ctxWeatherText.value.trim(),
-      newMenu: ctxNewMenu.checked,
-      newMenuText: ctxNewMenuText.value.trim(),
-      monthlyReorder: ctxMonthlyReorder.checked,
-      monthlyReorderText: ctxMonthlyReorderText.value.trim(),
-      delayApology: ctxDelay.checked,
-      reviewEvent: ctxReviewEvent.checked
-    };
-
-    const charLimit = Number(charLimitSelect.value) || 300;
-    const emojiLevel = emojiLevelSelect.value || 'MEDIUM';
-    const selectedSample = samplePresets[sampleSelect.value];
-
-    runTestBtn.disabled = true;
-    runTestBtn.innerText = '⚡ AI 분석 & 답글 작성 중...';
-    testResultCard.style.display = 'none';
-
-    const startTime = Date.now();
-
-    try {
-      const response = await new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(
-          {
-            action: 'GENERATE_REVIEW_REPLY',
-            payload: {
-              apiKey,
-              storeName,
-              persona,
-              charLimit,
-              emojiLevel,
-              contexts,
-              reviewData: selectedSample
-            }
-          },
-          (res) => {
-            if (chrome.runtime.lastError) {
-              return reject(new Error(chrome.runtime.lastError.message));
-            }
-            resolve(res);
-          }
-        );
-      });
-
-      if (!response.success) {
-        throw new Error(response.error);
-      }
-
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-      testResultText.innerText = response.reply;
-      testTimeTaken.innerText = `⚡ ${elapsed}초 만에 초고속 생성 완료 (공백 포함 ${response.reply.length}자 / 최대 ${charLimit}자 제한)`;
-      testResultCard.style.display = 'block';
-
-    } catch (err) {
-      alert(`❌ 테스트 오류:\n${err.message}`);
-    } finally {
-      runTestBtn.disabled = false;
-      runTestBtn.innerText = '✨ AI 맞춤 답글 생성하기';
-    }
-  });
-
-  // 7. 결과 복사 버튼
-  copyResultBtn.addEventListener('click', () => {
-    const textToCopy = testResultText.innerText;
-    if (!textToCopy) return;
-
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      copyResultBtn.innerText = '✅ 복사됨!';
-      setTimeout(() => {
-        copyResultBtn.innerText = '📋 복사하기';
-      }, 1500);
-    });
   });
 
 });

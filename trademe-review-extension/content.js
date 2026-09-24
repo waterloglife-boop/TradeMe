@@ -585,31 +585,41 @@
       // 🎯 [옵션] 자동 등록 모드가 켜져 있는 경우 배민·쿠팡이츠·요기요 [등록] 버튼 자동 클릭
       if (settings.autoSubmit) {
         statusBadge.innerText = '🚀 0.7초 후 자동 등록 중...';
-        setTimeout(() => {
-          const searchScope = textarea.closest('form, tr, [class*="reply" i]') || textarea.parentElement || container;
-          const candidateButtons = Array.from(searchScope.querySelectorAll('button, input[type="submit"], a[role="button"]'));
-          const submitBtn = candidateButtons.find(b => {
-            const txt = (b.innerText || b.value || '').trim();
-            return (
-              txt.includes('등록') ||
-              txt.includes('작성') ||
-              txt.includes('저장') ||
-              txt.includes('완료') ||
-              b.type === 'submit' ||
-              b.classList.contains('btn-register') ||
-              b.classList.contains('submit')
-            );
+        await new Promise(r => setTimeout(r, 700));
+        const searchScope = textarea.closest('form, tr, [class*="reply" i]') || textarea.parentElement || container;
+        const candidateButtons = Array.from(searchScope.querySelectorAll('button, input[type="submit"], a[role="button"]'));
+        const submitBtn = candidateButtons.find(b => {
+          const txt = (b.innerText || b.value || '').trim();
+          return (
+            txt.includes('등록') ||
+            txt.includes('작성') ||
+            txt.includes('저장') ||
+            txt.includes('완료') ||
+            b.type === 'submit' ||
+            b.classList.contains('btn-register') ||
+            b.classList.contains('submit')
+          );
+        });
+        if (submitBtn && !submitBtn.disabled) {
+          submitBtn.click();
+          statusBadge.innerText = '✅ 답글 등록 완료!';
+          // 모달 확인창이 뜰 경우를 대비한 자동 확인 클릭
+          await new Promise(r => setTimeout(r, 500));
+          const confirmBtns = Array.from(document.querySelectorAll('button')).filter(b => {
+            const t = (b.innerText || '').trim();
+            return t === '확인' || t === '등록' || t === '예';
           });
-          if (submitBtn && !submitBtn.disabled) {
-            submitBtn.click();
-            statusBadge.innerText = '✅ 답글 등록 완료!';
+          if (confirmBtns.length > 0 && confirmBtns[confirmBtns.length - 1].offsetParent !== null) {
+            confirmBtns[confirmBtns.length - 1].click();
           }
-        }, 700);
+        }
       } else {
         setTimeout(() => {
           statusBadge.style.display = 'none';
         }, 3500);
       }
+
+      return true;
 
     } catch (err) {
       console.error('[TradeMe Review AI Error]:', err);
@@ -623,6 +633,7 @@
         statusBadge.innerText = `❌ 오류: ${err.message || '답변 생성 실패'}`;
       }
       statusBadge.className = 'trm-status-badge trm-badge-error';
+      return false;
     } finally {
       btn.disabled = false;
       btn.classList.remove('trm-loading');
@@ -777,35 +788,272 @@
   });
 
   // =========================================================================
-  // 5. 플로팅 퀵 헬퍼 위젯 (화면 우측 하단 상시 보조)
+  // 5. 트레이드미 AI 일괄 자동 답변 컨트롤 센터 (플로팅 위젯)
   // =========================================================================
-  function createFloatingWidget() {
-    if (document.getElementById('trm-floating-widget')) return;
+  let isBatchRunning = false;
+  let shouldStopBatch = false;
+  let selectedBatchCount = 10;
 
-    const widget = document.createElement('div');
-    widget.id = 'trm-floating-widget';
-    widget.className = 'trm-floating-widget';
-    widget.innerHTML = `
-      <div class="trm-floating-badge" title="트레이드미 AI 리뷰 비서 작동 중">
-        <span>🤖 트레이드미 AI</span>
+  function findUnansweredReviewItems() {
+    const results = [];
+    const visited = new Set();
+
+    // 1) 화면에 이미 존재하는 textarea들 중 비어있거나 답글 대기 중인 것
+    const textareas = Array.from(document.querySelectorAll('textarea')).filter(ta => {
+      return ta.offsetParent !== null && ta.style.display !== 'none';
+    });
+
+    for (const ta of textareas) {
+      const container = findReviewContainerForTextarea(ta);
+      if (container && !visited.has(container)) {
+        visited.add(container);
+        results.push({ container, textarea: ta });
+      }
+    }
+
+    // 2) 아직 textarea가 안 열린 '답글 작성' 버튼들 탐색
+    const replyButtons = Array.from(document.querySelectorAll('button, a[role="button"], a')).filter(b => {
+      const txt = (b.innerText || '').trim();
+      return (txt === '답글 작성' || txt === '답변 작성' || txt === '답글 쓰기' || txt === '답글달기' || txt === '댓글 달기') && !txt.includes('수정') && !txt.includes('삭제');
+    });
+
+    for (const b of replyButtons) {
+      let container = b.closest('div[class*="ReviewItem" i], div[class*="review_item" i], div[class*="review-item" i], li, tr, div[class*="card" i]') || b.parentElement;
+      if (container && !visited.has(container)) {
+        const fullTxt = container.innerText || '';
+        if (!fullTxt.includes('답글 수정') && !fullTxt.includes('답글 완료') && !fullTxt.includes('답글삭제')) {
+          visited.add(container);
+          results.push({ container, openBtn: b });
+        }
+      }
+    }
+
+    return results;
+  }
+
+  function createBatchFloatingWidget() {
+    if (document.getElementById('trm-batch-card')) return;
+
+    const card = document.createElement('div');
+    card.id = 'trm-batch-card';
+    card.className = 'trm-batch-card';
+
+    card.innerHTML = `
+      <div class="trm-batch-header">
+        <div class="trm-batch-title">
+          <span>🤖</span>
+          <span>트레이드미 AI 일괄 답변기</span>
+        </div>
+        <button type="button" class="trm-batch-toggle-btn" id="trmBatchToggleBtn" title="최소화/열기">−</button>
+      </div>
+
+      <div class="trm-batch-body">
+        <!-- 모드 표시 및 원클릭 전환 버튼 -->
+        <div class="trm-mode-pill trm-auto-false" id="trmModePill">
+          <span id="trmModeText">🛡️ 반자동 모드 (입력만)</span>
+          <button type="button" class="trm-mode-switch-btn" id="trmModeSwitchBtn">모드 전환 ⇄</button>
+        </div>
+
+        <!-- 수량 선택 (과거순) -->
+        <div class="trm-count-row">
+          <span class="trm-count-label">과거순 수량:</span>
+          <button type="button" class="trm-count-btn" data-count="5">5개</button>
+          <button type="button" class="trm-count-btn active" data-count="10">10개</button>
+          <button type="button" class="trm-count-btn" data-count="20">20개</button>
+          <button type="button" class="trm-count-btn" data-count="ALL">전체</button>
+        </div>
+
+        <!-- 실행 및 중지 버튼 -->
+        <div class="trm-action-row">
+          <button type="button" class="trm-start-btn" id="trmStartBatchBtn">
+            ▶️ 과거순 10개 일괄 시작
+          </button>
+          <button type="button" class="trm-stop-btn" id="trmStopBatchBtn" disabled>
+            ⏹️ 중지
+          </button>
+        </div>
+
+        <!-- 진행 상황 프로그레스 바 -->
+        <div class="trm-progress-wrap">
+          <div class="trm-status-text" id="trmStatusText">대기 중... 미답변 리뷰 탐색 중</div>
+          <div class="trm-progress-bar-bg">
+            <div class="trm-progress-bar-fill" id="trmProgressFill"></div>
+          </div>
+        </div>
       </div>
     `;
 
-    widget.addEventListener('click', () => {
-      // 가장 가까운 textarea에 포커스
-      const firstTextarea = document.querySelector('textarea');
-      if (firstTextarea) {
-        firstTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        firstTextarea.focus();
+    document.body.appendChild(card);
+
+    // DOM 요소 캐시
+    const toggleBtn = card.querySelector('#trmBatchToggleBtn');
+    const modePill = card.querySelector('#trmModePill');
+    const modeText = card.querySelector('#trmModeText');
+    const modeSwitchBtn = card.querySelector('#trmModeSwitchBtn');
+    const startBtn = card.querySelector('#trmStartBatchBtn');
+    const stopBtn = card.querySelector('#trmStopBatchBtn');
+    const statusText = card.querySelector('#trmStatusText');
+    const progressFill = card.querySelector('#trmProgressFill');
+    const countBtns = card.querySelectorAll('.trm-count-btn');
+
+    // 최소화 토글
+    toggleBtn.addEventListener('click', () => {
+      card.classList.toggle('trm-collapsed');
+      toggleBtn.innerText = card.classList.contains('trm-collapsed') ? '+' : '−';
+    });
+
+    // 모드 렌더러
+    function updateModeDisplay(autoSubmit) {
+      if (autoSubmit) {
+        modePill.className = 'trm-mode-pill trm-auto-true';
+        modeText.innerText = '🚀 완전 자동 (원클릭 등록)';
       } else {
-        alert('💡 현재 화면에서 답글을 달 수 있는 리뷰 입력창을 찾고 있습니다. 리뷰 목록 페이지로 이동해 주세요.');
+        modePill.className = 'trm-mode-pill trm-auto-false';
+        modeText.innerText = '🛡️ 반자동 (입력 후 검토)';
+      }
+    }
+
+    // 초기 모드 동기화
+    chrome.storage.local.get(['autoSubmit'], (res) => {
+      updateModeDisplay(!!res.autoSubmit);
+    });
+
+    // 모드 즉시 전환 버튼
+    modeSwitchBtn.addEventListener('click', () => {
+      chrome.storage.local.get(['autoSubmit'], (res) => {
+        const nextMode = !res.autoSubmit;
+        chrome.storage.local.set({ autoSubmit: nextMode }, () => {
+          updateModeDisplay(nextMode);
+        });
+      });
+    });
+
+    // 수량 버튼 클릭
+    countBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        countBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedBatchCount = btn.dataset.count === 'ALL' ? 'ALL' : Number(btn.dataset.count);
+        startBtn.innerText = `▶️ 과거순 ${btn.dataset.count === 'ALL' ? '전체' : selectedBatchCount + '개'} 일괄 시작`;
+      });
+    });
+
+    // 대기 상태 미답변 개수 주기적 스캔
+    function refreshReviewScan() {
+      if (isBatchRunning) return;
+      const unreplied = findUnansweredReviewItems();
+      statusText.innerText = `대기 중: 미답변 리뷰 ${unreplied.length}개 감지됨`;
+    }
+    setTimeout(refreshReviewScan, 1000);
+    setInterval(refreshReviewScan, 4000);
+
+    // 중지 버튼 클릭
+    stopBtn.addEventListener('click', () => {
+      if (isBatchRunning) {
+        shouldStopBatch = true;
+        statusText.innerText = '⏹️ 중지 요청됨... 현재 리뷰 완료 후 정지합니다.';
+        stopBtn.disabled = true;
       }
     });
 
-    document.body.appendChild(widget);
+    // 일괄 시작 실행
+    startBtn.addEventListener('click', async () => {
+      if (isBatchRunning) return;
+
+      const unreplied = findUnansweredReviewItems();
+      if (unreplied.length === 0) {
+        alert('💡 현재 화면에서 답변할 수 있는 미답변 리뷰를 찾지 못했습니다.\n리뷰 관리 페이지의 [미답변 리뷰] 탭을 확인해 주세요!');
+        return;
+      }
+
+      // 사장님 요청: "과거의 리뷰순"으로 처리 (화면 아래쪽의 오래된 리뷰부터 처리)
+      unreplied.reverse();
+
+      const totalTarget = selectedBatchCount === 'ALL' ? unreplied.length : Math.min(Number(selectedBatchCount), unreplied.length);
+      const targetItems = unreplied.slice(0, totalTarget);
+
+      isBatchRunning = true;
+      shouldStopBatch = false;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      progressFill.style.width = '0%';
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < targetItems.length; i++) {
+        if (shouldStopBatch) {
+          statusText.innerText = `⏹️ 일괄 답변 중지됨 (${successCount}개 완료)`;
+          break;
+        }
+
+        const item = targetItems[i];
+        const progressPercent = Math.round(((i) / totalTarget) * 100);
+        progressFill.style.width = `${progressPercent}%`;
+        statusText.innerText = `[${i + 1}/${totalTarget}] 리뷰 위치로 이동 중...`;
+
+        // 1. 해당 리뷰 위치로 부드럽게 스크롤
+        item.container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await new Promise(r => setTimeout(r, 600));
+
+        // 2. textarea 확보 (만약 닫혀 있다면 [답글 작성] 클릭)
+        let textarea = item.container.querySelector('textarea');
+        if (!textarea && item.openBtn) {
+          item.openBtn.click();
+          await new Promise(r => setTimeout(r, 600));
+          textarea = item.container.querySelector('textarea');
+        }
+
+        if (!textarea) {
+          failCount++;
+          continue;
+        }
+
+        // 3. 버튼 및 뱃지 찾기 (또는 가상 생성)
+        let btn = item.container.querySelector('.trm-ai-btn');
+        let badge = item.container.querySelector('.trm-status-badge');
+        if (!btn) {
+          btn = document.createElement('button');
+        }
+        if (!badge) {
+          badge = document.createElement('span');
+        }
+
+        statusText.innerText = `[${i + 1}/${totalTarget}] AI 맞춤 답글 작성 중...`;
+
+        try {
+          const success = await generateAndFillReply(textarea, item.container, btn, badge);
+          if (success) {
+            successCount++;
+            progressFill.style.width = `${Math.round(((i + 1) / totalTarget) * 100)}%`;
+            statusText.innerText = `[${i + 1}/${totalTarget}] 작성 완료! (안전 간격 2.5초 대기...)`;
+          } else {
+            failCount++;
+          }
+        } catch (err) {
+          failCount++;
+          statusText.innerText = `[${i + 1}/${totalTarget}] 오류 발생, 다음 리뷰로 진행`;
+        }
+
+        // 4. 배민·네이버 봇 방지 및 API 보호를 위한 2.5초 휴먼 딜레이
+        if (i < targetItems.length - 1 && !shouldStopBatch) {
+          await new Promise(r => setTimeout(r, 2500));
+        }
+      }
+
+      isBatchRunning = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      progressFill.style.width = '100%';
+
+      if (!shouldStopBatch) {
+        statusText.innerText = `🎉 완료! 성공 ${successCount}건 / 실패 ${failCount}건`;
+        alert(`🎉 [트레이드미 AI 일괄 답변 완료]\n\n총 ${successCount}개의 리뷰에 정성스러운 맞춤 답변 작성이 완료되었습니다!`);
+      }
+    });
   }
 
   // 1.5초 후 플로팅 위젯 부착
-  setTimeout(createFloatingWidget, 1500);
+  setTimeout(createBatchFloatingWidget, 1500);
 
 })();
