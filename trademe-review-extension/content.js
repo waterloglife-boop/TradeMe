@@ -146,7 +146,7 @@
     // 0. 답글 입력창 및 툴바 영역을 복제본에서 완벽히 제거
     // (이를 제거하지 않으면 "자주 쓰는 문구 / 취소 / 등록" 같은 버튼 라벨이 고객 리뷰로 오인됨)
     const clone = container.cloneNode(true);
-    clone.querySelectorAll('textarea, input, button, select, .trm-ai-toolbar, [class*="reply" i], [class*="comment-form" i], [class*="button" i], [class*="btn" i]').forEach(el => el.remove());
+    clone.querySelectorAll('textarea, input, button, select, .trm-ai-toolbar, [class*="comment-form" i], [class*="reply-form" i], [class*="reply-box" i], [class*="reply-input" i], [class*="reply_form" i], [class*="reply_box" i]').forEach(el => el.remove());
 
     const cleanFullText = (clone.innerText || '').trim();
     const isNaver = window.location.hostname.includes('smartplace.naver.com');
@@ -411,7 +411,8 @@
       customerName: customerName || '고객',
       rating: Math.min(5, Math.max(1, rating)),
       menu: menu || '주문하신 메뉴',
-      text: text ? text.trim() : ''
+      text: text ? text.trim() : (cleanFullText || ''),
+      rawText: cleanFullText || ''
     };
   }
 
@@ -556,7 +557,8 @@
       if (settings.autoSubmit) {
         statusBadge.innerText = '🚀 0.7초 후 자동 등록 중...';
         setTimeout(() => {
-          const candidateButtons = Array.from(container.querySelectorAll('button, input[type="submit"], a[role="button"]'));
+          const searchScope = textarea.closest('form, tr, [class*="reply" i]') || textarea.parentElement || container;
+          const candidateButtons = Array.from(searchScope.querySelectorAll('button, input[type="submit"], a[role="button"]'));
           const submitBtn = candidateButtons.find(b => {
             const txt = (b.innerText || b.value || '').trim();
             return (
@@ -611,20 +613,20 @@
       if (!el || el === document.body || el === document.documentElement) return false;
       const t = el.innerText || '';
 
-      // [핵심 검증 1]: 반드시 실제 고객 리뷰의 핵심 마커(주문메뉴, 주문내역, 주문번호, 리뷰번호, N회 주문, N번째 방문)를 최소 1개 이상 포함해야 함!
-      // ('주문', '배달' 같은 단순 단어는 법적 안내문 "* 주문자의 연락처..." 등에 들어가므로 단독 체크 금지!)
-      const coreMarkers = t.match(/(?:주문\s*메뉴|주문\s*내역|주문\s*번호|리뷰\s*번호|\d+\s*회\s*주문|\d+\s*번째\s*방문)/g) || [];
-      if (coreMarkers.length === 0) {
-        return false; // 핵심 마커가 없으면 단순 댓글 입력창이나 껍데기이므로 무조건 탈락!
+      // [핵심 검증 1]: 배달앱(배민/쿠팡이츠/요기요)의 단일 리뷰 카드에는 '주문번호' 또는 '리뷰번호'가 정확히 1개 존재!
+      const orderMatches = t.match(/주문\s*번호|리뷰\s*번호/g) || [];
+      if (orderMatches.length === 1) {
+        return true;
       }
 
-      // [핵심 검증 2]: 핵심 마커가 너무 많거나(목록 컨테이너) textarea가 2개 이상이면 전체 목록이므로 탈락!
+      // [핵심 검증 2]: 주문번호가 없는 경우(네이버 등) 메뉴/방문 마커가 1~3개 있고 textarea가 1개 이하
+      const coreMarkers = t.match(/(?:주문\s*메뉴|주문\s*내역|\d+\s*회\s*주문|\d+\s*번째\s*방문)/g) || [];
       const textareaCount = el.querySelectorAll ? el.querySelectorAll('textarea').length : 0;
-      if (coreMarkers.length > 4 || textareaCount > 1) {
-        return false;
+      if (orderMatches.length === 0 && coreMarkers.length >= 1 && coreMarkers.length <= 4 && textareaCount <= 1) {
+        return true;
       }
 
-      return true;
+      return false;
     }
 
     // 1) textarea의 부모 계층을 1단계씩 거슬러 올라가며 실제 고객 리뷰가 포함된 단일 카드 탐색

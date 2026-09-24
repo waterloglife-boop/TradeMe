@@ -40,25 +40,28 @@ async function handleGenerateReply(payload) {
 
   // 2. 상황 변수 주입 가이드
   const contextNotes = [];
-  if (contexts.weather) {
+  if (contexts && contexts.weather) {
     contextNotes.push(`날씨 인사("${contexts.weatherText || '환절기 감기 조심하세요'}")`);
   }
-  if (contexts.newMenu) {
+  if (contexts && contexts.newMenu) {
     contextNotes.push(`신메뉴 홍보("${contexts.newMenuText || '신메뉴'}")`);
   }
-  if (contexts.monthlyReorder) {
-    contextNotes.push('이번 달에도 또 찾아달라는 재주문 유도');
+  if (contexts && contexts.monthlyReorder) {
+    contextNotes.push(`단골 재주문 유도("${contexts.monthlyReorderText || '이번 달에도 언제든 생각나실 때 찾아주세요!'}")`);
   }
-  if (contexts.delayApology) {
-    contextNotes.push('배달 지연 사과');
+  if (contexts && contexts.delayApology) {
+    contextNotes.push('피크시간 배달 지연/라이더 배차 양해 사과');
   }
-  if (contexts.reviewEvent) {
-    contextNotes.push('다음 주문 시 닉네임 서비스 약속');
+  if (contexts && contexts.reviewEvent) {
+    contextNotes.push('다음 주문 시 요청사항에 닉네임 기재 시 서비스 약속');
   }
 
   // 3. 고객 리뷰 및 별점 분석
   const starScore = Number(reviewData.rating) || 5;
-  const rawReviewText = (reviewData.text || '').trim();
+  let rawReviewText = (reviewData.text || '').trim();
+  if (!rawReviewText && reviewData.rawText) {
+    rawReviewText = reviewData.rawText.trim();
+  }
   // 더미 텍스트나 placeholder 문자열 방어
   const isDummyText = rawReviewText === '콩불 너무 맛있습니다' || rawReviewText === '맛있게 잘 먹었습니다!';
   const reviewText = isDummyText ? '' : rawReviewText;
@@ -184,6 +187,7 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
 손님이 남겨주신 소중한 리뷰를 정독하고, 사장님이 손님에게 직접 전송할 감동적이고 따뜻한 답글을 딱 1개만 작성하세요.
 
 [손님 리뷰 정보]
+- 매장 상호명: ${storeName || '저희 매장'}
 - 주문 메뉴: ${orderedMenu}
 - 별점: ${starScore}점
 - 손님 작성 리뷰: ${reviewText ? '"' + reviewText + '"' : '(별점만 등록)'}
