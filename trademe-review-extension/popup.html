@@ -212,35 +212,16 @@
           </select>
         </div>
 
-        <!-- 5. Automation Mode Selection (완전 자동 vs 반자동) -->
-        <div class="card">
-          <label class="label font-bold">답글 자동화 모드 선택</label>
-          <div class="mode-toggle-group">
-            <label class="mode-item">
-              <input type="radio" name="autoSubmit" value="false" checked>
-              <div class="mode-box">
-                <span class="mode-badge">🛡️ 반자동 모드 (입력만 자동 채움)</span>
-                <p class="mode-desc">AI가 입력창에 답글을 쏙 채워주면, 사장님이 1초 확인 후 직접 [등록] 클릭</p>
-              </div>
-            </label>
-            <label class="mode-item">
-              <input type="radio" name="autoSubmit" value="true">
-              <div class="mode-box">
-                <span class="mode-badge">🚀 완전 자동 모드 (등록까지 원클릭)</span>
-                <p class="mode-desc">AI가 답글을 작성하고 0.7초 뒤 [등록/저장] 버튼까지 스스로 쾅 클릭</p>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- 6. Length Guide (300자 이하 기본 최적화) -->
+        <!-- 5. Length Guide (상황별 비례 작성 및 300자 이하 기본 최적화) -->
         <div class="card info-card" style="background: #f1f5f9; border-color: #cbd5e1; padding: 10px 14px;">
           <p style="font-size: 11px; color: #475569; font-weight: 600; line-height: 1.5;">
-            📏 <strong>답글 글자 수:</strong> 쿠팡이츠·배달의민족 규격에 맞춰 <strong>공백 포함 300자 이하</strong>로 자동 최적화 작성됩니다.
+            📏 <strong>스마트 비례 맞춤 작성 (최대 300자):</strong><br>
+            • <strong>단답형 리뷰(10자 이하):</strong> 없는 말 지어내지 않고 60~90자로 정갈하고 담백하게 감사 인사<br>
+            • <strong>상세한 리뷰:</strong> 손님의 칭찬 포인트에 공감하여 풍성하게 작성 (쿠팡 300자 규격 준수)
           </p>
         </div>
 
-        <!-- 7. Save Button -->
+        <!-- 6. Save Button -->
         <div class="save-bar" style="margin-top: 14px; margin-bottom: 12px;">
           <button type="button" id="saveSettingsBtn" class="btn-primary" style="padding: 12px; font-size: 14px;">
             💾 설정 저장하기
@@ -253,7 +234,7 @@
     <!-- Footer -->
     <footer class="footer">
       <span>트레이드미(TradeMe) 소상공인 솔루션</span>
-      <span id="appVersionText">v1.4.4 (트레이드미 회원 전용)</span>
+      <span id="appVersionText">v1.4.5 (트레이드미 회원 전용)</span>
     </footer>
 
   </div>

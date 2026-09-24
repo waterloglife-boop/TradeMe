@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const appVersionText = document.getElementById('appVersionText');
           if (appVersionText && chrome?.runtime?.getManifest) {
             const manifest = chrome.runtime.getManifest();
-            appVersionText.innerText = `v${manifest.version || '1.4.4'} (트레이드미 회원 전용)`;
+            appVersionText.innerText = `v${manifest.version || '1.4.5'} (트레이드미 회원 전용)`;
           }
         } catch (e) {}
 
@@ -283,11 +283,6 @@ document.addEventListener('DOMContentLoaded', () => {
           if (radio) radio.checked = true;
         }
 
-        if (res.autoSubmit !== undefined) {
-          const autoRadio = document.querySelector(`input[name="autoSubmit"][value="${res.autoSubmit}"]`);
-          if (autoRadio) autoRadio.checked = true;
-        }
-
         if (res.emojiLevel) {
           emojiLevelSelect.value = res.emojiLevel;
         } else {
@@ -312,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const persona = document.querySelector('input[name="persona"]:checked')?.value || 'CHEF';
     const charLimit = 300; // 쿠팡이츠·배민 기준 300자 이하 기본 고정
     const emojiLevel = emojiLevelSelect.value || 'MEDIUM';
-    const autoSubmit = document.querySelector('input[name="autoSubmit"]:checked')?.value === 'true';
 
     chrome.storage.local.set(
       {
@@ -323,8 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         autoDetectStore: isAutoDetect,
         persona,
         charLimit,
-        emojiLevel,
-        autoSubmit
+        emojiLevel
       },
       () => {
         saveSettingsBtn.innerText = '✅ 저장 완료!';
