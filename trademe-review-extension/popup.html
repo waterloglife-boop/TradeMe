@@ -114,10 +114,49 @@
           <p class="helper-text">※ 개인 무료 한도(분당 15회, 일 1,500회)로 평생 0원 무료 이용 가능합니다.</p>
         </div>
 
-        <!-- 2. Store Name -->
+        <!-- 2. Store Names (샵인샵 멀티 매장 지원 - 최대 3개) -->
         <div class="card">
-          <label for="storeNameInput" class="label font-bold">매장 상호명 (가게 이름)</label>
-          <input type="text" id="storeNameInput" class="input" placeholder="예: 마라워크, 을지로 바삭돈까스">
+          <div class="card-header">
+            <label class="label font-bold">🏪 매장 상호명 (샵인샵 최대 3개)</label>
+            <span class="link-btn" style="cursor: default; pointer-events: none;">샵인샵 멀티 매장</span>
+          </div>
+          <p class="helper-text" style="margin-bottom: 8px;">
+            💡 운영 중인 브랜드를 입력하고, 기본으로 사용할 매장을 선택하세요.
+          </p>
+
+          <div class="store-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- 매장 1 -->
+            <div class="store-item" style="display: flex; align-items: center; gap: 8px;">
+              <input type="radio" name="activeStoreIndex" id="storeRadio0" value="0" checked style="cursor: pointer;">
+              <label for="storeRadio0" style="font-weight: 700; font-size: 11px; width: 44px; color: #475569; cursor: pointer;">매장 1</label>
+              <input type="text" id="storeName1" class="input" placeholder="예: 마라워크 (대표)" style="flex: 1;">
+            </div>
+
+            <!-- 매장 2 -->
+            <div class="store-item" style="display: flex; align-items: center; gap: 8px;">
+              <input type="radio" name="activeStoreIndex" id="storeRadio1" value="1" style="cursor: pointer;">
+              <label for="storeRadio1" style="font-weight: 700; font-size: 11px; width: 44px; color: #475569; cursor: pointer;">매장 2</label>
+              <input type="text" id="storeName2" class="input" placeholder="예: 밥꼬콩불 (샵인샵)" style="flex: 1;">
+            </div>
+
+            <!-- 매장 3 -->
+            <div class="store-item" style="display: flex; align-items: center; gap: 8px;">
+              <input type="radio" name="activeStoreIndex" id="storeRadio2" value="2" style="cursor: pointer;">
+              <label for="storeRadio2" style="font-weight: 700; font-size: 11px; width: 44px; color: #475569; cursor: pointer;">매장 3</label>
+              <input type="text" id="storeName3" class="input" placeholder="예: 국민반찬 제육 (샵인샵)" style="flex: 1;">
+            </div>
+          </div>
+
+          <!-- 주문메뉴 기반 자동 매장 감지 옵션 -->
+          <div style="margin-top: 10px; padding: 6px 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #1e293b;">
+              <input type="checkbox" id="autoDetectStore" checked style="cursor: pointer;">
+              <span>✨ 주문 메뉴명 분석하여 매장명 자동 매칭 (추천)</span>
+            </label>
+            <p style="font-size: 10px; color: #64748b; margin-top: 3px; margin-left: 20px;">
+              손님이 '콩불'을 시키면 밥꼬콩불, '마라'를 시키면 마라워크로 스마트 자동 적용됩니다.
+            </p>
+          </div>
         </div>
 
         <!-- 3. Persona Selection (말투) -->
@@ -214,7 +253,7 @@
     <!-- Footer -->
     <footer class="footer">
       <span>트레이드미(TradeMe) 소상공인 솔루션</span>
-      <span id="appVersionText">v1.4.3 (트레이드미 회원 전용)</span>
+      <span id="appVersionText">v1.4.4 (트레이드미 회원 전용)</span>
     </footer>
 
   </div>

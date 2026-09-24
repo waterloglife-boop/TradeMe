@@ -23,7 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. 메인 설정 DOM 요소
   const apiKeyInput = document.getElementById('apiKeyInput');
   const toggleApiKeyBtn = document.getElementById('toggleApiKeyBtn');
-  const storeNameInput = document.getElementById('storeNameInput');
+  const storeName1 = document.getElementById('storeName1');
+  const storeName2 = document.getElementById('storeName2');
+  const storeName3 = document.getElementById('storeName3');
+  const autoDetectStore = document.getElementById('autoDetectStore');
   const emojiLevelSelect = document.getElementById('emojiLevelSelect');
   const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 
@@ -35,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
       viewAuth.style.display = 'none';
       viewMain.style.display = 'block';
 
-      const sName = tradeMeAuth.storeName || storeNameInput.value || '내 매장';
+      const sName = tradeMeAuth.storeName || (storeName1 ? storeName1.value : '') || '내 매장';
       bannerStoreName.innerText = sName;
 
       if (apiStatusBadge) {
@@ -240,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. 기존 저장된 설정 불러오기
   function loadSettings() {
     chrome.storage.local.get(
-      ['tradeMeAuth', 'apiKey', 'storeName', 'persona', 'emojiLevel', 'autoSubmit'],
+      ['tradeMeAuth', 'apiKey', 'storeName', 'storeNames', 'activeStoreIndex', 'autoDetectStore', 'persona', 'emojiLevel', 'autoSubmit'],
       (res) => {
         renderAuthState(res.tradeMeAuth);
 
@@ -248,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const appVersionText = document.getElementById('appVersionText');
           if (appVersionText && chrome?.runtime?.getManifest) {
             const manifest = chrome.runtime.getManifest();
-            appVersionText.innerText = `v${manifest.version || '1.4.3'} (트레이드미 회원 전용)`;
+            appVersionText.innerText = `v${manifest.version || '1.4.4'} (트레이드미 회원 전용)`;
           }
         } catch (e) {}
 
@@ -256,10 +259,23 @@ document.addEventListener('DOMContentLoaded', () => {
           apiKeyInput.value = res.apiKey;
         }
 
-        if (res.tradeMeAuth && res.tradeMeAuth.storeName) {
-          storeNameInput.value = res.tradeMeAuth.storeName;
+        // 샵인샵 매장명 불러오기
+        if (res.storeNames && Array.isArray(res.storeNames)) {
+          if (storeName1) storeName1.value = res.storeNames[0] || '';
+          if (storeName2) storeName2.value = res.storeNames[1] || '';
+          if (storeName3) storeName3.value = res.storeNames[2] || '';
         } else if (res.storeName) {
-          storeNameInput.value = res.storeName;
+          if (storeName1) storeName1.value = res.storeName;
+        } else if (res.tradeMeAuth && res.tradeMeAuth.storeName) {
+          if (storeName1) storeName1.value = res.tradeMeAuth.storeName;
+        }
+
+        const activeIdx = res.activeStoreIndex !== undefined ? res.activeStoreIndex : 0;
+        const activeRadio = document.querySelector(`input[name="activeStoreIndex"][value="${activeIdx}"]`);
+        if (activeRadio) activeRadio.checked = true;
+
+        if (autoDetectStore) {
+          autoDetectStore.checked = res.autoDetectStore !== undefined ? !!res.autoDetectStore : true;
         }
 
         if (res.persona) {
@@ -285,14 +301,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // 3. 설정 저장하기
   saveSettingsBtn.addEventListener('click', () => {
     const apiKey = apiKeyInput.value.trim();
-    const storeName = storeNameInput.value.trim();
+    const s1 = storeName1 ? storeName1.value.trim() : '';
+    const s2 = storeName2 ? storeName2.value.trim() : '';
+    const s3 = storeName3 ? storeName3.value.trim() : '';
+    const storeNames = [s1, s2, s3];
+    const activeStoreIndex = Number(document.querySelector('input[name="activeStoreIndex"]:checked')?.value || 0);
+    const storeName = storeNames[activeStoreIndex] || s1 || s2 || s3 || '내 매장';
+    const isAutoDetect = autoDetectStore ? autoDetectStore.checked : true;
+
     const persona = document.querySelector('input[name="persona"]:checked')?.value || 'CHEF';
     const charLimit = 300; // 쿠팡이츠·배민 기준 300자 이하 기본 고정
     const emojiLevel = emojiLevelSelect.value || 'MEDIUM';
     const autoSubmit = document.querySelector('input[name="autoSubmit"]:checked')?.value === 'true';
 
     chrome.storage.local.set(
-      { apiKey, storeName, persona, charLimit, emojiLevel, autoSubmit },
+      {
+        apiKey,
+        storeName,
+        storeNames,
+        activeStoreIndex,
+        autoDetectStore: isAutoDetect,
+        persona,
+        charLimit,
+        emojiLevel,
+        autoSubmit
+      },
       () => {
         saveSettingsBtn.innerText = '✅ 저장 완료!';
         saveSettingsBtn.style.background = '#16a34a';

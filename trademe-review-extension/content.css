@@ -329,3 +329,30 @@
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
+
+.trm-brand-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-wrap: wrap !important;
+}
+.trm-brand-chip {
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #f8fafc !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #334155 !important;
+  cursor: pointer !important;
+  transition: all 0.15s !important;
+}
+.trm-brand-chip:hover {
+  background: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+}
+.trm-brand-chip.active {
+  background: #ea580c !important;
+  color: #ffffff !important;
+  border-color: #ea580c !important;
+}

@@ -446,6 +446,79 @@
   }
 
   // =========================================================================
+  // 1-1. 샵인샵(Shop-in-Shop) 다중 매장명 자동 매칭 헬퍼
+  // =========================================================================
+  function resolveStoreName(reviewData, settings) {
+    let list = (settings.storeNames || []).map(s => (s || '').trim()).filter(Boolean);
+    if (list.length === 0 && settings.storeName) {
+      list = [settings.storeName.trim()];
+    }
+    if (list.length === 0) {
+      return settings.storeName || '저희 매장';
+    }
+
+    const activeIdx = (typeof settings.activeStoreIndex === 'number' && settings.activeStoreIndex >= 0 && settings.activeStoreIndex < list.length)
+      ? settings.activeStoreIndex
+      : 0;
+    const defaultStore = list[activeIdx] || list[0];
+
+    // 자동 감지 옵션이 꺼져있으면 선택된 매장명 반환
+    if (settings.autoDetectStore === false) {
+      return defaultStore;
+    }
+
+    // 리뷰 본문 및 주문 메뉴 텍스트 수집
+    const combinedText = `${reviewData.menu || ''} ${reviewData.text || ''} ${reviewData.rawText || ''}`.toLowerCase();
+
+    // 각 매장명과 연관 키워드 매칭
+    for (const name of list) {
+      const lowerName = name.toLowerCase();
+
+      // 1. 매장명 원본이 그대로 포함되어 있는 경우
+      if (combinedText.includes(lowerName)) {
+        return name;
+      }
+
+      // 2. 매장명을 공백 등으로 나눈 단어 중 2글자 이상 키워드 포함 검사 (예: "국민반찬 제육" -> "국민반찬", "제육")
+      const words = lowerName.split(/[\s·,_\-/]+/).filter(w => w.length >= 2);
+      for (const w of words) {
+        if (combinedText.includes(w)) {
+          return name;
+        }
+      }
+
+      // 3. 특수 업종/메뉴 키워드 확장 매칭
+      if (lowerName.includes('콩불') && (combinedText.includes('콩불') || combinedText.includes('콩나물'))) {
+        return name;
+      }
+      if (lowerName.includes('마라') && (combinedText.includes('마라') || combinedText.includes('샹궈') || combinedText.includes('꿔바로우'))) {
+        return name;
+      }
+      if (lowerName.includes('제육') && combinedText.includes('제육')) {
+        return name;
+      }
+      if ((lowerName.includes('카츠') || lowerName.includes('돈까스')) && (combinedText.includes('돈까스') || combinedText.includes('돈카츠') || combinedText.includes('카츠'))) {
+        return name;
+      }
+      if ((lowerName.includes('치킨') || lowerName.includes('닭')) && (combinedText.includes('치킨') || combinedText.includes('닭강정') || combinedText.includes('통닭'))) {
+        return name;
+      }
+      if (lowerName.includes('버거') && (combinedText.includes('버거') || combinedText.includes('수제버거'))) {
+        return name;
+      }
+      if (lowerName.includes('피자') && combinedText.includes('피자')) {
+        return name;
+      }
+      if (lowerName.includes('떡볶이') && (combinedText.includes('떡볶이') || combinedText.includes('분식') || combinedText.includes('순대'))) {
+        return name;
+      }
+    }
+
+    // 일치하는 메뉴가 없으면 현재 활성화된 기본 매장명 반환
+    return defaultStore;
+  }
+
+  // =========================================================================
   // 2. React / Vue 호환 네이티브 텍스트 입력 헬퍼
   // =========================================================================
   function setNativeValue(element, value) {
@@ -489,7 +562,10 @@
     try {
       if (chrome.storage && chrome.storage.local) {
         const res = await new Promise(resolve => {
-          chrome.storage.local.get(['tradeMeAuth', 'apiKey', 'storeName', 'persona', 'charLimit', 'emojiLevel', 'autoSubmit', 'contexts'], resolve);
+          chrome.storage.local.get(
+            ['tradeMeAuth', 'apiKey', 'storeName', 'storeNames', 'activeStoreIndex', 'autoDetectStore', 'persona', 'charLimit', 'emojiLevel', 'autoSubmit'],
+            resolve
+          );
         });
         if (res) settings = { ...settings, ...res };
       }
@@ -512,7 +588,7 @@
       if (goTradeMe) {
         window.open('https://trade-me-seven.vercel.app', '_blank');
       }
-      return;
+      return false;
     }
 
     // 사장님 매장 상호명 자동 동기화 (설정값이 비어있을 경우 트레이드미 등록 매장명 사용)
@@ -529,10 +605,12 @@
         '크롬 우측 상단 [🧩 퍼즐 아이콘] ➔ [트레이드미 AI 리뷰 비서]를 클릭하여\n' +
         '무료 API 키를 입력하고 [설정 저장하기]를 먼저 눌러주세요!'
       );
-      return;
+      return false;
     }
 
     const reviewData = extractReviewData(container, textarea);
+    const activeStoreName = resolveStoreName(reviewData, settings);
+
     btn.disabled = true;
     btn.classList.add('trm-loading');
     statusBadge.innerText = '⚡ AI 분석 및 답글 작성 중...';
@@ -552,11 +630,11 @@
             action: 'GENERATE_REVIEW_REPLY',
             payload: {
               apiKey: settings.apiKey,
-              storeName: settings.storeName,
+              storeName: activeStoreName,
               persona: settings.persona,
               charLimit: targetCharLimit,
               emojiLevel: settings.emojiLevel || 'MEDIUM',
-              contexts: settings.contexts,
+              contexts: {},
               reviewData
             }
           },
@@ -780,6 +858,9 @@
 
   const observer = new MutationObserver(() => {
     injectAiButtons();
+    if (!document.getElementById('trm-batch-card')) {
+      createBatchFloatingWidget();
+    }
   });
 
   observer.observe(document.body, {
@@ -788,42 +869,132 @@
   });
 
   // =========================================================================
-  // 5. 트레이드미 AI 일괄 자동 답변 컨트롤 센터 (플로팅 위젯)
+  // 5. 샵인샵(Shop-in-Shop) 다중 매장 상호명 지능형 판별 헬퍼
+  // =========================================================================
+  function resolveStoreName(reviewData, settings) {
+    const storeNames = (settings.storeNames || []).map(s => (s || '').trim()).filter(Boolean);
+    if (storeNames.length === 0) {
+      return settings.storeName || settings.tradeMeAuth?.storeName || '저희 매장';
+    }
+
+    // 1) 자동 감지 모드: 주문 메뉴명 또는 리뷰 본문에서 브랜드 키워드 자동 매칭
+    const isAuto = settings.autoDetectStore !== false;
+    if (isAuto && storeNames.length > 1) {
+      const menu = (reviewData.menu || '').toLowerCase();
+      const rawText = (reviewData.rawText || reviewData.text || '').toLowerCase();
+
+      for (const name of storeNames) {
+        const cleanName = name.replace(/\s+/g, '').toLowerCase();
+        const keywords = [name.toLowerCase(), cleanName];
+        if (cleanName.includes('콩불')) keywords.push('콩나물', '콩불');
+        if (cleanName.includes('마라')) keywords.push('마라', '마라탕', '마라샹궈');
+        if (cleanName.includes('돈까스') || cleanName.includes('카츠')) keywords.push('돈까스', '돈카츠', '카츠');
+        if (cleanName.includes('제육')) keywords.push('제육', '국민반찬');
+        if (cleanName.includes('피자')) keywords.push('피자');
+        if (cleanName.includes('치킨')) keywords.push('치킨');
+        if (cleanName.includes('떡볶이')) keywords.push('떡볶이', '분식');
+        if (cleanName.includes('국밥')) keywords.push('국밥', '순대');
+
+        for (const kw of keywords) {
+          if (kw.length >= 2 && (menu.includes(kw) || rawText.includes(kw))) {
+            return name;
+          }
+        }
+      }
+    }
+
+    // 2) 매칭이 없거나 특정 매장이 선택된 경우
+    const activeIdx = Number(settings.activeStoreIndex) || 0;
+    return storeNames[activeIdx] || storeNames[0] || settings.storeName || '저희 매장';
+  }
+
+  // =========================================================================
+  // 6. 트레이드미 AI 일괄 자동 답변 컨트롤 센터 (플로팅 위젯)
   // =========================================================================
   let isBatchRunning = false;
   let shouldStopBatch = false;
   let selectedBatchCount = 10;
 
+  // 단일 리뷰 카드 컨테이너 정밀 탐색
+  function findReviewCard(el) {
+    if (!el || el === document.body) return null;
+    let cur = el;
+    while (cur && cur !== document.body) {
+      const cls = (cur.className || '').toString();
+      const t = cur.innerText || '';
+
+      // 배민/쿠팡/네이버의 단일 리뷰 카드 클래스나 속성 패턴
+      if (
+        cur.hasAttribute('data-review-id') ||
+        cur.hasAttribute('data-order-id') ||
+        /review-item|review_item|ReviewItem|ReviewCard|review-card|pui__vjtgvd/i.test(cls)
+      ) {
+        return cur;
+      }
+
+      // 리뷰번호 또는 주문번호가 1개만 존재하는 블록
+      const matches = t.match(/리뷰\s*번호|주문\s*번호/g) || [];
+      if (matches.length === 1) {
+        const pText = cur.parentElement ? (cur.parentElement.innerText || '') : '';
+        const pMatches = pText.match(/리뷰\s*번호|주문\s*번호/g) || [];
+        if (pMatches.length > 1) {
+          return cur;
+        }
+      }
+
+      // 네이버 영수증 리뷰: 1번째 방문 등 방문 마커가 1개 존재하는 LI 요소
+      const visitMatches = t.match(/\d{1,2}\s*번째\s*방문/g) || [];
+      if (visitMatches.length === 1 && cur.tagName === 'LI') {
+        return cur;
+      }
+
+      cur = cur.parentElement;
+    }
+
+    return el.closest('tr, li, [class*="card" i], [class*="item" i]') || el.parentElement;
+  }
+
+  // 미답변 리뷰 항목 전체 탐색 (배민, 쿠팡이츠, 네이버 100% 대응)
   function findUnansweredReviewItems() {
     const results = [];
-    const visited = new Set();
+    const visitedCards = new Set();
 
-    // 1) 화면에 이미 존재하는 textarea들 중 비어있거나 답글 대기 중인 것
+    // 1) 화면에 이미 열려 있는 textarea 탐색
     const textareas = Array.from(document.querySelectorAll('textarea')).filter(ta => {
       return ta.offsetParent !== null && ta.style.display !== 'none';
     });
 
     for (const ta of textareas) {
-      const container = findReviewContainerForTextarea(ta);
-      if (container && !visited.has(container)) {
-        visited.add(container);
-        results.push({ container, textarea: ta });
+      const card = findReviewCard(ta) || findReviewContainerForTextarea(ta);
+      if (card && !visitedCards.has(card)) {
+        visitedCards.add(card);
+        results.push({ card, textarea: ta });
       }
     }
 
-    // 2) 아직 textarea가 안 열린 '답글 작성' 버튼들 탐색
-    const replyButtons = Array.from(document.querySelectorAll('button, a[role="button"], a')).filter(b => {
-      const txt = (b.innerText || '').trim();
-      return (txt === '답글 작성' || txt === '답변 작성' || txt === '답글 쓰기' || txt === '답글달기' || txt === '댓글 달기') && !txt.includes('수정') && !txt.includes('삭제');
+    // 2) 아직 textarea가 안 열린 '답글/댓글' 관련 모든 버튼/링크 탐색
+    // 배민: '사장님 댓글 등록하기', '사장님 댓글 추가하기', '댓글 작성하기'
+    // 쿠팡이츠: '사장님 댓글 등록하기'
+    // 네이버: '답글 작성', '답글달기'
+    const allClickables = Array.from(document.querySelectorAll('button, a, [role="button"], span, div')).filter(el => {
+      if (el.children.length > 2) return false;
+      const t = (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ');
+      if (t.length < 2 || t.length > 25) return false;
+
+      const isReplyBtn = /(?:사장님\s*댓글|답글|답변|댓글)\s*(?:등록하기|추가하기|작성하기|등록|추가|작성|달기|쓰기)/i.test(t);
+      const isNotAction = !t.includes('수정') && !t.includes('삭제') && !t.includes('취소') && !t.includes('완료');
+      return isReplyBtn && isNotAction;
     });
 
-    for (const b of replyButtons) {
-      let container = b.closest('div[class*="ReviewItem" i], div[class*="review_item" i], div[class*="review-item" i], li, tr, div[class*="card" i]') || b.parentElement;
-      if (container && !visited.has(container)) {
-        const fullTxt = container.innerText || '';
-        if (!fullTxt.includes('답글 수정') && !fullTxt.includes('답글 완료') && !fullTxt.includes('답글삭제')) {
-          visited.add(container);
-          results.push({ container, openBtn: b });
+    for (const btn of allClickables) {
+      const card = findReviewCard(btn);
+      if (card && !visitedCards.has(card)) {
+        const fullTxt = card.innerText || '';
+        // 이미 답글이 등록된 리뷰 카드(수정/삭제 버튼 존재)는 확실하게 건너뜀
+        const alreadyAnswered = (fullTxt.includes('삭제') && fullTxt.includes('수정')) || fullTxt.includes('답글 완료') || fullTxt.includes('답글수정');
+        if (!alreadyAnswered) {
+          visitedCards.add(card);
+          results.push({ card, openBtn: btn });
         }
       }
     }
@@ -852,6 +1023,12 @@
         <div class="trm-mode-pill trm-auto-false" id="trmModePill">
           <span id="trmModeText">🛡️ 반자동 모드 (입력만)</span>
           <button type="button" class="trm-mode-switch-btn" id="trmModeSwitchBtn">모드 전환 ⇄</button>
+        </div>
+
+        <!-- 샵인샵 매장 브랜드 선택 바 -->
+        <div class="trm-brand-row" id="trmBrandRow" style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+          <span style="font-size: 11px; font-weight: 700; color: #475569;">🏪 브랜드:</span>
+          <div id="trmBrandChips" style="display: inline-flex; gap: 4px; flex-wrap: wrap;"></div>
         </div>
 
         <!-- 수량 선택 (과거순) -->
@@ -890,6 +1067,7 @@
     const modePill = card.querySelector('#trmModePill');
     const modeText = card.querySelector('#trmModeText');
     const modeSwitchBtn = card.querySelector('#trmModeSwitchBtn');
+    const brandChipsWrap = card.querySelector('#trmBrandChips');
     const startBtn = card.querySelector('#trmStartBatchBtn');
     const stopBtn = card.querySelector('#trmStopBatchBtn');
     const statusText = card.querySelector('#trmStatusText');
@@ -913,10 +1091,49 @@
       }
     }
 
-    // 초기 모드 동기화
+    // 샵인샵 브랜드 칩 렌더러
+    function renderBrandChips() {
+      chrome.storage.local.get(['storeNames', 'storeName', 'activeStoreIndex', 'autoDetectStore'], (res) => {
+        const storeNames = (res.storeNames || []).map(s => (s || '').trim()).filter(Boolean);
+        if (storeNames.length === 0 && res.storeName) storeNames.push(res.storeName);
+        if (storeNames.length === 0) storeNames.push('내 매장');
+
+        const isAuto = res.autoDetectStore !== false;
+        const activeIdx = res.activeStoreIndex !== undefined ? res.activeStoreIndex : 0;
+
+        brandChipsWrap.innerHTML = '';
+
+        // 1. 자동 감지 칩
+        const autoChip = document.createElement('button');
+        autoChip.type = 'button';
+        autoChip.className = `trm-brand-chip ${isAuto ? 'active' : ''}`;
+        autoChip.innerText = '✨ 자동';
+        autoChip.title = '주문 메뉴명에 맞춰 매장명을 자동으로 선택합니다';
+        autoChip.addEventListener('click', () => {
+          chrome.storage.local.set({ autoDetectStore: true }, renderBrandChips);
+        });
+        brandChipsWrap.appendChild(autoChip);
+
+        // 2. 각 매장별 칩
+        storeNames.forEach((name, idx) => {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = `trm-brand-chip ${!isAuto && activeIdx === idx ? 'active' : ''}`;
+          chip.innerText = name.length > 7 ? name.substring(0, 7) + '..' : name;
+          chip.title = name;
+          chip.addEventListener('click', () => {
+            chrome.storage.local.set({ autoDetectStore: false, activeStoreIndex: idx, storeName: name }, renderBrandChips);
+          });
+          brandChipsWrap.appendChild(chip);
+        });
+      });
+    }
+
+    // 초기 모드 및 브랜드 렌더링
     chrome.storage.local.get(['autoSubmit'], (res) => {
       updateModeDisplay(!!res.autoSubmit);
     });
+    renderBrandChips();
 
     // 모드 즉시 전환 버튼
     modeSwitchBtn.addEventListener('click', () => {
@@ -945,7 +1162,7 @@
       statusText.innerText = `대기 중: 미답변 리뷰 ${unreplied.length}개 감지됨`;
     }
     setTimeout(refreshReviewScan, 1000);
-    setInterval(refreshReviewScan, 4000);
+    setInterval(refreshReviewScan, 3500);
 
     // 중지 버튼 클릭
     stopBtn.addEventListener('click', () => {
@@ -993,36 +1210,34 @@
         statusText.innerText = `[${i + 1}/${totalTarget}] 리뷰 위치로 이동 중...`;
 
         // 1. 해당 리뷰 위치로 부드럽게 스크롤
-        item.container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        item.card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         await new Promise(r => setTimeout(r, 600));
 
-        // 2. textarea 확보 (만약 닫혀 있다면 [답글 작성] 클릭)
-        let textarea = item.container.querySelector('textarea');
+        // 2. textarea 확보 (닫혀 있다면 openBtn 클릭 후 최대 3초간 250ms 단위 폴링!)
+        let textarea = item.card.querySelector('textarea');
         if (!textarea && item.openBtn) {
           item.openBtn.click();
-          await new Promise(r => setTimeout(r, 600));
-          textarea = item.container.querySelector('textarea');
+          for (let attempt = 0; attempt < 12; attempt++) {
+            await new Promise(r => setTimeout(r, 250));
+            textarea = item.card.querySelector('textarea') || document.querySelector('textarea:focus');
+            if (textarea) break;
+          }
         }
 
         if (!textarea) {
           failCount++;
+          statusText.innerText = `[${i + 1}/${totalTarget}] 입력창을 열지 못해 건너뜁니다.`;
           continue;
         }
 
-        // 3. 버튼 및 뱃지 찾기 (또는 가상 생성)
-        let btn = item.container.querySelector('.trm-ai-btn');
-        let badge = item.container.querySelector('.trm-status-badge');
-        if (!btn) {
-          btn = document.createElement('button');
-        }
-        if (!badge) {
-          badge = document.createElement('span');
-        }
+        // 3. 버튼 및 뱃지 찾기 또는 생성
+        let btn = item.card.querySelector('.trm-ai-btn') || document.createElement('button');
+        let badge = item.card.querySelector('.trm-status-badge') || document.createElement('span');
 
         statusText.innerText = `[${i + 1}/${totalTarget}] AI 맞춤 답글 작성 중...`;
 
         try {
-          const success = await generateAndFillReply(textarea, item.container, btn, badge);
+          const success = await generateAndFillReply(textarea, item.card, btn, badge);
           if (success) {
             successCount++;
             progressFill.style.width = `${Math.round(((i + 1) / totalTarget) * 100)}%`;
@@ -1055,5 +1270,4 @@
 
   // 1.5초 후 플로팅 위젯 부착
   setTimeout(createBatchFloatingWidget, 1500);
-
 })();
