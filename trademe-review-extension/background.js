@@ -406,22 +406,7 @@ ${hasReviewText ? '손님이 리뷰에서 언급한 내용(맛, 양, 맵기, 서
  */
 async function callGeminiApi(apiKey, prompt) {
   const cleanKey = apiKey.trim();
-  const systemInstruction = {
-    parts: [{
-      text: "당신은 배달앱과 네이버 매장 사장님을 돕는 친절한 리뷰 답글 작성 AI입니다. 사장님이 손님에게 직접 전달할 최종 완성형 답글 본문만 순수 텍스트로 출력하세요. 어떠한 경우에도 영어, 사고 과정, 지침 확인 문구(Constraint, Greeting, used?, Checklist 등), 부연 설명을 출력하지 마세요."
-    }]
-  };
-
-  const requestBodyWithSystem = JSON.stringify({
-    systemInstruction,
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 600,
-    }
-  });
-
-  const requestBodyPlain = JSON.stringify({
+  const requestBody = JSON.stringify({
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.7,
@@ -431,35 +416,25 @@ async function callGeminiApi(apiKey, prompt) {
 
   const requestHeaders = { 'Content-Type': 'application/json' };
 
-  // 1차 시도 후보군 (최신 v1beta 엔드포인트 우선)
+  // 1차 시도 후보군 (안정적인 v1 공식 엔드포인트 우선)
   const candidateUrls = [
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`,
     `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
     `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
-    `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${cleanKey}`
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`,
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${cleanKey}`
   ];
 
   let lastError = null;
 
   for (const url of candidateUrls) {
     try {
-      // 1) systemInstruction 포함 시도
-      let res = await fetch(url, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: requestHeaders,
-        body: requestBodyWithSystem
+        body: requestBody
       });
-
-      // 만약 systemInstruction 미지원(400)일 경우 일반 바디로 재시도
-      if (!res.ok && res.status === 400) {
-        res = await fetch(url, {
-          method: 'POST',
-          headers: requestHeaders,
-          body: requestBodyPlain
-        });
-      }
 
       if (res.ok) {
         const data = await res.json();
@@ -491,11 +466,10 @@ async function callGeminiApi(apiKey, prompt) {
     if (listRes.ok) {
       const listData = await listRes.json();
       const availableModels = (listData.models || [])
-        .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+        .filter(m => m.supportedGenerationMethods?.includes('generateContent') && !m.name.includes('gemini-pro') && !m.name.includes('gemini-1.0'))
         .map(m => m.name);
 
       for (const modelName of availableModels) {
-        // 이미 'models/gemini-...' 형식
         const directUrl = `https://generativelanguage.googleapis.com/v1/${modelName}:generateContent?key=${cleanKey}`;
         const res = await fetch(directUrl, {
           method: 'POST',
