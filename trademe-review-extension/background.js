@@ -175,40 +175,37 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
       }
     }
 
-    prompt = `당신은 친절한 배달 음식점 사장님입니다.
-손님이 배달앱에 남겨주신 소중한 리뷰를 읽고, 사장님이 손님에게 직접 보내는 다정하고 자연스러운 답글을 딱 1개만 작성해 주세요.
+    prompt = `당신은 배달앱(배달의민족, 쿠팡이츠, 요기요)의 친절하고 음식에 진심인 사장님입니다.
+손님이 남겨주신 소중한 리뷰를 읽고, 사장님이 손님에게 직접 전송할 다정하고 감사한 답글을 작성하세요.
 
-[손님 정보]
-- 손님: ${customerName}
+[손님 리뷰 정보]
+- 손님 호칭: ${customerName}
 - 주문 메뉴: ${orderedMenu}
-${reviewSituationGuide}
+- 별점: ${starScore}점
+- 손님 작성 리뷰: ${reviewText ? '"' + reviewText + '"' : '(별점만 등록)'}
 
-[답글 작성 지침]
+[답글 작성 가이드]
 - 사장님 말투: ${selectedPersonaGuide}
-${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
+${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') : ''}
 - 이모티콘: ${selectedEmojiGuide}
-- 분량: 공백 포함 최대 ${charLimit}자 이내 (손님 글 길이에 맞추어 무리하게 길게 늘리지 말고 자연스럽게 완결)
+- 분량: 공백 포함 최대 ${charLimit}자 이내 (손님 글 길이에 맞추어 자연스럽게 완결)
 
-[출력 형식 엄격 규칙 - 절대 위반 금지]
-1. 출력은 오직 손님에게 보낼 "순수 한국어 답글 본문"이어야 합니다.
-2. 머리말 기호(*, -), 불릿, 영어 단어, 영문 번역, 따옴표("")를 절대 출력하지 마세요.
-3. '* Customer:', '* Ordered Menu:', '* Review Content:', 'Address the customer:' 등 손님 정보나 주문 정보를 분석/나열하는 메타데이터 라벨을 절대로 출력하지 마세요.
-4. 어떤 생각이나 분석 과정도 거치지 말고, 곧바로 "${customerName}, 안녕하세요!" 등의 첫인사 한국어 문장으로 첫 글자를 시작하세요.`;
+[필수 규칙 - 엄격 준수]
+1. 영어 번역, 영어 설명, 머리말 기호(*, -)는 절대 쓰지 말고 100% 한국어로만 작성하세요.
+2. 손님 정보 요약이나 분석 없이, 곧바로 "${customerName}, 안녕하세요!"로 시작하는 답글 본문 첫 문장부터 바로 작성하세요.`;
   }
 
   // 5. Google Gemini API 호출 (다중 모델 폴백 및 자동 탐색)
   const rawText = await callGeminiApi(apiKey, prompt);
 
-  // 6. 응답 정제: 메타데이터 에코 라인, 중복 답글, 영문 설명 전면 제거
+  // 6. 응답 정제: 메타데이터 에코 라인, 영문 번역 찌꺼기 전면 제거 및 진짜 답글 추출
   let cleanText = rawText.trim();
-  // 앞뒤 큰따옴표 전체 감쌈 제거
   cleanText = cleanText.replace(/^["'“”`]+|["'“”`]+$/g, '').trim();
 
-  // 6-1. 라인별 메타데이터 / 프롬프트 에코 제거
+  // 6-1. 라인별 메타데이터 / 영문 번역 라인 필터링
   const lines = cleanText.split('\n');
   const filteredLines = [];
 
-  // 영문 메타데이터 라벨 정규식 (* Customer:, * Ordered Menu:, Review Content: 등)
   const metaLabelRegex = /^[\s*•\-]*\b(Customer|Client|User|Ordered\s*Menu|Menu|Review\s*Content|Review|Rating|Score|Address(\s*the\s*customer)?|Tone|Persona|Analysis|Note|Notes|Translation|Context|Situation|Response|Reply|Task)\b\s*[:：]/i;
 
   for (let line of lines) {
@@ -221,44 +218,53 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
     // 앞머리에 닉네임과 불릿이 결합된 오염 방어 (예: "yeseo486님, * Customer: ...")
     trimmed = trimmed.replace(/^[^\s,，\n]+님[,，\s]*[*•\-]/, '*');
 
-    // (0) 영문 메타 라벨 제거 (예: "* Customer:", "* Ordered Menu:", "* Review Content:", "* Address the customer:")
+    // (A) 영문 번역 괄호 제거 (예: "(Generous portion and tastes good)", "(Oishii-ye/Delicious)")
+    trimmed = trimmed.replace(/\([a-zA-Z\s/,\-']{3,}\)/g, '').trim();
+
+    // (B) 영문 메타 라벨 제거
     if (metaLabelRegex.test(trimmed)) {
       continue;
     }
 
-    // (1) 5/5, 5점 등 별점 단독 라인 제거
-    if (/^[\s*•\-]*(\d+\s*[\/／]\s*\d+|\d+\s*점|별점\s*[:：]?\s*\d+)\s*$/.test(trimmed)) {
+    // (C) 영문 위주의 번역 라인 제거 (손님 닉네임 외 영단어가 2개 이상이고 인사/감사 문장이 없는 경우)
+    const words = trimmed.match(/[a-zA-Z]{2,}/g) || [];
+    const nonNickWords = words.filter(w => !customerName || !customerName.toLowerCase().includes(w.toLowerCase()));
+    if (nonNickWords.length >= 2 && !trimmed.includes('안녕') && !trimmed.includes('감사')) {
       continue;
     }
 
-    // (2) 상호명 단독 또는 "손님, 상호명" 라인 제거
+    // (D) 별점 메타 라인 제거 (예: "5 stars, ...", "5/5", "5점")
+    if (/^\d+\s*stars?\b/i.test(trimmed) || /^[\s*•\-]*(\d+\s*[\/／]\s*\d+|\d+\s*점|별점\s*[:：]?\s*\d+)\s*$/.test(trimmed)) {
+      continue;
+    }
+
+    // (E) 고객 리뷰 복붙 인용 단독 라인 제거 (예: '"양도 많고 맛도 있어요~"')
+    if (/^["'“”][^"'“”]+["'“”][.]?$/.test(trimmed) && !trimmed.includes('안녕') && !trimmed.includes('감사')) {
+      continue;
+    }
+
+    // (F) 상호명 단독 라인 제거
     if (storeName && (trimmed === storeName || (trimmed.includes(storeName) && trimmed.length <= storeName.length + 15 && !trimmed.includes('안녕') && !trimmed.includes('감사')))) {
       continue;
     }
 
-    // (3) 손님 닉네임만 단독으로 적힌 라인 제거 (예: "예아님", "예아")
+    // (G) 손님 닉네임만 단독으로 적힌 라인 제거
     if (trimmed === customerName || trimmed === customerName.replace(/님$/, '') || (/^[^\s,，\n]+님\s*$/.test(trimmed) && trimmed.length <= 8 && !trimmed.includes('안녕') && !trimmed.includes('감사'))) {
       continue;
     }
 
-    // (4) 손님 리뷰를 그대로 복붙 인용한 라인 제거 (예: "콩불 너무 맛있습니다")
-    const unquoted = trimmed.replace(/^["'“”`*•\-]+|["'“”`]+$/g, '').trim();
-    if (reviewText && (unquoted === reviewText.trim() || (reviewText.includes(unquoted) && unquoted.length >= 4))) {
-      continue;
-    }
-
-    // (5) 한글 프롬프트 라벨 형태 제거 (예: "가게 상호:", "별점:", "답글:", "주문 메뉴:")
+    // (H) 한글 프롬프트 라벨 형태 제거
     if (/^[\s*•\-]*(\d+\s*[\/／]\s*\d+|\d+\s*점|별점|가게\s*상호|손님\s*닉네임|주문\s*메뉴|손님\s*리뷰|답글|말투|상호명)\s*[:：]/i.test(trimmed)) {
       continue;
     }
 
-    // (6) 불릿(*, -)으로 시작하면서 영문이 4자 이상 포함된 라인(메타데이터/영문분석) 제거
+    // (I) 불릿으로 시작하면서 영문이 포함된 라인 제거
     const englishCount = (trimmed.match(/[a-zA-Z]/g) || []).length;
-    if (/^[\s*•\-]/.test(trimmed) && englishCount >= 4) {
+    if (/^[\s*•\-]/.test(trimmed) && englishCount >= 3) {
       continue;
     }
 
-    // (7) 순수 영문 메타 라인 제거 (한글이 전혀 없고 영문이 4자 이상인 경우)
+    // (J) 순수 영문 메타 라인 제거
     if (!/[가-힣]/.test(trimmed) && englishCount >= 4) {
       continue;
     }
@@ -268,39 +274,42 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
 
   cleanText = filteredLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 
-  // 6-2. 단락 단위 중복 제거 및 복수 답글(버전 2) 차단
-  const rawParagraphs = cleanText.split(/\n{2,}/);
+  // 6-2. 단락 분리 및 진짜 답글(사장님 본문) 정밀 추출 (앞쪽 찌꺼기 단락 스킵)
+  const rawParagraphs = cleanText.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
   let finalParagraphs = [];
+  let foundGreeting = false;
 
   for (let p of rawParagraphs) {
-    let tp = p.trim();
+    let tp = p.replace(/^["'“”`]+|["'“”`]+$/g, '').trim();
     if (!tp) continue;
 
-    // 단락 앞뒤 따옴표 벗기기
-    tp = tp.replace(/^["'“”`]+|["'“”`]+$/g, '').trim();
+    // 단락 내 잔여 영문 번역 괄호 제거
+    tp = tp.replace(/\([a-zA-Z\s/,\-']{3,}\)/g, '').trim();
 
-    // 기존 단락과의 중복 비교 (완전 일치 또는 15자 이상 겹침)
+    // 기존 단락과의 중복 비교
     const isDuplicate = finalParagraphs.some(existing => {
       const exStripped = existing.replace(/^["'“”`]+|["'“”`]+$/g, '').trim();
       return exStripped === tp || (tp.length >= 15 && exStripped.includes(tp.substring(0, 15)));
     });
+    if (isDuplicate) continue;
 
-    if (isDuplicate) {
-      continue;
-    }
+    // 사장님의 인사 문장 여부 확인
+    const isGreeting = /^(고객님|[^\s,，\n]+님|어머나|안녕하세요|반갑습니다|사장님)/.test(tp) || tp.includes('안녕하세요') || tp.includes('감사합니다');
 
-    // 만약 이미 하나의 완성된 답글(40자 이상 + 종결부호)이 있는데,
-    // 새 단락이 또다시 첫인사로 시작된다면 (2번째 버전 방어)
-    if (finalParagraphs.length > 0) {
-      const prevP = finalParagraphs[finalParagraphs.length - 1];
-      const prevPEndsWithClosing = /[.!?~^🥰💖😊👍❤️✨🎉🙏💐😄]\s*$/u.test(prevP);
-      const isNewGreetingStart = /^(고객님|[^\s,，\n]+님|어머나|안녕하세요|반갑습니다|사장님)/.test(tp);
-      if (prevP.length >= 40 && prevPEndsWithClosing && isNewGreetingStart) {
-        break;
+    if (isGreeting || foundGreeting) {
+      foundGreeting = true;
+      finalParagraphs.push(tp);
+    } else {
+      // 인사가 나오기 전 단락인데, 실제 한글 감사/칭찬 화답 문장인 경우만 포함
+      const hasKoreanSentences = /[가-힣]{5,}/.test(tp) && (tp.includes('맛있') || tp.includes('정성') || tp.includes('드셔') || tp.includes('찾아'));
+      if (hasKoreanSentences) {
+        finalParagraphs.push(tp);
       }
     }
+  }
 
-    finalParagraphs.push(tp);
+  if (finalParagraphs.length === 0) {
+    finalParagraphs = rawParagraphs;
   }
 
   cleanText = finalParagraphs.join('\n\n').trim();
