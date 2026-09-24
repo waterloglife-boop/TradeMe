@@ -1,14 +1,11 @@
 /* 🤖 트레이드미 AI 리뷰 비서 - Injected Stylesheet */
 
 .trm-ai-toolbar {
-  display: flex !important;
+  display: inline-flex !important;
   align-items: center !important;
-  flex-wrap: wrap !important;
   gap: 8px !important;
-  margin-bottom: 6px !important;
-  margin-top: 4px !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
+  margin: 4px 0 6px 0 !important;
+  padding: 0 !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif !important;
   z-index: 100 !important;
 }

@@ -229,8 +229,8 @@
     // 1) 고객 닉네임 추출
     let customerName = '';
 
-    // 1-1) 쿠팡이츠 닉네임 패턴: "하*부 2회 주문", "이*미 15회 주문" 등
-    const coupangNickMatch = cleanFullText.match(/([가-힣a-zA-Z0-9*]{2,12})\s*(\d+\s*회\s*주문|\d+\s*번째\s*주문)/);
+    // 1-1) 쿠팡이츠 닉네임 패턴: "조*우 | 1회 주문", "하*부 2회 주문", "이*미 15회 주문" 등
+    const coupangNickMatch = cleanFullText.match(/([가-힣a-zA-Z0-9*]{2,12})\s*[|•·/]?\s*(\d+\s*회\s*주문|\d+\s*번째\s*주문)/);
     if (coupangNickMatch && coupangNickMatch[1]) {
       const candidate = coupangNickMatch[1].trim();
       if (!candidate.includes('배달') && !candidate.includes('포장') && !candidate.includes('수령') && candidate !== '고객') {
@@ -358,17 +358,24 @@
     if (!text) {
       const lines = cleanFullText.split('\n').map(s => s.trim()).filter(Boolean);
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes('주문메뉴') && i > 0) {
+        if ((lines[i].includes('주문메뉴') || lines[i].includes('주문 내역')) && i > 0) {
+          const contentLines = [];
           for (let j = i - 1; j >= 0; j--) {
             const line = lines[j];
             const isMeta = line.includes('리뷰번호') || line.includes('주문번호') || line.includes('★') ||
-                           line.includes('배달') || line.includes('고객') || line.includes('좋아요') ||
-                           line.includes('빨라요') || line.includes('아쉬워요') || (/\d{4}[.\-년]/.test(line)) ||
-                           (customerName && line.includes(customerName));
-            if (!isMeta && line.length >= 2) {
-              text = line;
-              break;
+                           line.includes('수령방식') || line.includes('알뜰배달') || line.includes('배민배달') ||
+                           line.includes('배민1') || (/\d{4}[.\-년]/.test(line)) ||
+                           (/\d+\s*회\s*주문/.test(line)) || (customerName && line.includes(customerName));
+            if (isMeta) {
+              if (contentLines.length > 0) break;
+              continue;
             }
+            if (line.length >= 2) {
+              contentLines.unshift(line);
+            }
+          }
+          if (contentLines.length > 0) {
+            text = contentLines.join(' ').trim();
           }
           break;
         }
@@ -380,11 +387,11 @@
       const lines = cleanFullText.split('\n').map(s => s.trim()).filter(Boolean);
       for (const line of lines) {
         const isMeta = line.includes('리뷰번호') || line.includes('주문번호') || line.includes('★') ||
-                       line.includes('배달') || line.includes('고객') || line.includes('좋아요') ||
-                       line.includes('빨라요') || line.includes('아쉬워요') || line.includes('수령방식') ||
+                       line.includes('알뜰배달') || line.includes('배민배달') || line.includes('배민1') ||
+                       line.includes('수령방식') || line.includes('주문메뉴') || line.includes('주문내역') ||
                        line.includes('접기') || line.includes('더보기') || (/\d{4}[.\-년]/.test(line)) ||
-                       (customerName && line.includes(customerName)) || (menu && line.includes(menu)) ||
-                       line.length <= 1;
+                       (/\d+\s*회\s*주문/.test(line)) || (customerName && line.includes(customerName)) ||
+                       (menu && line.includes(menu)) || line.length <= 1;
         if (!isMeta) {
           text = line;
           break;
@@ -599,39 +606,37 @@
   function findReviewContainerForTextarea(textarea) {
     if (!textarea) return null;
 
-    // 헬퍼: 해당 요소가 "단일 리뷰" 컨테이너인지 정밀 판별
+    // 헬퍼: 해당 요소가 실제 '고객 리뷰 본문 및 주문 정보'를 포함하는 단일 리뷰인지 정밀 판별
     function isSingleReviewContainer(el) {
       if (!el || el === document.body || el === document.documentElement) return false;
       const t = el.innerText || '';
-      // 리뷰 구분 마커 카운트
-      const orderMatches = t.match(/(?:주문\s*번호|리뷰\s*번호|주문\s*메뉴|\d+\s*회\s*주문|\d+\s*번째\s*방문|수령\s*방식|배달\s*리뷰)/g) || [];
-      const textareaCount = el.querySelectorAll ? el.querySelectorAll('textarea').length : 0;
 
-      // 마커가 2개 이상이거나 textarea가 2개 이상이면 여러 리뷰를 묶은 전체 목록(table, list 등)이므로 탈락
-      if (orderMatches.length > 1 || textareaCount > 1) {
+      // [핵심 검증 1]: 반드시 실제 고객 리뷰의 핵심 마커(주문메뉴, 주문내역, 주문번호, 리뷰번호, N회 주문, N번째 방문)를 최소 1개 이상 포함해야 함!
+      // ('주문', '배달' 같은 단순 단어는 법적 안내문 "* 주문자의 연락처..." 등에 들어가므로 단독 체크 금지!)
+      const coreMarkers = t.match(/(?:주문\s*메뉴|주문\s*내역|주문\s*번호|리뷰\s*번호|\d+\s*회\s*주문|\d+\s*번째\s*방문)/g) || [];
+      if (coreMarkers.length === 0) {
+        return false; // 핵심 마커가 없으면 단순 댓글 입력창이나 껍데기이므로 무조건 탈락!
+      }
+
+      // [핵심 검증 2]: 핵심 마커가 너무 많거나(목록 컨테이너) textarea가 2개 이상이면 전체 목록이므로 탈락!
+      const textareaCount = el.querySelectorAll ? el.querySelectorAll('textarea').length : 0;
+      if (coreMarkers.length > 4 || textareaCount > 1) {
         return false;
       }
 
-      // 단일 리뷰의 필수 특징: 메뉴, 별점, 주문정보, 방문정보 등 중 하나 이상 포함
-      const hasReviewInfo = t.includes('주문') || t.includes('메뉴') || t.includes('★') ||
-                            t.includes('별점') || t.includes('점') || t.includes('방문') ||
-                            t.includes('배달') || t.includes('포장') || t.includes('영수증');
-      return hasReviewInfo;
+      return true;
     }
 
-    // 1) textarea의 부모 계층을 1단계씩 거슬러 올라가며 단일 리뷰 컨테이너인지 탐색 (인라인 형태)
+    // 1) textarea의 부모 계층을 1단계씩 거슬러 올라가며 실제 고객 리뷰가 포함된 단일 카드 탐색
     let cur = textarea.parentElement;
     while (cur && cur !== document.body) {
       if (isSingleReviewContainer(cur)) {
-        let parent = cur.parentElement;
-        if (parent && isSingleReviewContainer(parent)) {
-          return parent;
-        }
         return cur;
       }
+      // 이미 여러 리뷰를 포함하는 대형 컨테이너 레벨로 올라간 경우 중단
       const curText = cur.innerText || '';
       const orderCount = (curText.match(/(?:주문\s*번호|리뷰\s*번호|주문\s*메뉴|\d+\s*회\s*주문)/g) || []).length;
-      if (orderCount > 1) {
+      if (orderCount > 3) {
         break;
       }
       cur = cur.parentElement;
@@ -639,17 +644,18 @@
 
     // 2) 쿠팡이츠 등 답글 입력창이 리뷰 바로 아래 행(tr)이나 별도 블록으로 분리된 경우:
     // textarea를 감싸고 있는 행/블록의 이전 형제(previousElementSibling)들을 순차 역탐색!
-    const directRow = textarea.closest('tr, li') || textarea.parentElement;
-    if (directRow) {
+    let directRow = textarea.closest('tr, li, [class*="reply" i]') || textarea.parentElement;
+    while (directRow && directRow !== document.body) {
       let prev = directRow.previousElementSibling;
       let steps = 0;
-      while (prev && steps < 5) {
+      while (prev && steps < 6) {
         if (isSingleReviewContainer(prev)) {
           return prev;
         }
         prev = prev.previousElementSibling;
         steps++;
       }
+      directRow = directRow.parentElement;
     }
 
     // 3) 특정 클래스명 기반 탐색 (단, 단일 리뷰여야 함)
