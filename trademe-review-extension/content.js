@@ -404,6 +404,10 @@
       menu = menu.replace(/[\n\r]+/g, ', ').replace(/👍|좋아요/g, '').trim();
     }
 
+    // 누적 주문 횟수 파악 (예: 1회 주문 고객, 8회 주문 등)
+    const orderMatch = cleanFullText.match(/(\d+)\s*회\s*주문/);
+    const orderCount = orderMatch ? parseInt(orderMatch[1], 10) : 0;
+
     const platform = window.location.hostname.includes('coupangeats') ? 'COUPANG' : (window.location.hostname.includes('yogiyo') ? 'YOGIYO' : 'BAEMIN');
 
     return {
@@ -412,7 +416,8 @@
       rating: Math.min(5, Math.max(1, rating)),
       menu: menu || '주문하신 메뉴',
       text: text ? text.trim() : (cleanFullText || ''),
-      rawText: cleanFullText || ''
+      rawText: cleanFullText || '',
+      orderCount: orderCount || 0
     };
   }
 

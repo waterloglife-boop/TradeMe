@@ -71,6 +71,7 @@ async function handleGenerateReply(payload) {
   const isNaver = payload.platform === 'NAVER' || reviewData.platform === 'NAVER';
   const isTakeout = Boolean(reviewData.isTakeout);
   const visitCount = Number(reviewData.visitCount) || 0;
+  const orderCount = Number(reviewData.orderCount) || 0;
   const orderedMenu = reviewData.menu || (isNaver ? (isTakeout ? '포장 주문' : '매장 방문') : '주문하신 메뉴');
   const customerName = (reviewData.customerName && !isNaver) ? `${reviewData.customerName}님` : '고객님';
   const charLimit = Number(payload.charLimit) || 300;
@@ -96,33 +97,53 @@ async function handleGenerateReply(payload) {
       visitInfo = `벌써 ${visitCount}번째 다시 찾아주신 감사한 단골 손님입니다.`;
     }
 
-    prompt = `네이버 스마트플레이스 매장 사장님으로서 방문자 리뷰에 직접 달아줄 다정하고 친절한 감사 댓글을 작성해 주세요.
+    prompt = `당신은 네이버 스마트플레이스에서 매장을 운영하는 친절하고 센스 넘치는 사장님입니다.
+방문 손님이 남겨주신 소중한 리뷰를 꼼꼼히 정독하고, 사장님이 직접 손님에게 마음을 담아 건네는 정성스럽고 따뜻한 1:1 맞춤형 댓글을 작성해 주세요.
 
-가게 이름: ${storeName || '저희 매장'}
-이용 방식: ${isTakeout ? '포장(테이크아웃)' : '매장 식사'}
-${visitInfo ? `방문 정보: ${visitInfo}\n` : ''}주문 메뉴/키워드: ${orderedMenu}
-손님 리뷰: ${hasReviewText ? reviewText : '별점과 소중한 방문 인증을 남겨주신 손님입니다.'}
-사장님 성향: ${selectedPersonaGuide}
-${contextNotes.length > 0 ? `추가 전달사항: ${contextNotes.join(', ')}\n` : ''}이모티콘 사용: ${selectedEmojiGuide}
+[이용 및 리뷰 정보]
+- 매장 상호: ${storeName || '저희 매장'}
+- 이용 방식: ${isTakeout ? '포장(테이크아웃)' : '매장 식사'}
+${visitInfo ? `- 방문 정보: ${visitInfo}\n` : ''}- 주문 메뉴/키워드: ${orderedMenu}
+- 손님 작성 리뷰: ${hasReviewText ? `"${reviewText}"` : '(글 내용 없이 별점과 방문 인증을 남겨주신 손님입니다)'}
+- 사장님 말투/캐릭터: ${selectedPersonaGuide}
+${contextNotes.length > 0 ? `- 전달사항: ${contextNotes.join(', ')}\n` : ''}- 이모티콘 활용: ${selectedEmojiGuide}
 
-첫인사는 특정 닉네임 없이 "안녕하세요 고객님!"으로 시작해 주세요.
-${hasReviewText ? '손님이 남겨주신 리뷰 내용에 깊이 공감하고 진심 어린 감사를 전해 주세요.' : '바쁜 일상 속에서도 잊지 않고 별점과 방문 인증을 남겨주셔서 감사하다는 마음을 전해 주세요.'}
-답글의 끝은 항상 "앞으로도 변함없는 맛과 정성으로 보답하겠습니다. 늘 행복하시고 언제든 편하게 또 찾아주세요! 감사합니다 😊"처럼 따뜻한 감사와 재방문 환영으로 맺어 주세요. 물음표는 쓰지 마세요.
-분량은 공백 포함 최대 ${charLimit}자 이내로, 오직 손님에게 보낼 순수 한국어 답글 본문만 작성해 주세요.`;
+[답글 작성 지침 - 고품질 1:1 맞춤 답글 필수]:
+1. [첫인사]: 닉네임 없이 "안녕하세요 고객님!"으로 다정하게 시작하세요.
+2. [본론 - 손님 리뷰 1:1 맞춤 화답 (가장 중요, 핵심)]:
+   ${hasReviewText ? `- 손님이 남겨주신 리뷰("${reviewText}")와 메뉴/키워드(${orderedMenu})를 꼼꼼히 반영하세요.
+   - 손님이 언급한 구체적인 내용(예: 맛 표현, 가성비, 맵기 조절, 함께 식사한 사람, 만족한 점 등)을 답글에서 직접 짚어주며 요리한 사장님으로서의 보람과 진심 어린 감사를 전하세요.
+   - 뻔하거나 상투적인 1줄 복사-붙여넣기 느낌을 절대 주지 마세요. 손님의 리뷰에 대화하듯 공감하는 정성스러운 2~3문장의 본문을 작성하세요.` : `- 매장에 직접 방문/포장해 주시고 바쁜 일상 속에서도 소중한 방문 인증과 별점을 남겨주셔서 큰 힘이 된다는 감사를 전하세요.`}
+${visitCount >= 2 ? `   - 벌써 ${visitCount}번째나 잊지 않고 저희 매장을 찾아주신 단골 고객님께 깊은 감사와 감동을 특별히 표현하세요.\n` : ''}3. [마무리]:
+   - 앞으로도 변함없는 맛과 정성으로 보답하겠다는 다짐을 전하세요.
+   - 언제든 생각나실 때 편하게 또 찾아주시길 바라는 따뜻한 재방문 환영과 감사 인사로 마침표(.)나 느낌표(!)로 확신 있게 맺어 주세요. (절대로 질문이나 물음표로 끝내지 마세요.)
+4. [분량]: 공백 포함 180자~${charLimit}자 내외로 풍성하고 성의 있게 작성하세요. (절대 1~2줄로 짧게 끝내지 마세요!)
+
+오직 손님에게 보낼 순수 한국어 답글 본문만 작성하세요.`;
   } else {
     // B. 배달 3사 (배민 / 쿠팡이츠 / 요기요) 프롬프트
-    prompt = `배달앱 사장님으로서 손님이 남겨주신 리뷰에 직접 달아줄 다정하고 친절한 댓글을 작성해 주세요.
+    prompt = `당신은 배달앱(배달의민족, 쿠팡이츠, 요기요)에서 매장을 운영하는 친절하고 센스 넘치는 사장님입니다.
+손님이 소중한 시간을 내어 남겨주신 리뷰를 꼼꼼히 정독하고, 사장님이 직접 손님에게 마음을 담아 건네는 정성스럽고 감동적인 1:1 맞춤형 답글을 작성해 주세요.
 
-가게 이름: ${storeName || '저희 매장'}
-주문 메뉴: ${orderedMenu}
-손님 리뷰: ${hasReviewText ? reviewText : '글 없이 별점과 이모티콘으로 만족을 표현해 주신 손님입니다.'}
-사장님 성향: ${selectedPersonaGuide}
-${contextNotes.length > 0 ? `추가 전달사항: ${contextNotes.join(', ')}\n` : ''}이모티콘 사용: ${selectedEmojiGuide}
+[손님 주문 및 리뷰 정보]
+- 매장 상호: ${storeName || '저희 매장'}
+- 주문 메뉴: ${orderedMenu}
+${orderCount >= 2 ? `- 주문 이력: 저희 매장에서 벌써 ${orderCount}번째 주문해 주신 귀한 단골 고객님입니다!\n` : (orderCount === 1 ? '- 주문 이력: 저희 매장을 처음 찾아주신 소중한 첫 주문 고객님입니다!\n' : '')}- 손님 작성 리뷰: ${hasReviewText ? `"${reviewText}"` : '(글 내용 없이 별점과 만족 이모티콘을 남겨주신 손님입니다)'}
+- 사장님 말투/캐릭터: ${selectedPersonaGuide}
+${contextNotes.length > 0 ? `- 전달사항: ${contextNotes.join(', ')}\n` : ''}- 이모티콘 활용: ${selectedEmojiGuide}
 
-첫인사는 닉네임 없이 "안녕하세요 고객님!"으로 시작해 주세요.
-${hasReviewText ? '손님이 리뷰에서 언급한 내용(맛, 양, 맵기, 서비스 등)에 대해 사장님으로서 진심으로 감사와 기쁨을 전해 주세요.' : '주문해주신 메뉴를 맛있게 드시고 소중한 별점을 남겨주셔서 감사하다는 마음을 전해 주세요.'}
-답글의 끝은 항상 "앞으로도 정성을 다해 맛있는 음식으로 보답하겠습니다. 다음번에도 꼭 재주문 부탁드리겠습니다! 감사합니다 😊"처럼 재주문 환영과 확신에 찬 감사로 따뜻하게 맺어 주세요. 물음표는 쓰지 마세요.
-분량은 공백 포함 150자~230자 내외로, 오직 손님에게 전송할 순수 한국어 답글 본문만 작성해 주세요.`;
+[답글 작성 지침 - 고품질 1:1 맞춤 답글 필수]:
+1. [첫인사]: 닉네임 없이 "안녕하세요 고객님!"으로 다정하게 시작하세요.
+2. [본론 - 손님 리뷰 1:1 맞춤 화답 (가장 중요, 핵심)]:
+   ${hasReviewText ? `- 손님이 남겨주신 리뷰("${reviewText}")와 주문 메뉴(${orderedMenu})를 꼼꼼히 반영하세요.
+   - 손님이 언급한 핵심 표현(예: 구체적인 맛, 양, 맵기, 식사 상황, 칭찬 포인트 등)을 답글에서 직접 짚어주며 요리한 사장님으로서의 보람과 진심 어린 감사를 전하세요.
+   - 뻔하거나 상투적인 1줄 복사-붙여넣기 느낌을 절대 주지 마세요. 손님의 리뷰에 대화하듯 공감하는 정성스러운 2~3문장의 본문을 작성하세요.` : `- 주문해주신 메뉴(${orderedMenu})를 맛있게 즐기셨기를 바라며, 바쁜 일상 속에서도 별점으로 따뜻한 응원을 보내주셔서 큰 힘이 된다는 진심 어린 감사를 전하세요.`}
+${orderCount >= 2 ? `   - 벌써 ${orderCount}번째나 잊지 않고 저희 매장을 다시 찾아주신 단골 고객님께 깊은 감사와 감동의 마음을 특별히 표현하세요.\n` : ''}3. [마무리]:
+   - 앞으로도 변함없이 푸짐하고 맛있는 음식으로 정성을 다하겠다는 다짐을 전하세요.
+   - 다음번에도 꼭 다시 찾아주시길 바라는 따뜻한 재주문 환영과 감사 인사로 마침표(.)나 느낌표(!)로 확신 있게 맺어 주세요. (절대로 질문이나 물음표로 끝내지 마세요.)
+4. [분량]: 공백 포함 180자~280자 내외로 풍성하고 성의 있게 작성하세요. (절대 1~2줄로 짧게 끝내지 마세요!)
+
+오직 손님에게 보낼 순수 한국어 답글 본문만 작성하세요.`;
   }
 
   // 5. Google Gemini API 호출 (다중 모델 폴백 및 자동 탐색)
@@ -335,13 +356,12 @@ ${hasReviewText ? '손님이 리뷰에서 언급한 내용(맛, 양, 맵기, 서
     cleanText += ' 앞으로도 변함없는 맛과 정성으로 보답하겠습니다. 늘 행복한 하루 보내시고, 다음번에도 꼭 재주문 부탁드리겠습니다! 감사합니다 😊';
   }
 
-  // 6-5.5. 고객 리뷰 원문 에코(그대로 복사) 감지 및 제거
-  // AI가 고객의 리뷰를 답글에 그대로 인용/복사한 경우 제거
+  // 6-5.5. 고객 리뷰 원문만 단독으로 앵무새처럼 복사한 경우만 안전 방어
+  // (본문 내에서 고객 리뷰를 인용하며 칭찬 화답하는 문장은 절대 삭제하지 않음)
   if (hasReviewText && reviewText.length >= 10) {
-    const reviewSnippet = reviewText.substring(0, Math.min(30, reviewText.length));
-    if (cleanText.includes(reviewSnippet)) {
-      cleanText = cleanText.replace(reviewText, '').trim();
-      cleanText = cleanText.replace(/^[,.\s!?"']+/, '').trim();
+    const strippedClean = cleanText.replace(/^(?:안녕하세요\s*고객님!?[,\s]*)+/, '').trim();
+    if (strippedClean === reviewText || (strippedClean.length <= reviewText.length + 5 && strippedClean.includes(reviewText))) {
+      cleanText = `안녕하세요 고객님! 소중한 정성 리뷰 남겨주셔서 진심으로 감사드립니다. 주문해주신 메뉴를 맛있게 드셨다니 사장으로서 큰 보람을 느낍니다. 앞으로도 변함없는 맛과 정성으로 보답하겠습니다. 늘 행복한 하루 보내시고, 다음번에도 꼭 재주문 부탁드리겠습니다! 감사합니다 😊`;
     }
   }
 
@@ -409,7 +429,7 @@ async function callGeminiApi(apiKey, prompt) {
   const requestBody = JSON.stringify({
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
-      temperature: 0.7,
+      temperature: 0.85,
       maxOutputTokens: 600,
     }
   });
