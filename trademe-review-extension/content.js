@@ -159,7 +159,7 @@
       const isTakeout = cleanFullText.includes('포장주문') || cleanFullText.includes('포장');
 
       // 2) 방문 횟수 파악 (1번째 방문, 2번째 방문 등)
-      const visitMatch = cleanFullText.match(/(\d+)\s*번째\s*방문/);
+      const visitMatch = cleanFullText.match(/(?:^|[^\d])(\d{1,3})\s*번째\s*방문/);
       const visitCount = visitMatch ? parseInt(visitMatch[1], 10) : 0;
 
       // 3) 별점 (1~5점 정밀 추출)
@@ -550,7 +550,7 @@
       textarea.focus();
       setNativeValue(textarea, generatedReply);
 
-      statusBadge.innerText = `✨ ${reviewData.rating}점 맞춤 답글 완성! (${generatedReply.length}자)`;
+      statusBadge.innerText = `✨ 맞춤 답글 완성! (${generatedReply.length}자)`;
       statusBadge.className = 'trm-status-badge trm-badge-success';
 
       // 🎯 [옵션] 자동 등록 모드가 켜져 있는 경우 배민·쿠팡이츠·요기요 [등록] 버튼 자동 클릭

@@ -129,27 +129,27 @@ async function handleGenerateReply(payload) {
       }
     }
 
-    prompt = `당신은 친절한 매장 사장님입니다.
-손님이 매장을 직접 이용하신 후 네이버 스마트플레이스에 남겨주신 소중한 방문자(영수증/포장/예약) 리뷰를 읽고, 사장님이 손님에게 직접 보내는 다정하고 감사의 마음을 담은 답글을 딱 1개만 작성해 주세요.
+    prompt = `당신은 네이버 스마트플레이스에서 매장을 운영하는 친절한 사장님입니다.
+손님이 매장을 직접 이용하신 후 남겨주신 소중한 방문자 리뷰를 읽고, 사장님이 손님에게 직접 보내는 따뜻한 답글을 작성하세요.
 
 [이용 정보]
 ${serviceTypeGuide}
 ${visitCountGuide ? visitCountGuide + '\n' : ''}- 주문 메뉴 / 방문 키워드: ${orderedMenu}
 ${reviewSituationGuide}
 
-[답글 작성 지침]
-- 첫인사 및 호칭 (매우 중요): 특정 닉네임이나 '별점5점님', '고객님' 등의 어색한 호칭을 앞에 붙이지 마세요! 닉네임 없이 "안녕하세요!", "안녕하세요, 사장입니다!" 또는 "안녕하세요 고객님!"으로 자연스럽고 반갑게 첫인사를 시작하세요.
+[답글 작성 규칙]
+1. "안녕하세요 고객님!"으로 시작하세요. 특정 닉네임이나 별점 호칭을 앞에 붙이지 마세요.
+2. 손님이 작성한 리뷰 내용을 구체적으로 짚어서 공감하고 감사를 전하세요.
+3. 직접 찾아와 주신 정성에 감사드리고 다음에도 정성을 다하겠다는 인사로 마무리하세요.
+4. 마지막 문장을 물음표(?)로 끝내지 마세요.
+5. 별점 점수 숫자를 직접 언급하지 마세요.
+6. 답글은 딱 1개만 작성하세요.
 - 사장님 말투: ${selectedPersonaGuide}
-- 매장/포장 감사: 직접 찾아와 주신 정성에 진심으로 감사드리고 다음에도 정성을 다하겠다는 인사를 전하세요.
 ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
 - 이모티콘: ${selectedEmojiGuide}
-- 분량: 공백 포함 최대 ${charLimit}자 이내 (무리하게 늘리지 않고 자연스럽게 완결)
+- 분량: 공백 포함 최대 ${charLimit}자 이내
 
-[절대 금지 규칙 - 반드시 준수]
-1. '별점5점님', 'hjy****님' 처럼 닉네임이나 별점 호칭을 절대 붙이지 마세요.
-2. 상호명, 닉네임, 별점(5/5), 주문메뉴, 손님 리뷰 등을 제목이나 메타데이터로 절대 따라 적거나 나열하지 마세요.
-3. 답글은 오직 1개만 작성하세요. 똑같은 답글이나 다른 버전을 2번 반복해서 쓰지 마세요.
-4. 따옴표(""), 불릿 기호(-), 영어 설명 없이 오직 손님에게 보낼 순수 한글 답글 본문만 바로 작성하세요.`;
+아래에 오직 한국어 답글 본문만 바로 작성하세요.`;
   } else {
     // B. 배달 3사 (배민 / 쿠팡이츠 / 요기요) 프롬프트
     let reviewSituationGuide = '';
@@ -183,34 +183,28 @@ ${contextNotes.length > 0 ? '- 상황 반영: ' + contextNotes.join(', ') : ''}
       }
     }
 
-    prompt = `당신은 배달앱(배달의민족, 쿠팡이츠, 요기요)의 친절하고 음식에 진심인 사장님입니다.
-손님이 남겨주신 소중한 리뷰를 정독하고, 사장님이 손님에게 직접 전송할 감동적이고 따뜻한 답글을 딱 1개만 작성하세요.
+    prompt = `당신은 배달앱(배달의민족, 쿠팡이츠, 요기요)에서 매장을 운영하는 친절하고 음식에 진심인 사장님입니다.
+손님이 남겨주신 소중한 리뷰를 정독하고, 사장님이 손님에게 직접 보내는 따뜻한 답글을 작성하세요.
 
 [손님 리뷰 정보]
 - 매장 상호명: ${storeName || '저희 매장'}
 - 주문 메뉴: ${orderedMenu}
-- 별점: ${starScore}점
-- 손님 작성 리뷰: ${reviewText ? '"' + reviewText + '"' : '(별점만 등록)'}
+- 손님 작성 리뷰: ${reviewText ? '"' + reviewText + '"' : '(별점만 등록, 글 없음)'}
 ${reviewSituationGuide}
 
-[답글 작성 가이드 - 완성도 최우선]
-- 첫인사 및 호칭 (매우 중요): 배달앱 화면 상단에 손님 닉네임이 기본 표시되므로, 닉네임(예: 문*성님, in꽃님 등)을 본문에 다시 부르지 마세요! 닉네임 없이 "안녕하세요 고객님!" 또는 "안녕하세요! 사장입니다"로 자연스럽고 반갑게 첫 문장을 시작하세요.
-- 손님 칭찬 맞춤 화답: 손님이 적어주신 리뷰 내용(맵기, 맛, 서비스, 배달 등)을 꼼꼼히 짚어 감동과 감사를 전하세요.
-- 별점 언급 주의: 별점 점수 숫자('5점 만점', '별 5개', '4점' 등)를 직접 답글에 언급하지 마세요. 대신 '소중한 별점과 정성스러운 리뷰 남겨주셔서 진심으로 감사드립니다'처럼 점수 수치를 빼고 자연스럽게 감사 인사를 전하세요.
-- 끝맺음 필수 규칙 (물음표 절대 금지):
-  답글의 마지막 문장을 물음표("~하셨을까요?", "~하셨나요?", "~어떠셨나요?")로 끝내는 것을 엄격히 금지합니다!
-  반드시 "앞으로도 변함없는 맛과 정성으로 보답하겠습니다. 늘 행복한 하루 보내시고, 다음번에도 꼭 재주문 부탁드리겠습니다! 감사합니다 😊"처럼 재주문 환영과 확신에 찬 감사로 마무리하세요.
+[답글 작성 규칙]
+1. "안녕하세요 고객님!"으로 시작하세요. 손님 닉네임은 이미 화면에 표시되므로 본문에 다시 적지 마세요.
+2. 손님이 작성한 리뷰 내용(맵기, 맛, 서비스, 메뉴 등)을 구체적으로 짚어서 공감하고 감사를 전하세요.
+3. "앞으로도 변함없이 정성을 다하겠습니다. 다음번에도 꼭 재주문 부탁드리겠습니다! 감사합니다"와 같이 재주문 환영과 감사로 확실하게 마무리하세요.
+4. 마지막 문장을 물음표(?)로 끝내지 마세요. 반드시 마침표(.) 또는 느낌표(!)로 끝내세요.
+5. 별점 점수 숫자를 직접 언급하지 마세요.
+6. 답글은 딱 1개만 작성하세요.
 - 사장님 말투: ${selectedPersonaGuide}
 ${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') : ''}
 - 이모티콘: ${selectedEmojiGuide}
-- 분량: 공백 포함 약 180~250자 내외로 풍성하고 정성스럽게 작성 (최대 ${charLimit}자 준수)
+- 분량: 공백 포함 약 180~250자 (최대 ${charLimit}자)
 
-[필수 규칙 - 엄격 준수]
-- 답글은 반드시 딱 1개만 완성하여 작성하세요. 다른 버전이나 옵션(옵션 1, 옵션 2)을 추가로 연달아 작성하지 마세요.
-- 손님 닉네임을 구태여 앞에 붙이지 말고 "안녕하세요 고객님!" 또는 "안녕하세요! 사장입니다"로 시작하세요.
-- 마지막 문장에 물음표(?)를 일절 쓰지 마세요.
-- 영어 번역, 영어 지침(Start immediately...), 머리말 기호(*, -, 1., 2.)는 절대 쓰지 말고 100% 한국어로만 작성하세요.
-- 따옴표, 불릿, 프롬프트 지침 등을 따라 적지 말고 손님에게 보낼 순수 한글 답글 본문만 출력하세요.`;
+아래에 오직 한국어 답글 본문만 바로 작성하세요.`;
   }
 
   // 5. Google Gemini API 호출 (다중 모델 폴백 및 자동 탐색)
@@ -237,11 +231,22 @@ ${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') 
     trimmed = trimmed.replace(/^[^\s,，\n]+님[,，\s]*[*•\-]/, '*');
     trimmed = trimmed.replace(/^[^\s,，\n]+님[,，\s]*\d+[.)]\s*/, '');
 
-    // (A) 영문 번역 괄호 제거 (예: "(Generous portion and tastes good)", "(Oishii-ye/Delicious)")
-    trimmed = trimmed.replace(/\([a-zA-Z\s/,\-']{3,}\)/g, '').trim();
+    // (A) 영문 번역/메타 괄호 제거 — 숫자 포함 (예: "(5 stars)", "(Generous portion)", "(Oishii-ye)")
+    trimmed = trimmed.replace(/\([a-zA-Z0-9\s/,\-'.*:!?~]{3,}\)/g, '').trim();
+
+    // (A-2) 인라인 영문 프롬프트 지침 잔여물 제거 (예: "4. *Greeting:* No nickname. Use '안녕하세요 고객님!'")
+    trimmed = trimmed.replace(/\d+\.\s*\*?[A-Za-z]+\*?\s*[:：].*$/g, '').trim();
+    trimmed = trimmed.replace(/\bNo\s+nickname\.?\s*/gi, '').trim();
+    trimmed = trimmed.replace(/\bUse\s+[""\u201C][^""\u201D]*[""\u201D](\s*(or|and)\s+[""\u201C][^""\u201D]*[""\u201D])*\.?\s*/gi, '').trim();
+
+    // (A-3) 마크다운 불릿/별표 접두사 제거 ("* 앞으로도..." → "앞으로도...")
+    trimmed = trimmed.replace(/^\*\s+/, '').trim();
+
+    // 정제 후 빈 줄이면 스킵
+    if (!trimmed) continue;
 
     // (B) 프롬프트 에코 라인 제거 (예: "2. Start immediately with...", "Output:", "Rule 1:", "Instruction:")
-    if (/^\d+[.)]\s*(Start|Output|Rule|Write|Please|Customer|Response|Reply|Instruction|Translate)/i.test(trimmed)) {
+    if (/^\d+[.)]\s*(Start|Output|Rule|Write|Please|Customer|Response|Reply|Instruction|Translate|Greeting|Address)/i.test(trimmed)) {
       continue;
     }
     if (/\bStart immediately with\b/i.test(trimmed)) {
@@ -253,10 +258,18 @@ ${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') 
       continue;
     }
 
-    // (D) 영문 위주의 번역 라인 제거 (손님 닉네임 외 영단어가 2개 이상이고 인사/감사 문장이 없는 경우)
+    // (D) 영문 위주의 번역/지침 라인 제거 또는 한글만 추출
     const words = trimmed.match(/[a-zA-Z]{2,}/g) || [];
     const nonNickWords = words.filter(w => !customerName || !customerName.toLowerCase().includes(w.toLowerCase()));
-    if (nonNickWords.length >= 2 && !trimmed.includes('안녕') && !trimmed.includes('감사')) {
+    if (nonNickWords.length >= 4) {
+      // 영단어가 4개 이상이면 지침 찌꺼기 → 한글 부분만 추출 시도
+      const koreanOnly = trimmed.replace(/[a-zA-Z*"'`:;.,?!(){}\[\]]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+      if (koreanOnly.length >= 10 && /[가-힣]{5,}/.test(koreanOnly)) {
+        trimmed = koreanOnly;
+      } else {
+        continue;
+      }
+    } else if (nonNickWords.length >= 2 && !trimmed.includes('안녕') && !trimmed.includes('감사')) {
       continue;
     }
 
@@ -384,6 +397,23 @@ ${contextNotes.length > 0 ? '- 추가 전달사항: ' + contextNotes.join(', ') 
     }
     cleanText += ' 앞으로도 변함없는 맛과 정성으로 보답하겠습니다. 늘 행복한 하루 보내시고, 다음번에도 꼭 재주문 부탁드리겠습니다! 감사합니다 😊';
   }
+
+  // 6-5.5. 고객 리뷰 원문 에코(그대로 복사) 감지 및 제거
+  // AI가 고객의 리뷰를 답글에 그대로 인용/복사한 경우 제거
+  if (hasReviewText && reviewText.length >= 10) {
+    const reviewSnippet = reviewText.substring(0, Math.min(30, reviewText.length));
+    if (cleanText.includes(reviewSnippet)) {
+      cleanText = cleanText.replace(reviewText, '').trim();
+      cleanText = cleanText.replace(/^[,.\s!?"']+/, '').trim();
+    }
+  }
+
+  // 6-5.6. 잔여 인라인 영문 메타 찌꺼기 최종 제거 (예: "(5 stars)", "*Greeting:*" 등)
+  cleanText = cleanText.replace(/\(\d+\s*stars?\)/gi, '').trim();
+  cleanText = cleanText.replace(/\*[A-Za-z]+\*\s*[:：]?/g, '').trim();
+  cleanText = cleanText.replace(/\bNo\s+nickname\.?\s*/gi, '').trim();
+  cleanText = cleanText.replace(/\d+\.\s*\*?[A-Za-z]+\*?\s*[:：][^.]*\./g, '').trim();
+  cleanText = cleanText.replace(/\s{2,}/g, ' ').trim();
 
   // 6-6. 끝맺음에 감사/재주문/행복 기원 문장이 누락된 경우 따뜻하게 보강
   if (!cleanText.includes('감사') && !cleanText.includes('재주문') && !cleanText.includes('찾아')) {
