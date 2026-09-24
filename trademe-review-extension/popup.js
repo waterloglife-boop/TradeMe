@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const appVersionText = document.getElementById('appVersionText');
           if (appVersionText && chrome?.runtime?.getManifest) {
             const manifest = chrome.runtime.getManifest();
-            appVersionText.innerText = `v${manifest.version || '1.4.5'} (트레이드미 회원 전용)`;
+            appVersionText.innerText = `v${manifest.version || '1.4.6'} (트레이드미 회원 전용)`;
           }
         } catch (e) {}
 

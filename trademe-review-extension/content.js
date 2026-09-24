@@ -328,8 +328,21 @@
     let menu = '';
     let text = '';
 
-    // '주문메뉴' 요소 탐색 (배민/요기요/쿠팡)
     const allEls = Array.from(clone.querySelectorAll('*'));
+
+    // '배달리뷰' 요소 직접 탐색 (배민: '배달리뷰' 라벨 아래에 '좋아요' 또는 고객 후기 배치)
+    const reviewLabelEl = allEls.find(el => {
+      const t = (el.innerText || '').trim();
+      return t === '배달리뷰' || t === '배달 리뷰' || t === '리뷰 내용' || t === '리뷰내용';
+    });
+    if (reviewLabelEl) {
+      const nextEl = reviewLabelEl.nextElementSibling;
+      if (nextEl && nextEl.innerText.trim()) {
+        text = nextEl.innerText.trim();
+      }
+    }
+
+    // '주문메뉴' 요소 탐색 (배민/요기요/쿠팡)
     const menuLabelEl = allEls.find(el => {
       const t = (el.innerText || '').trim();
       return t === '주문메뉴' || t.startsWith('주문메뉴') || t === '주문 내역';
@@ -344,20 +357,23 @@
         menu = menuLabelEl.innerText.replace(/^주문\s*메뉴\s*[:：]?\s*/, '').trim();
       }
 
-      // 손님 리뷰 본문 추출: 주문메뉴 바로 이전의 텍스트 요소 탐색
-      let prev = menuLabelEl.previousElementSibling;
-      while (prev) {
-        const pt = prev.innerText.trim();
-        const isMeta = pt.includes('리뷰번호') || pt.includes('주문번호') || pt.includes('수령방식') ||
-                       pt.includes('알뜰배달') || pt.includes('배민배달') || pt.includes('가게배달') ||
-                       pt.includes('배민1') || pt.includes('포장') || pt.includes('★') ||
-                       pt.includes('배달리뷰') || pt === '좋아요' || pt === '빨라요' || pt === '아쉬워요' ||
-                       (/\d{4}[.\-년]\s*\d{1,2}/.test(pt)) || (customerName && pt === customerName);
-        if (pt && !isMeta && pt.length >= 2) {
-          text = pt;
-          break;
+      // 손님 리뷰 본문 추출: 주문메뉴 바로 이전의 텍스트 요소 탐색 (아직 텍스트 못 찾은 경우)
+      if (!text) {
+        let prev = menuLabelEl.previousElementSibling;
+        while (prev) {
+          const pt = prev.innerText.trim();
+          const isMeta = pt.includes('리뷰번호') || pt.includes('주문번호') || pt.includes('수령방식') ||
+                         pt.includes('알뜰배달') || pt.includes('배민배달') || pt.includes('가게배달') ||
+                         pt.includes('배민1') || pt.includes('포장') || pt.includes('★') ||
+                         pt.includes('배달리뷰') || pt.includes('누적 주문') || pt.includes('주문 고객') ||
+                         (pt.includes('최근') && pt.includes('개월')) ||
+                         (/\d{4}[.\-년]\s*\d{1,2}/.test(pt)) || (customerName && pt === customerName);
+          if (pt && !isMeta && pt.length >= 2) {
+            text = pt;
+            break;
+          }
+          prev = prev.previousElementSibling;
         }
-        prev = prev.previousElementSibling;
       }
     }
 
@@ -389,6 +405,8 @@
             const isMeta = line.includes('리뷰번호') || line.includes('주문번호') || line.includes('★') ||
                            line.includes('수령방식') || line.includes('알뜰배달') || line.includes('배민배달') ||
                            line.includes('배민1') || (/\d{4}[.\-년]/.test(line)) ||
+                           line.includes('누적 주문') || line.includes('주문 고객') ||
+                           (line.includes('최근') && line.includes('개월')) ||
                            (/\d+\s*회\s*주문/.test(line)) || (customerName && line.includes(customerName));
             if (isMeta) {
               if (contentLines.length > 0) break;
@@ -414,6 +432,8 @@
                        line.includes('알뜰배달') || line.includes('배민배달') || line.includes('배민1') ||
                        line.includes('수령방식') || line.includes('주문메뉴') || line.includes('주문내역') ||
                        line.includes('접기') || line.includes('더보기') || (/\d{4}[.\-년]/.test(line)) ||
+                       line.includes('누적 주문') || line.includes('주문 고객') ||
+                       (line.includes('최근') && line.includes('개월')) ||
                        (/\d+\s*회\s*주문/.test(line)) || (customerName && line.includes(customerName)) ||
                        (menu && line.includes(menu)) || line.length <= 1;
         if (!isMeta) {

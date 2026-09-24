@@ -69,6 +69,7 @@ async function handleGenerateReply(payload) {
   // 순수 한글만 추출하여 실질적인 후기 내용 유무 판별
   const koreanOnly = (reviewText.match(/[가-힣]/g) || []).join('');
   const hasKoreanText = koreanOnly.length > 0;
+  const hasReviewText = reviewText.length >= 2 && hasKoreanText;
 
   // 단순 단답형(10자 이하의 짧은 표현 또는 상투적 감탄사) 판별:
   // 예: "좋아요", "맛있어요", "굿", "최고", "잘먹었습니다", "짱", "맛있네요", "배달 빨라요" 등
